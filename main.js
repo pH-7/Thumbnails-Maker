@@ -132,7 +132,6 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const halfTiltDisp = tiltDisplacement / 2;
             const x1 = position - halfTiltDisp - width / 2;
             const x2 = position + halfTiltDisp - width / 2;
-            const fillColor = 'white';
 
             return `
         <svg width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}">
