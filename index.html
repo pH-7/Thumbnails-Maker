@@ -11,7 +11,7 @@
       background-color: #f9f9f9;
       color: #333;
     }
-    
+
     .container {
       max-width: 960px;
       margin: 0 auto;
@@ -20,24 +20,24 @@
       border-radius: 8px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
-    
+
     h1 {
       color: #ff0000;
       text-align: center;
       margin-top: 0;
     }
-    
+
     .subtitle {
       text-align: center;
       color: #666;
       margin-bottom: 30px;
     }
-    
+
     .button-container {
       text-align: center;
       margin: 30px 0;
     }
-    
+
     button {
       background-color: #ff0000;
       color: white;
@@ -49,30 +49,30 @@
       transition: background-color 0.2s;
       margin: 0 10px;
     }
-    
+
     button:hover {
       background-color: #cc0000;
     }
-    
+
     button:disabled {
       background-color: #cccccc;
       cursor: not-allowed;
     }
-    
+
     button.secondary {
       background-color: #777;
     }
-    
+
     button.secondary:hover {
       background-color: #555;
     }
-    
+
     .images-container {
       display: flex;
       justify-content: space-between;
       margin: 30px 0;
     }
-    
+
     .image-preview {
       position: relative;
       width: 30%;
@@ -83,13 +83,13 @@
       background-color: #f2f2f2;
       transition: border-color 0.2s;
     }
-    
+
     .image-preview img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
-    
+
     .image-preview .placeholder {
       display: flex;
       flex-direction: column;
@@ -100,7 +100,7 @@
       text-align: center;
       padding: 10px;
     }
-    
+
     .image-preview .remove-btn {
       position: absolute;
       top: .2rem;
@@ -112,7 +112,7 @@
       font-weight: bold;
       cursor: pointer;
     }
-    
+
     .delimiter {
       width: 10px;
       background-color: white;
@@ -123,7 +123,7 @@
       position: relative;
       transition: transform 0.2s;
     }
-    
+
     .delimiter::before {
       content: "";
       position: absolute;
@@ -134,35 +134,35 @@
       background-color: #ddd;
       transform: translateX(-50%);
     }
-    
+
     .options-container {
       background-color: #f5f5f5;
       padding: 20px;
       border-radius: 4px;
       margin: 20px 0;
     }
-    
+
     .options-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 15px;
     }
-    
+
     .options-header h3 {
       margin: 0;
     }
-    
+
     .form-group {
       margin-bottom: 15px;
     }
-    
+
     label {
       display: block;
       margin-bottom: 5px;
       font-weight: bold;
     }
-    
+
     input {
       width: 100%;
       padding: 8px;
@@ -170,17 +170,17 @@
       border-radius: 4px;
       box-sizing: border-box;
     }
-    
+
     input[type="range"] {
       width: 100%;
     }
-    
+
     output {
       display: inline-block;
       margin-left: 10px;
       font-weight: bold;
     }
-    
+
     .delimiter-preview {
       width: 100%;
       height: 50px;
@@ -189,7 +189,7 @@
       position: relative;
       overflow: hidden;
     }
-    
+
     .delimiter-preview::after {
       content: '';
       position: absolute;
@@ -202,47 +202,47 @@
       transform-origin: center;
       transition: transform 0.2s;
     }
-    
+
     .result-container {
       margin-top: 30px;
       display: none;
       text-align: center;
     }
-    
+
     .result-container.active {
       display: block;
     }
-    
+
     .result-thumbnail {
       max-width: 100%;
       max-height: 400px;
       border: 1px solid #ddd;
       margin: 20px 0;
     }
-    
+
     .status {
       text-align: center;
       margin: 20px 0;
       font-style: italic;
       color: #666;
     }
-    
+
     .error {
       color: #cc0000;
       text-align: center;
       margin: 20px 0;
     }
-    
+
     .progress-container {
       display: none;
       text-align: center;
       margin: 20px 0;
     }
-    
+
     .progress-container.active {
       display: block;
     }
-    
+
     .progress-bar {
       width: 100%;
       height: 10px;
@@ -251,20 +251,20 @@
       margin-top: 10px;
       overflow: hidden;
     }
-    
+
     .progress-bar-fill {
       height: 100%;
       background-color: #ff0000;
       width: 0%;
       transition: width 0.3s ease;
     }
-    
+
     .help-text {
       font-size: 14px;
       color: #666;
       margin-top: 5px;
     }
-    
+
     .thumbnail-info {
       background-color: #f5f5f5;
       padding: 10px;
@@ -275,19 +275,20 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <h1>YouTube Thumbnail Combiner</h1>
     <p class="subtitle">Create YouTube thumbnails by combining three images with white delimiters</p>
-    
+
     <div class="thumbnail-info">
       Output size: 1280×720 pixels (standard YouTube thumbnail size)
     </div>
-    
+
     <div class="button-container">
       <button id="selectImagesBtn">Select 3 Images</button>
     </div>
-    
+
     <div class="images-container">
       <div class="image-preview" id="imagePreview1" draggable="true">
         <div class="placeholder">
@@ -295,18 +296,18 @@
           <div>Click "Select Images" to add</div>
         </div>
       </div>
-      
+
       <div class="delimiter"></div>
-      
+
       <div class="image-preview" id="imagePreview2" draggable="true">
         <div class="placeholder">
           <div>Image 2</div>
           <div>Click "Select Images" to add</div>
         </div>
       </div>
-      
+
       <div class="delimiter"></div>
-      
+
       <div class="image-preview" id="imagePreview3" draggable="true">
         <div class="placeholder">
           <div>Image 3</div>
@@ -314,47 +315,47 @@
         </div>
       </div>
     </div>
-    
+
     <div class="options-container">
       <div class="options-header">
         <h3>Thumbnail Options</h3>
         <button id="resetOptionsBtn" class="secondary">Reset Options</button>
       </div>
-      
+
       <div class="form-group">
         <label for="delimiterWidth">Delimiter Width (pixels):</label>
         <input type="number" id="delimiterWidth" min="0" max="100" value="10">
         <div class="help-text">Width of the white space between images</div>
       </div>
-      
+
       <div class="form-group">
         <label for="delimiterTilt">Delimiter Tilt Angle (degrees):</label>
         <input type="range" id="delimiterTilt" min="-30" max="30" value="0" step="1">
         <output for="delimiterTilt" id="tiltValue">0°</output>
         <div class="help-text">Tilt angle of the delimiter between images</div>
       </div>
-      
+
       <div class="form-group">
         <label for="outputName">Output File Name (optional):</label>
         <input type="text" id="outputName" placeholder="e.g., my-youtube-thumbnail">
         <div class="help-text">Leave blank to use auto-generated name</div>
       </div>
     </div>
-    
+
     <div class="button-container">
       <button id="createThumbnailBtn" disabled>Create Thumbnail</button>
     </div>
-    
+
     <div class="status" id="status"></div>
     <div class="error" id="error"></div>
-    
+
     <div class="progress-container" id="progressContainer">
       <div>Processing images...</div>
       <div class="progress-bar">
         <div class="progress-bar-fill" id="progressBarFill"></div>
       </div>
     </div>
-    
+
     <div class="result-container" id="resultContainer">
       <h2>Generated Thumbnail:</h2>
       <img id="resultThumbnail" class="result-thumbnail">
@@ -364,17 +365,17 @@
       </div>
     </div>
   </div>
-  
+
   <script>
     const { ipcRenderer, shell } = require('electron');
-    
+
     let selectedImagePaths = [];
     let outputDir = null;
-    
+
     // Default values for options
     const DEFAULT_DELIMITER_WIDTH = 10;
     const DEFAULT_DELIMITER_TILT = 0;
-    
+
     // DOM elements
     const selectImagesBtn = document.getElementById('selectImagesBtn');
     const createThumbnailBtn = document.getElementById('createThumbnailBtn');
@@ -396,33 +397,33 @@
     const errorEl = document.getElementById('error');
     const progressContainer = document.getElementById('progressContainer');
     const progressBarFill = document.getElementById('progressBarFill');
-    
+
     // Reset options to default values
     resetOptionsBtn.addEventListener('click', () => {
       delimiterWidthInput.value = DEFAULT_DELIMITER_WIDTH;
       delimiterTiltInput.value = DEFAULT_DELIMITER_TILT;
       tiltValueOutput.textContent = `${DEFAULT_DELIMITER_TILT}°`;
       outputNameInput.value = '';
-      
+
       // Update the delimiter previews
       document.querySelectorAll('.delimiter').forEach(delimiter => {
         delimiter.style.transform = `skewX(${-DEFAULT_DELIMITER_TILT}deg)`;
       });
-      
+
       statusEl.textContent = 'Options reset to default values.';
     });
-    
+
     // Update the tilt value display when the slider changes
     delimiterTiltInput.addEventListener('input', () => {
       const tiltAngle = delimiterTiltInput.value;
       tiltValueOutput.textContent = `${tiltAngle}°`;
-      
+
       // Update the delimiter previews in the UI to show the tilt
       document.querySelectorAll('.delimiter').forEach(delimiter => {
         delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
       });
     });
-    
+
     // Drag and Drop functions
     function allowDrop(event) {
       event.preventDefault();
@@ -441,12 +442,12 @@
 
     function drag(event) {
       let sourceElement = event.target;
-      
+
       // If we're dragging the img element, get its parent preview container
       if (sourceElement.tagName === 'IMG') {
         sourceElement = sourceElement.closest('.image-preview');
       }
-      
+
       if (sourceElement && sourceElement.id) {
         event.dataTransfer.setData("text/plain", sourceElement.id);
       }
@@ -454,38 +455,38 @@
 
     function drop(event) {
       event.preventDefault();
-      
+
       // Reset border style
       if (event.currentTarget.classList.contains('image-preview')) {
         event.currentTarget.style.borderColor = '#ccc';
       }
-      
+
       const draggedElementId = event.dataTransfer.getData("text/plain");
       const targetElement = event.currentTarget;
-      
+
       if (!draggedElementId || !targetElement || !targetElement.classList.contains('image-preview')) {
         return;
       }
-      
+
       const draggedElement = document.getElementById(draggedElementId);
-      
+
       if (draggedElement && draggedElement !== targetElement) {
         const draggedIndex = imagePreviews.findIndex(preview => preview.id === draggedElementId);
         const targetIndex = imagePreviews.findIndex(preview => preview.id === targetElement.id);
-        
+
         if (draggedIndex !== -1 && targetIndex !== -1) {
           // Swap the image paths
           const temp = selectedImagePaths[draggedIndex];
           selectedImagePaths[draggedIndex] = selectedImagePaths[targetIndex];
           selectedImagePaths[targetIndex] = temp;
-          
+
           // Update the UI
           updateImagePreviews();
           statusEl.textContent = 'Images rearranged.';
         }
       }
     }
-    
+
     // Update image previews
     function updateImagePreviews() {
       imagePreviews.forEach((preview, index) => {
@@ -494,23 +495,23 @@
         preview.removeEventListener('dragleave', dragLeave);
         preview.removeEventListener('dragstart', drag);
         preview.removeEventListener('drop', drop);
-        
+
         // Add the event listeners
         preview.addEventListener('dragover', allowDrop);
         preview.addEventListener('dragleave', dragLeave);
         preview.addEventListener('dragstart', drag);
         preview.addEventListener('drop', drop);
-        
+
         if (selectedImagePaths[index]) {
           // Clear placeholder
           preview.innerHTML = '';
-          
+
           // Create image
           const img = document.createElement('img');
           img.src = `file://${selectedImagePaths[index]}`;
           img.draggable = false; // Make the image not draggable on its own
           preview.appendChild(img);
-          
+
           // Create remove button
           const removeBtn = document.createElement('button');
           removeBtn.className = 'remove-btn';
@@ -529,48 +530,48 @@
           `;
         }
       });
-      
+
       // Update delimiter tilt in preview
       const tiltAngle = delimiterTiltInput.value;
       document.querySelectorAll('.delimiter').forEach(delimiter => {
         delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
       });
-      
+
       // Enable/disable create button
       createThumbnailBtn.disabled = selectedImagePaths.filter(path => path).length !== 3;
     }
-    
+
     // Remove image
     function removeImage(index) {
       selectedImagePaths[index] = null;
-      
+
       // Clean up the array if it has empty slots
       selectedImagePaths = selectedImagePaths.filter(path => path !== null);
-      
+
       updateImagePreviews();
       statusEl.textContent = 'Image removed.';
     }
-    
+
     // Select images handler
     selectImagesBtn.addEventListener('click', async () => {
       try {
         errorEl.textContent = '';
         statusEl.textContent = 'Selecting images...';
-        
+
         const imagePaths = await ipcRenderer.invoke('select-images');
-        
+
         if (imagePaths.length > 0) {
           // Take up to 3 images
           selectedImagePaths = imagePaths.slice(0, 3);
-          
+
           // Fill in missing slots if needed
           while (selectedImagePaths.length < 3) {
             selectedImagePaths.push(null);
           }
-          
+
           updateImagePreviews();
           statusEl.textContent = `${imagePaths.length} image(s) selected.`;
-          
+
           if (imagePaths.length > 3) {
             statusEl.textContent += ' Only the first 3 images will be used.';
           }
@@ -582,7 +583,7 @@
         statusEl.textContent = '';
       }
     });
-    
+
     // Create thumbnail handler
     createThumbnailBtn.addEventListener('click', async () => {
       try {
@@ -590,39 +591,39 @@
         statusEl.textContent = 'Creating thumbnail...';
         createThumbnailBtn.disabled = true;
         resultContainer.classList.remove('active');
-        
+
         // Show progress bar
         progressContainer.classList.add('active');
         progressBarFill.style.width = '30%';
-        
+
         // Get delimiter width
         const delimiterWidth = parseInt(delimiterWidthInput.value) || 10;
-        
+
         // Get delimiter tilt angle
         const delimiterTilt = parseInt(delimiterTiltInput.value) || 0;
-        
+
         // Get output name
         const outputName = outputNameInput.value.trim();
-        
+
         // Filter out any null values (shouldn't happen at this point)
         const validImagePaths = selectedImagePaths.filter(path => path);
-        
+
         if (validImagePaths.length !== 3) {
           throw new Error('Please select exactly 3 images');
         }
-        
+
         // Animate progress bar
         progressBarFill.style.width = '60%';
-        
+
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
           delimiterWidth,
           delimiterTilt,
           outputName
         });
-        
+
         progressBarFill.style.width = '100%';
-        
+
         if (result.success) {
           outputDir = result.outputDir;
           resultThumbnail.src = `file://${result.outputPath}`;
@@ -641,14 +642,14 @@
         progressBarFill.style.width = '0%';
       }
     });
-    
+
     // Open output folder
     openFolderBtn.addEventListener('click', () => {
       if (outputDir) {
         shell.openPath(outputDir);
       }
     });
-    
+
     // Start over
     startOverBtn.addEventListener('click', () => {
       selectedImagePaths = [];
