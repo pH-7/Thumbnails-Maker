@@ -113,6 +113,7 @@
       align-items: center;
       justify-content: center;
       position: relative;
+      transition: transform 0.2s;
     }
     
     .delimiter::before {
@@ -149,6 +150,38 @@
       border: 1px solid #ddd;
       border-radius: 4px;
       box-sizing: border-box;
+    }
+    
+    input[type="range"] {
+      width: 100%;
+    }
+    
+    output {
+      display: inline-block;
+      margin-left: 10px;
+      font-weight: bold;
+    }
+    
+    .delimiter-preview {
+      width: 100%;
+      height: 50px;
+      background-color: #f0f0f0;
+      margin-top: 5px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .delimiter-preview::after {
+      content: '';
+      position: absolute;
+      width: 4px;
+      background-color: #ff0000;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%) rotate(0deg);
+      transform-origin: center;
+      transition: transform 0.2s;
     }
     
     .result-container {
@@ -271,6 +304,13 @@
       </div>
       
       <div class="form-group">
+        <label for="delimiterTilt">Delimiter Tilt Angle (degrees):</label>
+        <input type="range" id="delimiterTilt" min="-30" max="30" value="0" step="1">
+        <output for="delimiterTilt" id="tiltValue">0°</output>
+        <div class="help-text">Tilt angle of the delimiter between images</div>
+      </div>
+      
+      <div class="form-group">
         <label for="outputName">Output File Name (optional):</label>
         <input type="text" id="outputName" placeholder="e.g., my-youtube-thumbnail">
         <div class="help-text">Leave blank to use auto-generated name</div>
@@ -316,6 +356,8 @@
       document.getElementById('imagePreview3')
     ];
     const delimiterWidthInput = document.getElementById('delimiterWidth');
+    const delimiterTiltInput = document.getElementById('delimiterTilt');
+    const tiltValueOutput = document.getElementById('tiltValue');
     const outputNameInput = document.getElementById('outputName');
     const resultContainer = document.getElementById('resultContainer');
     const resultThumbnail = document.getElementById('resultThumbnail');
@@ -325,6 +367,17 @@
     const errorEl = document.getElementById('error');
     const progressContainer = document.getElementById('progressContainer');
     const progressBarFill = document.getElementById('progressBarFill');
+    
+    // Update the tilt value display when the slider changes
+    delimiterTiltInput.addEventListener('input', () => {
+      const tiltAngle = delimiterTiltInput.value;
+      tiltValueOutput.textContent = `${tiltAngle}°`;
+      
+      // Update the delimiter previews in the UI to show the tilt
+      document.querySelectorAll('.delimiter').forEach(delimiter => {
+        delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
+      });
+    });
     
     // Drag and Drop functions
     function allowDrop(event) {
@@ -433,6 +486,12 @@
         }
       });
       
+      // Update delimiter tilt in preview
+      const tiltAngle = delimiterTiltInput.value;
+      document.querySelectorAll('.delimiter').forEach(delimiter => {
+        delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
+      });
+      
       // Enable/disable create button
       createThumbnailBtn.disabled = selectedImagePaths.filter(path => path).length !== 3;
     }
@@ -495,6 +554,9 @@
         // Get delimiter width
         const delimiterWidth = parseInt(delimiterWidthInput.value) || 10;
         
+        // Get delimiter tilt angle
+        const delimiterTilt = parseInt(delimiterTiltInput.value) || 0;
+        
         // Get output name
         const outputName = outputNameInput.value.trim();
         
@@ -511,6 +573,7 @@
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
           delimiterWidth,
+          delimiterTilt,
           outputName
         });
         
