@@ -82,8 +82,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         // Create SVG for the tilted delimiter mask
         const createDelimiterSVG = (position, tiltDisplacement, width) => {
             // Calculate the starting and ending x-positions based on tilt
-            const x1 = position + (tiltDisplacement < 0 ? Math.abs(tiltDisplacement) : 0);
-            const x2 = position + (tiltDisplacement > 0 ? tiltDisplacement : 0);
+            // For negative tilt (leftward), the top point moves right and bottom moves left
+            // For positive tilt (rightward), the top point moves left and bottom moves right
+            const halfTiltDisp = tiltDisplacement / 2;
+            const x1 = position - halfTiltDisp - width / 2;
+            const x2 = position + halfTiltDisp - width / 2;
 
             return `
         <svg width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}">
@@ -97,16 +100,16 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         // Calculate image positions and widths accounting for tilted delimiters
         const sectionWidth = THUMBNAIL_WIDTH / 3;
-        const firstDelimiterPos = sectionWidth;
-        const secondDelimiterPos = sectionWidth * 2;
+        const firstDelimiterPos = Math.floor(sectionWidth);
+        const secondDelimiterPos = Math.floor(sectionWidth * 2);
 
         // Create delimiter masks
         const firstDelimiterMask = Buffer.from(
-            createDelimiterSVG(firstDelimiterPos - delimiterWidth / 2, tiltDisplacement, delimiterWidth)
+            createDelimiterSVG(firstDelimiterPos, tiltDisplacement, delimiterWidth)
         );
 
         const secondDelimiterMask = Buffer.from(
-            createDelimiterSVG(secondDelimiterPos - delimiterWidth / 2, tiltDisplacement, delimiterWidth)
+            createDelimiterSVG(secondDelimiterPos, tiltDisplacement, delimiterWidth)
         );
 
         // Process images - resize each one to fit in the thumbnail
@@ -140,11 +143,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             })
         );
 
-        // Calculate positions for each image
+        // Calculate positions for each image - ensure integer values
         const positions = [
             { left: 0, top: 0 },
-            { left: firstDelimiterPos + delimiterWidth / 2, top: 0 },
-            { left: secondDelimiterPos + delimiterWidth / 2, top: 0 }
+            { left: Math.floor(firstDelimiterPos + delimiterWidth / 2), top: 0 },
+            { left: Math.floor(secondDelimiterPos + delimiterWidth / 2), top: 0 }
         ];
 
         // Create composite operations
