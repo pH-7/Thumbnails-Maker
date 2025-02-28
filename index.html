@@ -59,6 +59,14 @@
       cursor: not-allowed;
     }
     
+    button.secondary {
+      background-color: #777;
+    }
+    
+    button.secondary:hover {
+      background-color: #555;
+    }
+    
     .images-container {
       display: flex;
       justify-content: space-between;
@@ -132,6 +140,17 @@
       padding: 20px;
       border-radius: 4px;
       margin: 20px 0;
+    }
+    
+    .options-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .options-header h3 {
+      margin: 0;
     }
     
     .form-group {
@@ -297,6 +316,11 @@
     </div>
     
     <div class="options-container">
+      <div class="options-header">
+        <h3>Thumbnail Options</h3>
+        <button id="resetOptionsBtn" class="secondary">Reset Options</button>
+      </div>
+      
       <div class="form-group">
         <label for="delimiterWidth">Delimiter Width (pixels):</label>
         <input type="number" id="delimiterWidth" min="0" max="100" value="10">
@@ -347,9 +371,14 @@
     let selectedImagePaths = [];
     let outputDir = null;
     
+    // Default values for options
+    const DEFAULT_DELIMITER_WIDTH = 10;
+    const DEFAULT_DELIMITER_TILT = 0;
+    
     // DOM elements
     const selectImagesBtn = document.getElementById('selectImagesBtn');
     const createThumbnailBtn = document.getElementById('createThumbnailBtn');
+    const resetOptionsBtn = document.getElementById('resetOptionsBtn');
     const imagePreviews = [
       document.getElementById('imagePreview1'),
       document.getElementById('imagePreview2'),
@@ -367,6 +396,21 @@
     const errorEl = document.getElementById('error');
     const progressContainer = document.getElementById('progressContainer');
     const progressBarFill = document.getElementById('progressBarFill');
+    
+    // Reset options to default values
+    resetOptionsBtn.addEventListener('click', () => {
+      delimiterWidthInput.value = DEFAULT_DELIMITER_WIDTH;
+      delimiterTiltInput.value = DEFAULT_DELIMITER_TILT;
+      tiltValueOutput.textContent = `${DEFAULT_DELIMITER_TILT}°`;
+      outputNameInput.value = '';
+      
+      // Update the delimiter previews
+      document.querySelectorAll('.delimiter').forEach(delimiter => {
+        delimiter.style.transform = `skewX(${-DEFAULT_DELIMITER_TILT}deg)`;
+      });
+      
+      statusEl.textContent = 'Options reset to default values.';
+    });
     
     // Update the tilt value display when the slider changes
     delimiterTiltInput.addEventListener('input', () => {
