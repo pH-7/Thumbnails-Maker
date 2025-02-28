@@ -126,7 +126,8 @@
       align-items: center;
       justify-content: center;
       position: relative;
-      transition: transform 0.2s;
+      transition: transform 0.2s, background-color 0.2s;
+      --delimiter-line-color: #ddd;
     }
 
     .delimiter::before {
@@ -136,8 +137,9 @@
       bottom: 0;
       left: 50%;
       width: 2px;
-      background-color: #ddd;
+      background-color: var(--delimiter-line-color);
       transform: translateX(-50%);
+      transition: background-color 0.2s;
     }
 
     .options-container {
@@ -519,19 +521,7 @@
 
     // Reset options to default values
     resetOptionsBtn.addEventListener('click', () => {
-      delimiterWidthInput.value = DEFAULT_DELIMITER_WIDTH;
-      delimiterTiltInput.value = DEFAULT_DELIMITER_TILT;
-      delimiterColorInput.value = DEFAULT_DELIMITER_COLOR;
-      enhanceLevelSelect.value = DEFAULT_ENHANCE_LEVEL;
-      tiltValueOutput.textContent = `${DEFAULT_DELIMITER_TILT}°`;
-      outputNameInput.value = '';
-
-      // Update the delimiter previews
-      updateDelimiterPreview();
-
-      // Update enhance level preview items
-      updateEnhancePreviewSelection(DEFAULT_ENHANCE_LEVEL);
-
+      resetFormWithAnimation();
       statusEl.textContent = 'Options reset to default values.';
     });
 
@@ -541,15 +531,32 @@
       const delimiterColor = delimiterColorInput.value;
       
       document.querySelectorAll('.delimiter').forEach(delimiter => {
+        // Update transform for tilt
         delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
+
+        // Set background color directly
         delimiter.style.backgroundColor = delimiterColor;
         
-        // Update the line inside the delimiter too
-        const line = delimiter.querySelector(':before');
-        if (line) {
-          line.style.backgroundColor = getContrastingColor(delimiterColor);
-        }
+        // Set a CSS custom property for the line color that we'll use in CSS
+        delimiter.style.setProperty('--delimiter-line-color', getContrastingColor(delimiterColor));
       });
+    }
+
+    function updateDelimiterPreviewWithAnimation() {
+      // First apply the animation
+      document.querySelectorAll('.delimiter').forEach(delimiter => {
+        delimiter.animate([
+          { transform: `skewX(${-delimiterTiltInput.value}deg) scale(0.95)` },
+          { transform: `skewX(${-delimiterTiltInput.value}deg) scale(1.05)` },
+          { transform: `skewX(${-delimiterTiltInput.value}deg) scale(1)` }
+        ], {
+          duration: 300,
+          easing: 'ease-out'
+        });
+      });
+
+      // Then update the preview
+      updateDelimiterPreview();
     }
 
     // Get contrasting color for text based on background
@@ -636,16 +643,14 @@
     // Drag and Drop functions
     function allowDrop(event) {
       event.preventDefault();
-      // Add a visual indicator for the drop target
       if (event.currentTarget.classList.contains('image-preview')) {
-        event.currentTarget.style.borderColor = '#ff0000';
+        event.currentTarget.classList.add('drag-over');
       }
     }
 
     function dragLeave(event) {
-      // Remove the visual indicator when leaving the drop target
       if (event.currentTarget.classList.contains('image-preview')) {
-        event.currentTarget.style.borderColor = '#ccc';
+        event.currentTarget.classList.remove('drag-over');
       }
     }
 
@@ -699,29 +704,24 @@
     // Update image previews
     function updateImagePreviews() {
       imagePreviews.forEach((preview, index) => {
-        // First remove any existing event listeners to prevent duplicates
         preview.removeEventListener('dragover', allowDrop);
         preview.removeEventListener('dragleave', dragLeave);
         preview.removeEventListener('dragstart', drag);
         preview.removeEventListener('drop', drop);
 
-        // Add the event listeners
         preview.addEventListener('dragover', allowDrop);
         preview.addEventListener('dragleave', dragLeave);
         preview.addEventListener('dragstart', drag);
         preview.addEventListener('drop', drop);
 
         if (selectedImagePaths[index]) {
-          // Clear placeholder
           preview.innerHTML = '';
 
-          // Create image
           const img = document.createElement('img');
           img.src = `file://${selectedImagePaths[index]}`;
-          img.draggable = false; // Make the image not draggable on its own
+          img.draggable = false;
           preview.appendChild(img);
 
-          // Create remove button
           const removeBtn = document.createElement('button');
           removeBtn.className = 'remove-btn';
           removeBtn.innerHTML = '×';
@@ -801,55 +801,31 @@
         createThumbnailBtn.disabled = true;
         resultContainer.classList.remove('active');
 
-        // Show progress bar
         progressContainer.classList.add('active');
-        progressBarFill.style.width = '30%';
+        showProcessingAnimation();
 
-        // Get delimiter width
         const delimiterWidth = parseInt(delimiterWidthInput.value) || 10;
-        
-        // Get delimiter color
         const delimiterColor = delimiterColorInput.value || DEFAULT_DELIMITER_COLOR;
-
-        // Get delimiter tilt angle
         const delimiterTilt = parseInt(delimiterTiltInput.value) || 0;
-
-        // Get enhance level
         const enhanceLevel = enhanceLevelSelect.value;
-        
-        // Define enhance options based on level with refined values
         const enhanceOptions = {
           none: { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
           light: { brightness: 1.05, contrast: 1.1, saturation: 1.08, sharpness: 1.1 },
           medium: { brightness: 1.08, contrast: 1.2, saturation: 1.15, sharpness: 1.3 },
           high: { brightness: 1.12, contrast: 1.35, saturation: 1.25, sharpness: 1.5 }
         };
-        
-        // Get output name
         const outputName = outputNameInput.value.trim();
-
-        // Filter out any null values (shouldn't happen at this point)
         const validImagePaths = selectedImagePaths.filter(path => path);
 
         if (validImagePaths.length !== 3) {
           throw new Error('Please select exactly 3 images');
         }
 
-        // Animate progress bar
-        progressBarFill.style.width = '60%';
-
-        // Show specific enhancement message
-        let enhanceMessage = 'Processing images...';
-        if (enhanceLevel !== 'none') {
-          enhanceMessage = `Enhancing images (${enhanceLevel} level)...`;
-        }
-        progressContainer.querySelector('div').textContent = enhanceMessage;
-
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
           delimiterWidth,
           delimiterTilt,
-          delimiterColor,
+          delimiterColor, // Ensure this is properly used in main.js
           outputName,
           enhanceOptions: enhanceOptions[enhanceLevel],
           applyEnhance: enhanceLevel !== 'none'
@@ -876,14 +852,12 @@
       }
     });
 
-    // Open output folder
     openFolderBtn.addEventListener('click', () => {
       if (outputDir) {
         shell.openPath(outputDir);
       }
     });
 
-    // Start over
     startOverBtn.addEventListener('click', () => {
       selectedImagePaths = [];
       updateImagePreviews();
@@ -892,8 +866,64 @@
       errorEl.textContent = '';
     });
     
-    // Initialize
     updateImagePreviews();
+    updateDelimiterPreview();
+
+    function showProcessingAnimation() {
+      createThumbnailBtn.classList.add('processing');
+      
+      setTimeout(() => { progressBarFill.style.width = '30%'; }, 200);
+      setTimeout(() => { progressBarFill.style.width = '50%'; }, 600);
+      setTimeout(() => { progressBarFill.style.width = '70%'; }, 1000);
+      setTimeout(() => { progressBarFill.style.width = '90%'; }, 1500);
+    }
+
+    function resetFormWithAnimation() {
+      document.querySelector('.options-container').animate([
+        { transform: 'scale(0.98)', opacity: 0.8 },
+        { transform: 'scale(1)', opacity: 1 }
+      ], { 
+        duration: 300,
+        easing: 'ease-out'
+      });
+      
+      delimiterWidthInput.value = DEFAULT_DELIMITER_WIDTH;
+      delimiterTiltInput.value = DEFAULT_DELIMITER_TILT;
+      delimiterColorInput.value = DEFAULT_DELIMITER_COLOR;
+      enhanceLevelSelect.value = DEFAULT_ENHANCE_LEVEL;
+      tiltValueOutput.textContent = `${DEFAULT_DELIMITER_TILT}°`;
+      outputNameInput.value = '';
+
+      updateDelimiterPreviewWithAnimation();
+      updateEnhancePreviewSelection(DEFAULT_ENHANCE_LEVEL);
+    }
+
+    function showValidationError(message) {
+      errorEl.textContent = message;
+      errorEl.animate([
+        { transform: 'translateX(-5px)' },
+        { transform: 'translateX(5px)' },
+        { transform: 'translateX(-5px)' },
+        { transform: 'translateX(5px)' },
+        { transform: 'translateX(0)' }
+      ], {
+        duration: 300,
+        easing: 'ease-in-out'
+      });
+    }
+
+    document.querySelectorAll('input, select').forEach(input => {
+      input.addEventListener('change', () => {
+        input.animate([
+          { transform: 'scale(0.98)' },
+          { transform: 'scale(1.02)' },
+          { transform: 'scale(1)' }
+        ], {
+          duration: 300,
+          easing: 'ease-out'
+        });
+      });
+    });
   </script>
 </body>
 </html>
