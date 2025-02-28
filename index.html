@@ -305,18 +305,51 @@
     .enhance-preview-item {
       flex: 1;
       text-align: center;
-      padding: 5px;
-      border: 1px solid #ddd;
+      padding: 8px;
+      border: 2px solid #ddd;
       border-radius: 4px;
       margin: 0 5px;
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+      background-color: #fff;
+      /* Standard property for cross-browser compatibility */
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
     }
 
-    .enhance-preview-item:hover, .enhance-preview-item.active {
-      background-color: #f0f0f0;
-      border-color: #999;
+    .enhance-preview-item:hover {
+      border-color: #cc0000;
+      background-color: #fff7f7;
+      transform: translateY(-1px);
+    }
+
+    .enhance-preview-item.active {
+      border-color: #ff0000;
+      background-color: #fff0f0;
+      color: #ff0000;
+      box-shadow: 0 2px 4px rgba(255, 0, 0, 0.1);
+    }
+
+    .enhance-preview-item::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: #ff0000;
+      transform: scaleX(0);
+      transition: transform 0.25s ease;
+      transform-origin: center;
+    }
+
+    .enhance-preview-item.active::after {
+      transform: scaleX(1);
     }
 
     .enhance-preview-item img {
@@ -548,16 +581,43 @@
       updateDelimiterPreview();
     });
 
-    // Update enhance level preview selection
+    // Update enhance level preview selection with animation
     function updateEnhancePreviewSelection(level) {
+      const prevActive = document.querySelector('.enhance-preview-item.active');
+      
       enhancePreviewItems.forEach(item => {
         if (item.dataset.level === level) {
+          // Add a small animation for better feedback
           item.classList.add('active');
+          item.style.transition = 'all 0.25s ease';
+          item.animate([
+            { transform: 'scale(0.95)' },
+            { transform: 'scale(1.05)' },
+            { transform: 'scale(1)' }
+          ], {
+            duration: 300,
+            easing: 'ease-out'
+          });
         } else {
           item.classList.remove('active');
         }
       });
+      
       enhanceLevelSelect.value = level;
+      
+      // Update preview message based on level
+      const helpText = document.querySelector('.form-group:has(#enhanceLevel) .help-text');
+      
+      if (helpText) {
+        const messages = {
+          none: 'No enhancement applied to images',
+          light: 'Subtle enhancement for already high-quality images',
+          medium: 'Balanced enhancement for most images - recommended',
+          high: 'Strong enhancement to make images pop on YouTube'
+        };
+        
+        helpText.innerHTML = messages[level] || 'Automatically enhance images with optimized settings';
+      }
     }
 
     // Handle enhance preview clicks
