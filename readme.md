@@ -19,11 +19,12 @@ This app is ideal for any of your next multi-language YouTube vlogs, tutorials, 
 
 ## 📦 Installation
 The simplest way to add this application to your system:
+
 ```console
 git clone https://github.com/pH-7/youtube-thumbnail-creator.git
 cd youtube-thumbnail-creator
-npm install
-npm start
+npm install # install dependencies
+npm start # start the Electron app
 ```
 
 ## 🪄 Features
