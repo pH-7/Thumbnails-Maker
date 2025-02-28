@@ -7,7 +7,11 @@
         "start": "electron .",
         "build": "electron-builder"
     },
-    "author": "",
+    "author": "Pierre-Henry Soria <pierre@ph7.me> (https://ph7.me)",
+    "homepage": "https://github.com/pH-7/YouTube-Thumbnail-Creator#readme",
+    "bugs": {
+        "url": "https://github.com/pH-7/YouTube-Thumbnail-Creator/issues"
+    },
     "license": "MIT",
     "dependencies": {
         "electron-builder": "^23.6.0",
