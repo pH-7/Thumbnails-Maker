@@ -396,14 +396,9 @@
         </div>
 
         <div class="form-group">
-          <label for="enhanceLevel">Auto-Enhance Images:</label>
-          <select id="enhanceLevel">
-            <option value="none">No Enhancement</option>
-            <option value="light">Light Enhancement</option>
-            <option value="medium" selected>Medium Enhancement</option>
-            <option value="high">High Enhancement</option>
-          </select>
-          <div class="help-text">Automatically enhance image contrast, brightness and sharpness</div>
+          <label for="enhanceLevel">Auto-Enhance Images</label>
+          <input type="hidden" id="enhanceLevel" value="medium">
+          <div class="help-text">Automatically enhance images with optimized settings for thumbnails</div>
           <div class="enhance-preview">
             <div class="enhance-preview-item" data-level="none">
               <div>None</div>
@@ -752,10 +747,24 @@
 
         // Get delimiter width
         const delimiterWidth = parseInt(delimiterWidthInput.value) || 10;
+        
+        // Get delimiter color
+        const delimiterColor = delimiterColorInput.value || DEFAULT_DELIMITER_COLOR;
 
         // Get delimiter tilt angle
         const delimiterTilt = parseInt(delimiterTiltInput.value) || 0;
 
+        // Get enhance level
+        const enhanceLevel = enhanceLevelSelect.value;
+        
+        // Define enhance options based on level with refined values
+        const enhanceOptions = {
+          none: { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
+          light: { brightness: 1.05, contrast: 1.1, saturation: 1.08, sharpness: 1.1 },
+          medium: { brightness: 1.08, contrast: 1.2, saturation: 1.15, sharpness: 1.3 },
+          high: { brightness: 1.12, contrast: 1.35, saturation: 1.25, sharpness: 1.5 }
+        };
+        
         // Get output name
         const outputName = outputNameInput.value.trim();
 
@@ -769,11 +778,21 @@
         // Animate progress bar
         progressBarFill.style.width = '60%';
 
+        // Show specific enhancement message
+        let enhanceMessage = 'Processing images...';
+        if (enhanceLevel !== 'none') {
+          enhanceMessage = `Enhancing images (${enhanceLevel} level)...`;
+        }
+        progressContainer.querySelector('div').textContent = enhanceMessage;
+
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
           delimiterWidth,
           delimiterTilt,
-          outputName
+          delimiterColor,
+          outputName,
+          enhanceOptions: enhanceOptions[enhanceLevel],
+          applyEnhance: enhanceLevel !== 'none'
         });
 
         progressBarFill.style.width = '100%';

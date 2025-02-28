@@ -53,7 +53,7 @@ ipcMain.handle('select-images', async () => {
 
 // Apply auto-enhance to image
 async function enhanceImage(buffer, enhanceOptions) {
-    const { brightness, contrast, saturation } = enhanceOptions;
+    const { brightness, contrast, saturation, sharpness } = enhanceOptions;
 
     // Apply image enhancements
     let processedImage = sharp(buffer);
@@ -75,6 +75,16 @@ async function enhanceImage(buffer, enhanceOptions) {
         }
     }
 
+    // Apply sharpening if needed
+    if (sharpness > 1.0) {
+        const sharpenSigma = 0.5 + ((sharpness - 1.0) * 0.75);
+        processedImage = processedImage.sharpen({
+            sigma: sharpenSigma,
+            m1: 0.0,
+            m2: 15
+        });
+    }
+
     return processedImage;
 }
 
@@ -88,6 +98,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0 },
         applyEnhance = false
     } = data;
+
+    // Extract color information from delimiterColor
+    const delimiterColor = data.delimiterColor || '#ffffff';
+    const fillColor = delimiterColor;
 
     try {
         if (imagePaths.length !== 3) {
