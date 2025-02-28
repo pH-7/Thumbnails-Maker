@@ -33,7 +33,6 @@ app.on('activate', () => {
 
 // Handle image selection
 ipcMain.handle('select-images', async () => {
-    console.log('Selecting images...');
     try {
         const result = await dialog.showOpenDialog({
             properties: ['openFile', 'multiSelections'],
