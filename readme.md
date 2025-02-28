@@ -1,10 +1,10 @@
-# YouTube Thumbnail Creator 📸🎨
+# YouTube Multi Image Thumbnail Creator 📸🎨
 
 Create simple but truly efficient **Universal YouTube Thumbnails**, by horizontally placing three images with white delimiters 🎨
 
 This app is ideal for any of your next multi-language YouTube vlogs, tutorials, cooking, traveling, "Day in the Life" (DITL) videos, and more! With just a few clicks, you can generate professional-looking thumbnails that help boost engagement on your channel.
 
-
+![Universal Multi Image Thumbnail Generator App](universal-vlog-thumbnail-generator.gif)
 
 - [⚙️ Requirement](#%EF%B8%8F-requirement)
 - [📦 Installation](#-installation)
