@@ -73,6 +73,7 @@
       border-radius: 4px;
       overflow: hidden;
       background-color: #f2f2f2;
+      transition: border-color 0.2s;
     }
     
     .image-preview img {
@@ -236,7 +237,7 @@
     </div>
     
     <div class="images-container">
-      <div class="image-preview" id="imagePreview1">
+      <div class="image-preview" id="imagePreview1" draggable="true">
         <div class="placeholder">
           <div>Image 1</div>
           <div>Click "Select Images" to add</div>
@@ -245,7 +246,7 @@
       
       <div class="delimiter"></div>
       
-      <div class="image-preview" id="imagePreview2">
+      <div class="image-preview" id="imagePreview2" draggable="true">
         <div class="placeholder">
           <div>Image 2</div>
           <div>Click "Select Images" to add</div>
@@ -254,7 +255,7 @@
       
       <div class="delimiter"></div>
       
-      <div class="image-preview" id="imagePreview3">
+      <div class="image-preview" id="imagePreview3" draggable="true">
         <div class="placeholder">
           <div>Image 3</div>
           <div>Click "Select Images" to add</div>
@@ -325,9 +326,84 @@
     const progressContainer = document.getElementById('progressContainer');
     const progressBarFill = document.getElementById('progressBarFill');
     
+    // Drag and Drop functions
+    function allowDrop(event) {
+      event.preventDefault();
+      // Add a visual indicator for the drop target
+      if (event.currentTarget.classList.contains('image-preview')) {
+        event.currentTarget.style.borderColor = '#ff0000';
+      }
+    }
+
+    function dragLeave(event) {
+      // Remove the visual indicator when leaving the drop target
+      if (event.currentTarget.classList.contains('image-preview')) {
+        event.currentTarget.style.borderColor = '#ccc';
+      }
+    }
+
+    function drag(event) {
+      let sourceElement = event.target;
+      
+      // If we're dragging the img element, get its parent preview container
+      if (sourceElement.tagName === 'IMG') {
+        sourceElement = sourceElement.closest('.image-preview');
+      }
+      
+      if (sourceElement && sourceElement.id) {
+        event.dataTransfer.setData("text/plain", sourceElement.id);
+      }
+    }
+
+    function drop(event) {
+      event.preventDefault();
+      
+      // Reset border style
+      if (event.currentTarget.classList.contains('image-preview')) {
+        event.currentTarget.style.borderColor = '#ccc';
+      }
+      
+      const draggedElementId = event.dataTransfer.getData("text/plain");
+      const targetElement = event.currentTarget;
+      
+      if (!draggedElementId || !targetElement || !targetElement.classList.contains('image-preview')) {
+        return;
+      }
+      
+      const draggedElement = document.getElementById(draggedElementId);
+      
+      if (draggedElement && draggedElement !== targetElement) {
+        const draggedIndex = imagePreviews.findIndex(preview => preview.id === draggedElementId);
+        const targetIndex = imagePreviews.findIndex(preview => preview.id === targetElement.id);
+        
+        if (draggedIndex !== -1 && targetIndex !== -1) {
+          // Swap the image paths
+          const temp = selectedImagePaths[draggedIndex];
+          selectedImagePaths[draggedIndex] = selectedImagePaths[targetIndex];
+          selectedImagePaths[targetIndex] = temp;
+          
+          // Update the UI
+          updateImagePreviews();
+          statusEl.textContent = 'Images rearranged.';
+        }
+      }
+    }
+    
     // Update image previews
     function updateImagePreviews() {
       imagePreviews.forEach((preview, index) => {
+        // First remove any existing event listeners to prevent duplicates
+        preview.removeEventListener('dragover', allowDrop);
+        preview.removeEventListener('dragleave', dragLeave);
+        preview.removeEventListener('dragstart', drag);
+        preview.removeEventListener('drop', drop);
+        
+        // Add the event listeners
+        preview.addEventListener('dragover', allowDrop);
+        preview.addEventListener('dragleave', dragLeave);
+        preview.addEventListener('dragstart', drag);
+        preview.addEventListener('drop', drop);
+        
         if (selectedImagePaths[index]) {
           // Clear placeholder
           preview.innerHTML = '';
@@ -335,6 +411,7 @@
           // Create image
           const img = document.createElement('img');
           img.src = `file://${selectedImagePaths[index]}`;
+          img.draggable = false; // Make the image not draggable on its own
           preview.appendChild(img);
           
           // Create remove button
@@ -357,7 +434,7 @@
       });
       
       // Enable/disable create button
-      createThumbnailBtn.disabled = selectedImagePaths.length !== 3;
+      createThumbnailBtn.disabled = selectedImagePaths.filter(path => path).length !== 3;
     }
     
     // Remove image
