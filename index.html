@@ -565,7 +565,7 @@
     let outputDir = null;
 
     // Default values for options
-    const DEFAULT_DELIMITER_WIDTH = 10;
+    const DEFAULT_DELIMITER_WIDTH = 15;
     const DEFAULT_DELIMITER_TILT = 0;
     const DEFAULT_DELIMITER_COLOR = "#ffffff";
     const DEFAULT_ENHANCE_LEVEL = "medium";
@@ -880,9 +880,9 @@
         progressContainer.classList.add('active');
         showProcessingAnimation();
 
-        const delimiterWidth = parseInt(delimiterWidthInput.value) || 10;
+        const delimiterWidth = parseInt(delimiterWidthInput.value) || DEFAULT_DELIMITER_WIDTH;
         const delimiterColor = delimiterColorInput.value || DEFAULT_DELIMITER_COLOR;
-        const delimiterTilt = parseInt(delimiterTiltInput.value) || 0;
+        const delimiterTilt = parseInt(delimiterTiltInput.value) || DEFAULT_DELIMITER_TILT;
         const enhanceLevel = enhanceLevelSelect.value;
         const enhanceOptions = {
           none: { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
