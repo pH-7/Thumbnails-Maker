@@ -51,9 +51,46 @@ ipcMain.handle('select-images', async () => {
     }
 });
 
+// Apply auto-enhancement to an image buffer
+async function autoEnhanceImage(buffer, enhanceLevel = 'medium') {
+    try {
+        let enhancedImage = sharp(buffer);
+        
+        // Apply different enhancement levels
+        switch(enhanceLevel) {
+            case 'light':
+                enhancedImage = enhancedImage
+                    .modulate({ brightness: 1.05, saturation: 1.1 })
+                    .sharpen({ sigma: 0.5 });
+                break;
+            case 'medium':
+                enhancedImage = enhancedImage
+                    .modulate({ brightness: 1.1, saturation: 1.2 })
+                    .sharpen({ sigma: 0.8 })
+                    .gamma(0.9);
+                break;
+            case 'high':
+                enhancedImage = enhancedImage
+                    .modulate({ brightness: 1.15, saturation: 1.3 })
+                    .sharpen({ sigma: 1.0 })
+                    .gamma(0.85);
+                break;
+            default:
+                // No enhancement
+                break;
+        }
+        
+        return await enhancedImage.toBuffer();
+    } catch (error) {
+        console.error('Error enhancing image:', error);
+        // Return original buffer if enhancement fails
+        return buffer;
+    }
+}
+
 // Handle thumbnail creation with tilted delimiters
 ipcMain.handle('create-thumbnail', async (event, data) => {
-    const { imagePaths, delimiterWidth, delimiterTilt, outputName } = data;
+    const { imagePaths, delimiterWidth, delimiterTilt, outputName, enhanceLevel, delimiterColor } = data;
 
     try {
         if (imagePaths.length !== 3) {
@@ -78,26 +115,39 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             }
         });
 
+        // Parse delimiter color (default to white if invalid)
+        let parsedColor = { r: 255, g: 255, b: 255 };
+        if (delimiterColor && delimiterColor.startsWith('#')) {
+            const hex = delimiterColor.substring(1);
+            parsedColor = {
+                r: parseInt(hex.substring(0, 2), 16),
+                g: parseInt(hex.substring(2, 4), 16),
+                b: parseInt(hex.substring(4, 6), 16)
+            };
+        }
+
         // Create SVG for the tilted delimiter mask
         const createDelimiterSVG = (position, tiltDisplacement, width) => {
             // Calculate the starting and ending x-positions based on tilt
-            // For negative tilt (leftward), the top point moves right and bottom moves left
-            // For positive tilt (rightward), the top point moves left and bottom moves right
             const halfTiltDisp = tiltDisplacement / 2;
             const x1 = position - halfTiltDisp - width / 2;
             const x2 = position + halfTiltDisp - width / 2;
+
+            // Use the parsed color for the delimiter
+            const colorString = `rgb(${parsedColor.r}, ${parsedColor.g}, ${parsedColor.b})`;
 
             return `
         <svg width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}">
           <polygon 
             points="${x1},0 ${x1 + width},0 ${x2 + width},${THUMBNAIL_HEIGHT} ${x2},${THUMBNAIL_HEIGHT}" 
-            fill="white" 
+            fill="${colorString}" 
           />
         </svg>
       `;
         };
 
         // Calculate image positions and widths accounting for tilted delimiters
+        // Fix the calculations to ensure no gaps or overlaps
         const sectionWidth = THUMBNAIL_WIDTH / 3;
         const firstDelimiterPos = Math.floor(sectionWidth);
         const secondDelimiterPos = Math.floor(sectionWidth * 2);
@@ -119,34 +169,42 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
                 if (index === 0) {
                     // First image (adjust width based on first delimiter tilt)
-                    imageWidth = firstDelimiterPos + (tiltDisplacement < 0 ? tiltDisplacement : 0);
+                    imageWidth = firstDelimiterPos + (tiltDisplacement < 0 ? Math.min(0, tiltDisplacement) : 0);
                 } else if (index === 1) {
-                    // Middle image
-                    imageWidth = secondDelimiterPos - firstDelimiterPos - delimiterWidth;
+                    // Middle image - ensure proper width between delimiters
+                    imageWidth = secondDelimiterPos - firstDelimiterPos;
                 } else {
-                    // Last image
-                    imageWidth = THUMBNAIL_WIDTH - secondDelimiterPos - delimiterWidth;
+                    // Last image - ensure it extends to the edge
+                    imageWidth = THUMBNAIL_WIDTH - secondDelimiterPos;
                 }
 
-                // Ensure width is positive
-                imageWidth = Math.max(imageWidth, sectionWidth - delimiterWidth);
+                // Ensure width is positive and reasonable
+                imageWidth = Math.max(imageWidth, sectionWidth / 2);
 
-                return await sharp(imagePath)
+                // Read image and apply auto-enhancement
+                const imageBuffer = await sharp(imagePath)
                     .resize({
-                        width: Math.floor(imageWidth + delimiterWidth),  // Add some extra width for cropping
+                        width: Math.ceil(imageWidth),
                         height: THUMBNAIL_HEIGHT,
                         fit: 'cover',
                         position: 'center'
                     })
                     .toBuffer();
+                
+                // Apply auto-enhancement if requested
+                if (enhanceLevel && enhanceLevel !== 'none') {
+                    return await autoEnhanceImage(imageBuffer, enhanceLevel);
+                }
+                
+                return imageBuffer;
             })
         );
 
-        // Calculate positions for each image - ensure integer values
+        // Calculate positions for each image - ensure integer values and no gaps
         const positions = [
             { left: 0, top: 0 },
-            { left: Math.floor(firstDelimiterPos + delimiterWidth / 2), top: 0 },
-            { left: Math.floor(secondDelimiterPos + delimiterWidth / 2), top: 0 }
+            { left: Math.floor(firstDelimiterPos), top: 0 },
+            { left: Math.floor(secondDelimiterPos), top: 0 }
         ];
 
         // Create composite operations
