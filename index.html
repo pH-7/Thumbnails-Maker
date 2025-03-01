@@ -133,15 +133,13 @@
       background-color: #555;
     }
 
-    button#createThumbnailBtn,
-    button#selectImagesBtn {
+    button#createThumbnailBtn, button#selectImagesBtn {
       background-color: #fff0f0;
       border-color: #ff0000;
       color: #ff0000;
     }
 
-    button#createThumbnailBtn::after,
-    button#selectImagesBtn::after {
+    button#createThumbnailBtn::after, button#selectImagesBtn::after {
       transform: scaleX(1);
     }
 
@@ -149,8 +147,6 @@
       display: flex;
       justify-content: space-between;
       margin: 30px 0;
-      position: relative;
-      overflow: visible; /* Allow delimiters to extend outside */
     }
 
     .image-preview {
@@ -204,27 +200,27 @@
     }
 
     .delimiter {
-      width: 18px; /* Match DEFAULT_DELIMITER_WIDTH */
-      background-color: #ffffff;
+      width: 10px;
+      background-color: white;
       align-self: stretch;
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       position: relative;
-      transform-origin: center;
-      transition: all 0.3s ease;
-      z-index: 5; /* Ensure delimiter appears above images */
-      overflow: visible;
-      margin: 0;
-      
-      /* Clean slate - no extra elements */
-      border: none;
-      outline: none;
+      transition: transform 0.2s, background-color 0.2s;
+      --delimiter-line-color: #ddd;
     }
 
-    /* Completely remove any pseudo-elements that might cause extra lines */
-    .delimiter::before,
-    .delimiter::after {
-      content: none !important;
-      display: none !important;
+    .delimiter::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      background-color: var(--delimiter-line-color);
+      transform: translateX(-50%);
+      transition: background-color 0.2s;
     }
 
     .options-container {
@@ -255,8 +251,7 @@
       font-weight: bold;
     }
 
-    input,
-    select {
+    input, select {
       width: 100%;
       padding: 8px;
       border: 1px solid #ddd;
@@ -604,8 +599,7 @@
     const errorEl = document.getElementById('error');
     const progressContainer = document.getElementById('progressContainer');
     const progressBarFill = document.getElementById('progressBarFill');
-    const splitModeSelect = document.getElementById('splitMode') || { value: 'auto' };
-    const splitPreviewItems = document.querySelectorAll('.enhance-preview-item[data-split]') || [];
+
     // Reset options to default values
     resetOptionsBtn.addEventListener('click', () => {
       resetFormWithAnimation();
@@ -614,35 +608,18 @@
 
     // Update the delimiter preview
     function updateDelimiterPreview() {
-      const tiltAngle = parseInt(delimiterTiltInput.value) || 0;
-      const delimiterColor = delimiterColorInput.value || DEFAULT_DELIMITER_COLOR;
-      const delimiterWidth = parseInt(delimiterWidthInput.value) || DEFAULT_DELIMITER_WIDTH;
+      const tiltAngle = delimiterTiltInput.value;
+      const delimiterColor = delimiterColorInput.value;
       
       document.querySelectorAll('.delimiter').forEach(delimiter => {
-        // Reset any inline styles first to avoid conflicts
-        delimiter.removeAttribute('style');
-        
-        // Set basic properties
-        delimiter.style.width = `${delimiterWidth}px`;
+        // Update transform for tilt
+        delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
+
+        // Set background color directly
         delimiter.style.backgroundColor = delimiterColor;
         
-        // For tilted delimiters, use transform that matches SVG output better
-        // Using rotate for preview gives a better visual representation of SVG polygon
-        if (tiltAngle !== 0) {
-          const rotateAngle = Math.atan(tiltAngle/30) * 30; // Scale for better visual matching
-          delimiter.style.transform = `rotate(${tiltAngle/3}deg)`;
-          delimiter.style.zIndex = '10';
-          
-          // Adjust edges to prevent gaps
-          if (Math.abs(tiltAngle) > 10) {
-            const offsetFactor = Math.abs(tiltAngle) / 60;
-            delimiter.style.marginLeft = `-${offsetFactor * delimiterWidth}px`;
-            delimiter.style.marginRight = `-${offsetFactor * delimiterWidth}px`;
-            delimiter.style.width = `${delimiterWidth * (1 + offsetFactor/2)}px`;
-          }
-        } else {
-          delimiter.style.transform = 'none';
-        }
+        // Set a CSS custom property for the line color that we'll use in CSS
+        delimiter.style.setProperty('--delimiter-line-color', getContrastingColor(delimiterColor));
       });
     }
 
@@ -667,15 +644,15 @@
     function getContrastingColor(hexColor) {
       // Remove the # if it exists
       hexColor = hexColor.replace('#', '');
-
+      
       // Convert to RGB
       const r = parseInt(hexColor.substring(0, 2), 16);
       const g = parseInt(hexColor.substring(2, 4), 16);
       const b = parseInt(hexColor.substring(4, 6), 16);
-
+      
       // Calculate luminance - simple formula
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
+      
       // Return black or white based on luminance
       return luminance > 0.5 ? '#000000' : '#ffffff';
     }
@@ -695,7 +672,7 @@
     // Update enhance level preview selection with animation
     function updateEnhancePreviewSelection(level) {
       const prevActive = document.querySelector('.enhance-preview-item.active');
-
+      
       enhancePreviewItems.forEach(item => {
         if (item.dataset.level === level) {
           // Add a small animation for better feedback
@@ -713,12 +690,12 @@
           item.classList.remove('active');
         }
       });
-
+      
       enhanceLevelSelect.value = level;
-
+      
       // Update preview message based on level
       const helpText = document.querySelector('.form-group:has(#enhanceLevel) .help-text');
-
+      
       if (helpText) {
         const messages = {
           none: 'No enhancement applied to images',
@@ -726,60 +703,9 @@
           medium: 'Balanced enhancement for most images - recommended',
           high: 'Strong enhancement to make images pop on YouTube'
         };
-
+        
         helpText.innerHTML = messages[level] || 'Automatically enhance images with optimized settings';
       }
-    }
-
-    // Update split mode preview selection
-    function updateSplitModeSelection(mode) {
-      if (splitPreviewItems.length === 0) {
-        // No split preview items exist, just set the value
-        if (splitModeSelect) splitModeSelect.value = mode;
-        return;
-      }
-      
-      const prevActive = document.querySelector('.enhance-preview-item[data-split].active');
-
-      splitPreviewItems.forEach(item => {
-        if (item.dataset.split === mode) {
-          item.classList.add('active');
-          item.style.transition = 'all 0.25s ease';
-          item.animate([
-            { transform: 'scale(0.95)' },
-            { transform: 'scale(1.05)' },
-            { transform: 'scale(1)' }
-          ], {
-            duration: 300,
-            easing: 'ease-out'
-          });
-        } else {
-          item.classList.remove('active');
-        }
-      });
-
-      splitModeSelect.value = mode;
-
-      // Update UI based on split mode
-      const imagesContainer = document.querySelector('.images-container');
-      const helpText = document.querySelector('.form-group:has(#splitMode) .help-text');
-
-      if (helpText) {
-        const messages = {
-          auto: 'Automatically determine the optimal number of splits based on image content',
-          '2': 'Split the thumbnail into two equal sections',
-          '3': 'Split the thumbnail into three equal sections'
-        };
-
-        helpText.innerHTML = messages[mode] || 'Select how to arrange images in the thumbnail';
-      }
-
-      // Update required image count message
-      const requiredCount = mode === 'auto' ? "2-3" : mode;
-      selectImagesBtn.textContent = `Select ${requiredCount} Images`;
-
-      // Update validation logic
-      checkImagesValidity();
     }
 
     // Handle enhance preview clicks
@@ -793,14 +719,6 @@
     // Handle enhance level select change
     enhanceLevelSelect.addEventListener('change', () => {
       updateEnhancePreviewSelection(enhanceLevelSelect.value);
-    });
-
-    // Handle split mode preview clicks
-    splitPreviewItems.forEach(item => {
-      item.addEventListener('click', () => {
-        const mode = item.dataset.split;
-        updateSplitModeSelection(mode);
-      });
     });
 
     // Drag and Drop functions
@@ -887,33 +805,7 @@
     }
 
     function updateImagePreviews() {
-      const splitMode = splitModeSelect.value;
-      const requiredImageCount = splitMode === 'auto' ? 2 : parseInt(splitMode);
-      const maxImageCount = splitMode === 'auto' ? 3 : parseInt(splitMode);
-
-      // Show/hide image preview slots based on split mode
       imagePreviews.forEach((preview, index) => {
-        if (index < maxImageCount) {
-          preview.style.display = 'block';
-        } else {
-          preview.style.display = 'none';
-        }
-      });
-
-      // Update delimiters display
-      const delimiters = document.querySelectorAll('.delimiter');
-      delimiters.forEach((delimiter, index) => {
-        if (index < maxImageCount - 1) {
-          delimiter.style.display = 'block';
-        } else {
-          delimiter.style.display = 'none';
-        }
-      });
-
-      // Update image preview slots
-      imagePreviews.forEach((preview, index) => {
-        if (index >= maxImageCount) return; // Skip if this slot shouldn't be shown
-
         const clickHandler = () => selectSingleImage(index);
         preview.removeEventListener('click', preview._clickHandler);
         preview.addEventListener('click', clickHandler);
@@ -942,11 +834,11 @@
           preview.appendChild(removeBtn);
         } else {
           preview.innerHTML = `
-          <div class="placeholder">
-            <div>Image ${index + 1}</div>
-            <div>Click to select an image</div>
-          </div>
-        `;
+            <div class="placeholder">
+              <div>Image ${index + 1}</div>
+              <div>Click to select an image</div>
+            </div>
+          `;
         }
       });
 
@@ -956,22 +848,8 @@
         delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
       });
 
-      // Enable/disable create button based on required count
-      checkImagesValidity();
-    }
-
-    function checkImagesValidity() {
-      const splitMode = splitModeSelect.value;
-      const validImages = selectedImagePaths.filter(path => path);
-
-      if (splitMode === 'auto') {
-        // For auto mode, we need at least 2 images
-        createThumbnailBtn.disabled = validImages.length < 2 || validImages.length > 3;
-      } else {
-        // For fixed modes, we need exactly that number of images
-        const requiredCount = parseInt(splitMode);
-        createThumbnailBtn.disabled = validImages.length !== requiredCount;
-      }
+      // Enable/disable create button
+      createThumbnailBtn.disabled = selectedImagePaths.filter(path => path).length !== 3;
     }
 
     // Remove image
@@ -1032,7 +910,6 @@
         const delimiterColor = delimiterColorInput.value || DEFAULT_DELIMITER_COLOR;
         const delimiterTilt = parseInt(delimiterTiltInput.value) || DEFAULT_DELIMITER_TILT;
         const enhanceLevel = enhanceLevelSelect.value;
-        const splitMode = splitModeSelect.value;
         const enhanceOptions = {
           none: { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
           light: { brightness: 1.05, contrast: 1.1, saturation: 1.08, sharpness: 1.1 },
@@ -1042,11 +919,8 @@
         const outputName = outputNameInput.value.trim();
         const validImagePaths = selectedImagePaths.filter(path => path);
 
-        // Convert splitMode to forceSplitCount
-        const forceSplitCount = splitMode === 'auto' ? 0 : parseInt(splitMode);
-
-        if (validImagePaths.length < 2) {
-          throw new Error('Please select at least 2 images');
+        if (validImagePaths.length !== 3) {
+          throw new Error('Please select exactly 3 images');
         }
 
         const result = await ipcRenderer.invoke('create-thumbnail', {
@@ -1056,8 +930,7 @@
           delimiterColor,
           outputName,
           enhanceOptions: enhanceOptions[enhanceLevel],
-          applyEnhance: enhanceLevel !== 'none',
-          forceSplitCount
+          applyEnhance: enhanceLevel !== 'none'
         });
 
         progressBarFill.style.width = '100%';
@@ -1066,7 +939,7 @@
           outputDir = result.outputDir;
           resultThumbnail.src = `file://${result.outputPath}`;
           resultContainer.classList.add('active');
-          statusEl.textContent = `Thumbnail created successfully with ${result.splitCount} splits!`;
+          statusEl.textContent = 'Thumbnail created successfully!';
         } else {
           errorEl.textContent = `Error: ${result.error}`;
           statusEl.textContent = '';
@@ -1094,13 +967,13 @@
       statusEl.textContent = 'Ready to create a new thumbnail.';
       errorEl.textContent = '';
     });
-
+    
     updateImagePreviews();
     updateDelimiterPreview();
 
     function showProcessingAnimation() {
       createThumbnailBtn.classList.add('processing');
-
+      
       setTimeout(() => { progressBarFill.style.width = '30%'; }, 200);
       setTimeout(() => { progressBarFill.style.width = '50%'; }, 600);
       setTimeout(() => { progressBarFill.style.width = '70%'; }, 1000);
@@ -1111,22 +984,20 @@
       document.querySelector('.options-container').animate([
         { transform: 'scale(0.98)', opacity: 0.8 },
         { transform: 'scale(1)', opacity: 1 }
-      ], {
+      ], { 
         duration: 300,
         easing: 'ease-out'
       });
-
+      
       delimiterWidthInput.value = DEFAULT_DELIMITER_WIDTH;
       delimiterTiltInput.value = DEFAULT_DELIMITER_TILT;
       delimiterColorInput.value = DEFAULT_DELIMITER_COLOR;
       enhanceLevelSelect.value = DEFAULT_ENHANCE_LEVEL;
-      splitModeSelect.value = 'auto'; // Default to auto mode
       tiltValueOutput.textContent = `${DEFAULT_DELIMITER_TILT}°`;
       outputNameInput.value = '';
 
       updateDelimiterPreviewWithAnimation();
       updateEnhancePreviewSelection(DEFAULT_ENHANCE_LEVEL);
-      updateSplitModeSelection('auto');
     }
 
     function showValidationError(message) {
@@ -1155,11 +1026,6 @@
         });
       });
     });
-
-    updateImagePreviews();
-    updateDelimiterPreview();
-    updateSplitModeSelection('auto');
   </script>
 </body>
-
 </html>
