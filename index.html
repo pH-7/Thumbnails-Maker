@@ -530,6 +530,16 @@
             </div>
           </div>
         </div>
+
+        <div class="form-group">
+          <label for="layoutMode">Layout Mode</label>
+          <select id="layoutMode">
+            <option value="auto">Auto (Smart Layout)</option>
+            <option value="3-split">Always 3 Images</option>
+            <option value="2-split">Always 2 Images</option>
+          </select>
+          <div class="help-text">Smart mode analyzes your images to choose the best layout</div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -923,6 +933,8 @@
           throw new Error('Please select exactly 3 images');
         }
 
+        const layoutMode = document.getElementById('layoutMode').value;
+        
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
           delimiterWidth,
@@ -930,7 +942,8 @@
           delimiterColor,
           outputName,
           enhanceOptions: enhanceOptions[enhanceLevel],
-          applyEnhance: enhanceLevel !== 'none'
+          applyEnhance: enhanceLevel !== 'none',
+          layoutMode
         });
 
         progressBarFill.style.width = '100%';
@@ -940,6 +953,11 @@
           resultThumbnail.src = `file://${result.outputPath}`;
           resultContainer.classList.add('active');
           statusEl.textContent = 'Thumbnail created successfully!';
+          
+          // Show which layout was chosen
+          if (layoutMode === 'auto') {
+            statusEl.textContent = `Thumbnail created successfully with ${result.splitCount} splits!`;
+          }
         } else {
           errorEl.textContent = `Error: ${result.error}`;
           statusEl.textContent = '';

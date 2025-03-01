@@ -106,6 +106,73 @@ async function enhanceImage(buffer, enhanceOptions) {
     return processedImage;
 }
 
+// Add this function to analyze images and determine optimal layout
+async function determineOptimalLayout(imagePaths) {
+    try {
+        // Calculate image complexity and determine optimal layout
+        const imageAnalysis = await Promise.all(imagePaths.map(async (path) => {
+            const imageBuffer = await fs.promises.readFile(path);
+            const metadata = await sharp(imageBuffer).metadata();
+            
+            // Calculate entropy as a measure of image complexity
+            const stats = await sharp(imageBuffer)
+                .grayscale()
+                .raw()
+                .toBuffer({ resolveWithObject: true });
+            
+            const pixels = new Uint8Array(stats.data);
+            let histogram = new Array(256).fill(0);
+            
+            // Create histogram
+            for (let i = 0; i < pixels.length; i++) {
+                histogram[pixels[i]]++;
+            }
+            
+            // Calculate entropy
+            let entropy = 0;
+            const totalPixels = pixels.length;
+            
+            for (let i = 0; i < 256; i++) {
+                if (histogram[i] > 0) {
+                    const probability = histogram[i] / totalPixels;
+                    entropy -= probability * Math.log2(probability);
+                }
+            }
+            
+            return {
+                path,
+                entropy,
+                aspectRatio: metadata.width / metadata.height,
+                width: metadata.width,
+                height: metadata.height
+            };
+        }));
+        
+        // Determine if 2 or 3 splits would be better
+        const avgComplexity = imageAnalysis.reduce((sum, img) => sum + img.entropy, 0) / imageAnalysis.length;
+        const aspectRatioVariance = calculateVariance(imageAnalysis.map(img => img.aspectRatio));
+        
+        // Use 2 splits if:
+        // 1. High complexity images (lots of detail)
+        // 2. Very different aspect ratios
+        const useThreeSplits = avgComplexity < 4.5 && aspectRatioVariance < 0.5;
+        
+        return {
+            recommendedLayout: useThreeSplits ? 3 : 2,
+            analysis: imageAnalysis
+        };
+    } catch (error) {
+        console.error("Error analyzing images:", error);
+        // Default to 3 splits if analysis fails
+        return { recommendedLayout: 3 };
+    }
+}
+
+function calculateVariance(array) {
+    const mean = array.reduce((a, b) => a + b, 0) / array.length;
+    return array.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / array.length;
+}
+
 // Handle thumbnail creation with tilted delimiters and auto-enhance
 ipcMain.handle('create-thumbnail', async (event, data) => {
     const {
@@ -113,8 +180,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         delimiterWidth,
         delimiterTilt,
         outputName,
-        enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0 },
-        applyEnhance = false
+        enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
+        applyEnhance = false,
+        layoutMode = 'auto' // Can be 'auto', '2-split', or '3-split'
     } = data;
 
     // Extract color information from delimiterColor
@@ -122,19 +190,31 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     const fillColor = delimiterColor;
 
     try {
-        if (imagePaths.length !== 3) {
-            throw new Error('Exactly 3 images are required for the thumbnail');
+        if (imagePaths.length < 2) {
+            throw new Error('At least 2 images are required for the thumbnail');
         }
 
+        // Determine layout if auto mode is selected
+        let splitCount = 3; // Default to 3 splits
+        if (layoutMode === 'auto') {
+            const layoutAnalysis = await determineOptimalLayout(imagePaths);
+            splitCount = layoutAnalysis.recommendedLayout;
+        } else if (layoutMode === '2-split') {
+            splitCount = 2;
+        }
+
+        // Use only the first 2 or 3 images based on split count
+        const selectedImages = imagePaths.slice(0, splitCount);
+        
         // YouTube thumbnail dimensions
         const THUMBNAIL_WIDTH = 1280;
         const THUMBNAIL_HEIGHT = 720;
 
-        // Calculate tilt displacement (how many pixels the delimiter shifts from top to bottom)
-        const tiltRadians = (delimiterTilt * Math.PI) / 180; // Convert degrees to radians
+        // Calculate tilt displacement
+        const tiltRadians = (delimiterTilt * Math.PI) / 180;
         const tiltDisplacement = Math.tan(tiltRadians) * THUMBNAIL_HEIGHT;
 
-        // Create a blank canvas with white background
+        // Create blank canvas
         const canvas = sharp({
             create: {
                 width: THUMBNAIL_WIDTH,
@@ -144,71 +224,50 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             }
         });
 
-        // Create SVG for the tilted delimiter mask
-        const createDelimiterSVG = (position, tiltDisplacement, width) => {
-            // Calculate the starting and ending x-positions based on tilt
-            const halfTiltDisp = tiltDisplacement / 2;
-            const x1 = position - halfTiltDisp - width / 2;
-            const x2 = position + halfTiltDisp - width / 2;
-
-            return `
-        <svg width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}">
-          <polygon 
-            points="${x1},0 ${x1 + width},0 ${x2 + width},${THUMBNAIL_HEIGHT} ${x2},${THUMBNAIL_HEIGHT}" 
-            fill="${fillColor}"
-          />
-        </svg>
-      `;
-        };
-
-        // Calculate image positions and widths accounting for tilted delimiters
-        const sectionWidth = THUMBNAIL_WIDTH / 3;
-        const firstDelimiterPos = Math.floor(sectionWidth);
-        const secondDelimiterPos = Math.floor(sectionWidth * 2);
+        // Create delimiter positions based on split count
+        const sectionWidth = THUMBNAIL_WIDTH / splitCount;
+        const delimiterPositions = [];
+        
+        for (let i = 1; i < splitCount; i++) {
+            delimiterPositions.push(Math.floor(sectionWidth * i));
+        }
 
         // Create delimiter masks
-        const firstDelimiterMask = Buffer.from(
-            createDelimiterSVG(firstDelimiterPos, tiltDisplacement, delimiterWidth)
+        const delimiterMasks = delimiterPositions.map(position => 
+            Buffer.from(createDelimiterSVG(position, tiltDisplacement, delimiterWidth, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, fillColor))
         );
 
-        const secondDelimiterMask = Buffer.from(
-            createDelimiterSVG(secondDelimiterPos, tiltDisplacement, delimiterWidth)
-        );
-
-        // Process images - resize each one to fit in the thumbnail
+        // Process images
         const processedImages = await Promise.all(
-            imagePaths.map(async (imagePath, index) => {
+            selectedImages.map(async (imagePath, index) => {
                 try {
-                    // Calculate width based on section and account for tilt
+                    // Calculate image width based on section
                     let imageWidth;
-
+                    
                     if (index === 0) {
-                        // First image (adjust width based on first delimiter tilt)
-                        imageWidth = firstDelimiterPos + (tiltDisplacement < 0 ? tiltDisplacement : 0);
-                    } else if (index === 1) {
-                        // Middle image
-                        imageWidth = secondDelimiterPos - firstDelimiterPos - delimiterWidth;
-                    } else {
+                        // First image
+                        imageWidth = delimiterPositions[0] + (tiltDisplacement < 0 ? tiltDisplacement : 0);
+                    } else if (index === selectedImages.length - 1) {
                         // Last image
-                        imageWidth = THUMBNAIL_WIDTH - secondDelimiterPos - delimiterWidth;
+                        imageWidth = THUMBNAIL_WIDTH - delimiterPositions[delimiterPositions.length - 1] - delimiterWidth;
+                    } else {
+                        // Middle image(s)
+                        imageWidth = delimiterPositions[index] - delimiterPositions[index - 1] - delimiterWidth;
                     }
-
-                    // Use  Math.max to ensure width is positive and reasonable
+                    
                     imageWidth = Math.max(imageWidth, sectionWidth - delimiterWidth * 2);
-
-                    // Load the image
+                    
+                    // Process image with enhancements if enabled
                     let imageBuffer = await fs.promises.readFile(imagePath);
                     let processedImage = sharp(imageBuffer);
-
-                    // Apply auto-enhance if enabled
+                    
                     if (applyEnhance) {
                         processedImage = await enhanceImage(imageBuffer, enhanceOptions);
                     }
-
-                    // Resize image
+                    
                     return await processedImage
                         .resize({
-                            width: Math.floor(imageWidth + delimiterWidth * 2),  // Add some extra width for cropping
+                            width: Math.floor(imageWidth + delimiterWidth * 2),
                             height: THUMBNAIL_HEIGHT,
                             fit: 'cover',
                             position: 'center'
@@ -221,20 +280,21 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             })
         );
 
-        // Calculate positions for each image to account for tilted delimiters
-        const positions = [
-            { left: 0, top: 0 },
-            {
-                left: Math.floor(firstDelimiterPos + delimiterWidth / 2 +
-                    (tiltDisplacement < 0 ? Math.min(0, tiltDisplacement / 2) : 0)),
-                top: 0
-            },
-            {
-                left: Math.floor(secondDelimiterPos + delimiterWidth / 2 +
-                    (tiltDisplacement < 0 ? Math.min(0, tiltDisplacement) : 0)),
-                top: 0
+        // Calculate positions for composite
+        const positions = [];
+        let currentPos = 0;
+        
+        for (let i = 0; i < selectedImages.length; i++) {
+            if (i === 0) {
+                positions.push({ left: 0, top: 0 });
+            } else {
+                currentPos = delimiterPositions[i - 1] + delimiterWidth / 2;
+                positions.push({
+                    left: Math.floor(currentPos + (tiltDisplacement < 0 ? Math.min(0, tiltDisplacement / 2 * i) : 0)),
+                    top: 0
+                });
             }
-        ];
+        }
 
         // Create composite operations
         const composites = processedImages.map((buffer, index) => {
@@ -245,43 +305,37 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             };
         });
 
-        // Add delimiter overlays
-        composites.push(
-            {
-                input: firstDelimiterMask,
+        // Add delimiter masks to composites
+        delimiterMasks.forEach(mask => {
+            composites.push({
+                input: mask,
                 left: 0,
                 top: 0
-            },
-            {
-                input: secondDelimiterMask,
-                left: 0,
-                top: 0
-            }
-        );
+            });
+        });
 
-        // Create output directory if it doesn't exist
+        // Rest of the function remains the same...
         const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
-        // Generate output filename with date if none provided
         const outputFilename = outputName ||
-            `youtube-thumbnail-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
+            `youtube-thumbnail-${splitCount}split-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
         const outputPath = path.join(outputDir, `${outputFilename}.png`);
 
-        // Create the composite image
         await canvas
             .composite(composites)
             .png()
             .toFile(outputPath);
 
-        console.log('Thumbnail created successfully:', outputPath);
+        console.log(`Thumbnail created successfully with ${splitCount} splits:`, outputPath);
 
         return {
             success: true,
             outputPath,
-            outputDir
+            outputDir,
+            splitCount
         };
     } catch (error) {
         console.error('Error creating thumbnail:', error);
@@ -291,3 +345,19 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         };
     }
 });
+
+// Helper function to create delimiter SVG
+function createDelimiterSVG(position, tiltDisplacement, width, totalWidth, totalHeight, fillColor) {
+    const halfTiltDisp = tiltDisplacement / 2;
+    const x1 = position - halfTiltDisp - width / 2;
+    const x2 = position + halfTiltDisp - width / 2;
+
+    return `
+        <svg width="${totalWidth}" height="${totalHeight}">
+          <polygon 
+            points="${x1},0 ${x1 + width},0 ${x2 + width},${totalHeight} ${x2},${totalHeight}" 
+            fill="${fillColor}"
+          />
+        </svg>
+      `;
+}
