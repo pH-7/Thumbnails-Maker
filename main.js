@@ -53,20 +53,20 @@ ipcMain.handle('select-images', async () => {
 
 // Handle invidual image selection
 ipcMain.handle('select-single-image', async () => {
-  try {
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
-    });
+    try {
+        const result = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
+        });
 
-    if (!result.canceled && result.filePaths.length > 0) {
-      return result.filePaths[0];
+        if (!result.canceled && result.filePaths.length > 0) {
+            return result.filePaths[0];
+        }
+        return null;
+    } catch (error) {
+        console.error('Error in select-single-image:', error);
+        throw error;
     }
-    return null;
-  } catch (error) {
-    console.error('Error in select-single-image:', error);
-    throw error;
-  }
 });
 
 // Apply auto-enhance to image
@@ -106,7 +106,69 @@ async function enhanceImage(buffer, enhanceOptions) {
     return processedImage;
 }
 
-// Handle thumbnail creation with tilted delimiters and auto-enhance
+// Calculate image entropy (complexity) to determine optimal split count
+async function calculateImageComplexity(buffer) {
+    try {
+        // Get image metadata and stats
+        const metadata = await sharp(buffer).metadata();
+        const stats = await sharp(buffer).stats();
+
+        // Simple entropy calculation based on standard deviation of channels
+        const channelEntropy = stats.channels.reduce((sum, channel) => sum + channel.stdev, 0) / stats.channels.length;
+
+        // Factor in resolution
+        const resolution = metadata.width * metadata.height;
+        const resolutionFactor = Math.log10(resolution) / 6; // Normalize for typical resolutions
+
+        return channelEntropy * resolutionFactor;
+    } catch (error) {
+        console.error('Error calculating image complexity:', error);
+        return 50; // Return a default middle value on error
+    }
+}
+
+// Analyze images to decide optimal split count (2 or 3)
+async function determineOptimalSplitCount(imagePaths) {
+    try {
+        // If we have fewer than 3 images, use that number
+        if (imagePaths.length < 3) {
+            return imagePaths.length;
+        }
+
+        // Load and analyze each image
+        const complexities = await Promise.all(
+            imagePaths.map(async (path) => {
+                const buffer = await fs.promises.readFile(path);
+                return await calculateImageComplexity(buffer);
+            })
+        );
+
+        // Calculate the average complexity
+        const avgComplexity = complexities.reduce((sum, val) => sum + val, 0) / complexities.length;
+
+        // Calculate standard deviation of complexities
+        const squaredDiffs = complexities.map(val => Math.pow(val - avgComplexity, 2));
+        const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / complexities.length;
+        const stdDev = Math.sqrt(variance);
+
+        // Calculate variance coefficient (normalized standard deviation)
+        const varianceCoefficient = stdDev / avgComplexity;
+
+        // Determine if images are similar or diverse
+        // High variance suggests more diverse images that might benefit from more splits
+        const useThreeSplits = varianceCoefficient > 0.3 || avgComplexity > 70;
+
+        console.log(`Image analysis - Avg Complexity: ${avgComplexity.toFixed(2)}, Variance Coef: ${varianceCoefficient.toFixed(2)}`);
+        console.log(`Optimal split count: ${useThreeSplits ? 3 : 2}`);
+
+        return useThreeSplits ? 3 : 2;
+    } catch (error) {
+        console.error('Error determining optimal split count:', error);
+        return 3; // Default to 3 splits on error
+    }
+}
+
+// Handle thumbnail creation with smart split selection
 ipcMain.handle('create-thumbnail', async (event, data) => {
     const {
         imagePaths,
@@ -114,7 +176,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         delimiterTilt,
         outputName,
         enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0 },
-        applyEnhance = false
+        applyEnhance = false,
+        forceSplitCount = 0 // 0 means auto-determine, otherwise use the specified count
     } = data;
 
     // Extract color information from delimiterColor
@@ -122,9 +185,18 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     const fillColor = delimiterColor;
 
     try {
-        if (imagePaths.length !== 3) {
-            throw new Error('Exactly 3 images are required for the thumbnail');
+        if (imagePaths.length < 2) {
+            throw new Error('At least 2 images are required for the thumbnail');
         }
+
+        // Determine split count (2 or 3) if not forced
+        let splitCount = forceSplitCount;
+        if (splitCount === 0) {
+            splitCount = await determineOptimalSplitCount(imagePaths);
+        }
+
+        // Use only the first 'splitCount' images
+        const selectedImages = imagePaths.slice(0, splitCount);
 
         // YouTube thumbnail dimensions
         const THUMBNAIL_WIDTH = 1280;
@@ -150,6 +222,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const halfTiltDisp = tiltDisplacement / 2;
             const x1 = position - halfTiltDisp - width / 2;
             const x2 = position + halfTiltDisp - width / 2;
+            
+            // Make sure fillColor is properly passed from delimiterColor
+            // fillColor is already defined in the parent scope
 
             return `
         <svg width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}">
@@ -161,39 +236,42 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
       `;
         };
 
-        // Calculate image positions and widths accounting for tilted delimiters
-        const sectionWidth = THUMBNAIL_WIDTH / 3;
-        const firstDelimiterPos = Math.floor(sectionWidth);
-        const secondDelimiterPos = Math.floor(sectionWidth * 2);
+        // Calculate image positions and widths accounting for tilted delimiters and split count
+        const sectionWidth = THUMBNAIL_WIDTH / splitCount;
 
-        // Create delimiter masks
-        const firstDelimiterMask = Buffer.from(
-            createDelimiterSVG(firstDelimiterPos, tiltDisplacement, delimiterWidth)
-        );
-
-        const secondDelimiterMask = Buffer.from(
-            createDelimiterSVG(secondDelimiterPos, tiltDisplacement, delimiterWidth)
-        );
+        // Create delimiter masks for each split
+        const delimiterMasks = [];
+        for (let i = 1; i < splitCount; i++) {
+            const delimiterPos = Math.floor(sectionWidth * i);
+            const delimiterMask = Buffer.from(
+                createDelimiterSVG(delimiterPos, tiltDisplacement, delimiterWidth)
+            );
+            delimiterMasks.push(delimiterMask);
+        }
 
         // Process images - resize each one to fit in the thumbnail
         const processedImages = await Promise.all(
-            imagePaths.map(async (imagePath, index) => {
+            selectedImages.map(async (imagePath, index) => {
                 try {
-                    // Calculate width based on section and account for tilt
+                    // Calculate position and width based on section and account for tilt
                     let imageWidth;
+                    let imagePosition;
 
                     if (index === 0) {
-                        // First image (adjust width based on first delimiter tilt)
-                        imageWidth = firstDelimiterPos + (tiltDisplacement < 0 ? tiltDisplacement : 0);
-                    } else if (index === 1) {
-                        // Middle image
-                        imageWidth = secondDelimiterPos - firstDelimiterPos - delimiterWidth;
-                    } else {
+                        // First image
+                        imageWidth = Math.floor(sectionWidth) + (tiltDisplacement < 0 ? tiltDisplacement : 0);
+                        imagePosition = 0;
+                    } else if (index === splitCount - 1) {
                         // Last image
-                        imageWidth = THUMBNAIL_WIDTH - secondDelimiterPos - delimiterWidth;
+                        imageWidth = THUMBNAIL_WIDTH - Math.floor(sectionWidth * (splitCount - 1)) - delimiterWidth * (splitCount - 1);
+                        imagePosition = Math.floor(sectionWidth * (splitCount - 1)) + delimiterWidth * (splitCount - 1);
+                    } else {
+                        // Middle image(s)
+                        imageWidth = Math.floor(sectionWidth) - delimiterWidth;
+                        imagePosition = Math.floor(sectionWidth * index) + delimiterWidth * index;
                     }
 
-                    // Use  Math.max to ensure width is positive and reasonable
+                    // Use Math.max to ensure width is positive and reasonable
                     imageWidth = Math.max(imageWidth, sectionWidth - delimiterWidth * 2);
 
                     // Load the image
@@ -206,7 +284,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     }
 
                     // Resize image
-                    return await processedImage
+                    const resizedImage = await processedImage
                         .resize({
                             width: Math.floor(imageWidth + delimiterWidth * 2),  // Add some extra width for cropping
                             height: THUMBNAIL_HEIGHT,
@@ -214,6 +292,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             position: 'center'
                         })
                         .toBuffer();
+
+                    return {
+                        buffer: resizedImage,
+                        position: imagePosition
+                    };
                 } catch (error) {
                     console.error(`Error processing image ${index}:`, error);
                     throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
@@ -221,43 +304,23 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             })
         );
 
-        // Calculate positions for each image to account for tilted delimiters
-        const positions = [
-            { left: 0, top: 0 },
-            {
-                left: Math.floor(firstDelimiterPos + delimiterWidth / 2 +
-                    (tiltDisplacement < 0 ? Math.min(0, tiltDisplacement / 2) : 0)),
-                top: 0
-            },
-            {
-                left: Math.floor(secondDelimiterPos + delimiterWidth / 2 +
-                    (tiltDisplacement < 0 ? Math.min(0, tiltDisplacement) : 0)),
-                top: 0
-            }
-        ];
-
         // Create composite operations
-        const composites = processedImages.map((buffer, index) => {
+        const composites = processedImages.map((image) => {
             return {
-                input: buffer,
-                left: positions[index].left,
-                top: positions[index].top
+                input: image.buffer,
+                left: image.position,
+                top: 0
             };
         });
 
         // Add delimiter overlays
-        composites.push(
-            {
-                input: firstDelimiterMask,
+        delimiterMasks.forEach(mask => {
+            composites.push({
+                input: mask,
                 left: 0,
                 top: 0
-            },
-            {
-                input: secondDelimiterMask,
-                left: 0,
-                top: 0
-            }
-        );
+            });
+        });
 
         // Create output directory if it doesn't exist
         const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
@@ -277,11 +340,13 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             .toFile(outputPath);
 
         console.log('Thumbnail created successfully:', outputPath);
+        console.log(`Used ${splitCount} splits for optimal layout`);
 
         return {
             success: true,
             outputPath,
-            outputDir
+            outputDir,
+            splitCount
         };
     } catch (error) {
         console.error('Error creating thumbnail:', error);
