@@ -133,13 +133,15 @@
       background-color: #555;
     }
 
-    button#createThumbnailBtn, button#selectImagesBtn {
+    button#createThumbnailBtn,
+    button#selectImagesBtn {
       background-color: #fff0f0;
       border-color: #ff0000;
       color: #ff0000;
     }
 
-    button#createThumbnailBtn::after, button#selectImagesBtn::after {
+    button#createThumbnailBtn::after,
+    button#selectImagesBtn::after {
       transform: scaleX(1);
     }
 
@@ -251,7 +253,8 @@
       font-weight: bold;
     }
 
-    input, select {
+    input,
+    select {
       width: 100%;
       padding: 8px;
       border: 1px solid #ddd;
@@ -620,14 +623,14 @@
     function updateDelimiterPreview() {
       const tiltAngle = delimiterTiltInput.value;
       const delimiterColor = delimiterColorInput.value;
-      
+
       document.querySelectorAll('.delimiter').forEach(delimiter => {
         // Update transform for tilt
         delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
 
         // Set background color directly
         delimiter.style.backgroundColor = delimiterColor;
-        
+
         // Set a CSS custom property for the line color that we'll use in CSS
         delimiter.style.setProperty('--delimiter-line-color', getContrastingColor(delimiterColor));
       });
@@ -654,15 +657,15 @@
     function getContrastingColor(hexColor) {
       // Remove the # if it exists
       hexColor = hexColor.replace('#', '');
-      
+
       // Convert to RGB
       const r = parseInt(hexColor.substring(0, 2), 16);
       const g = parseInt(hexColor.substring(2, 4), 16);
       const b = parseInt(hexColor.substring(4, 6), 16);
-      
+
       // Calculate luminance - simple formula
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      
+
       // Return black or white based on luminance
       return luminance > 0.5 ? '#000000' : '#ffffff';
     }
@@ -682,7 +685,7 @@
     // Update enhance level preview selection with animation
     function updateEnhancePreviewSelection(level) {
       const prevActive = document.querySelector('.enhance-preview-item.active');
-      
+
       enhancePreviewItems.forEach(item => {
         if (item.dataset.level === level) {
           // Add a small animation for better feedback
@@ -700,12 +703,12 @@
           item.classList.remove('active');
         }
       });
-      
+
       enhanceLevelSelect.value = level;
-      
+
       // Update preview message based on level
       const helpText = document.querySelector('.form-group:has(#enhanceLevel) .help-text');
-      
+
       if (helpText) {
         const messages = {
           none: 'No enhancement applied to images',
@@ -713,7 +716,7 @@
           medium: 'Balanced enhancement for most images - recommended',
           high: 'Strong enhancement to make images pop on YouTube'
         };
-        
+
         helpText.innerHTML = messages[level] || 'Automatically enhance images with optimized settings';
       }
     }
@@ -934,7 +937,7 @@
         }
 
         const layoutMode = document.getElementById('layoutMode').value;
-        
+
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
           delimiterWidth,
@@ -953,7 +956,7 @@
           resultThumbnail.src = `file://${result.outputPath}`;
           resultContainer.classList.add('active');
           statusEl.textContent = 'Thumbnail created successfully!';
-          
+
           // Show which layout was chosen
           if (layoutMode === 'auto') {
             statusEl.textContent = `Thumbnail created successfully with ${result.splitCount} splits!`;
@@ -985,13 +988,13 @@
       statusEl.textContent = 'Ready to create a new thumbnail.';
       errorEl.textContent = '';
     });
-    
+
     updateImagePreviews();
     updateDelimiterPreview();
 
     function showProcessingAnimation() {
       createThumbnailBtn.classList.add('processing');
-      
+
       setTimeout(() => { progressBarFill.style.width = '30%'; }, 200);
       setTimeout(() => { progressBarFill.style.width = '50%'; }, 600);
       setTimeout(() => { progressBarFill.style.width = '70%'; }, 1000);
@@ -1002,11 +1005,11 @@
       document.querySelector('.options-container').animate([
         { transform: 'scale(0.98)', opacity: 0.8 },
         { transform: 'scale(1)', opacity: 1 }
-      ], { 
+      ], {
         duration: 300,
         easing: 'ease-out'
       });
-      
+
       delimiterWidthInput.value = DEFAULT_DELIMITER_WIDTH;
       delimiterTiltInput.value = DEFAULT_DELIMITER_TILT;
       delimiterColorInput.value = DEFAULT_DELIMITER_COLOR;
