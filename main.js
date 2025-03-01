@@ -51,6 +51,24 @@ ipcMain.handle('select-images', async () => {
     }
 });
 
+// Handle invidual image selection
+ipcMain.handle('select-single-image', async () => {
+  try {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+    return null;
+  } catch (error) {
+    console.error('Error in select-single-image:', error);
+    throw error;
+  }
+});
+
 // Apply auto-enhance to image
 async function enhanceImage(buffer, enhanceOptions) {
     const { brightness, contrast, saturation, sharpness } = enhanceOptions;

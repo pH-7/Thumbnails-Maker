@@ -777,13 +777,34 @@
       }
     }
 
-    // Update image previews
+    async function selectSingleImage(index) {
+      try {
+        errorEl.textContent = '';
+        statusEl.textContent = `Selecting image for position ${index + 1}...`;
+
+        // Call a new IPC handler for single image selection
+        const imagePath = await ipcRenderer.invoke('select-single-image');
+
+        if (imagePath) {
+          // Update only the specific image slot
+          selectedImagePaths[index] = imagePath;
+          updateImagePreviews();
+          statusEl.textContent = `Image ${index + 1} updated.`;
+        } else {
+          statusEl.textContent = 'No image selected.';
+        }
+      } catch (error) {
+        errorEl.textContent = `Error selecting image: ${error.message}`;
+        statusEl.textContent = '';
+      }
+    }
+
     function updateImagePreviews() {
       imagePreviews.forEach((preview, index) => {
-        preview.removeEventListener('dragover', allowDrop);
-        preview.removeEventListener('dragleave', dragLeave);
-        preview.removeEventListener('dragstart', drag);
-        preview.removeEventListener('drop', drop);
+        const clickHandler = () => selectSingleImage(index);
+        preview.removeEventListener('click', preview._clickHandler);
+        preview.addEventListener('click', clickHandler);
+        preview._clickHandler = clickHandler;
 
         preview.addEventListener('dragover', allowDrop);
         preview.addEventListener('dragleave', dragLeave);
@@ -810,7 +831,7 @@
           preview.innerHTML = `
             <div class="placeholder">
               <div>Image ${index + 1}</div>
-              <div>Click "Select Images" to add</div>
+              <div>Click to select an image</div>
             </div>
           `;
         }
