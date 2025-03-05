@@ -53,20 +53,20 @@ ipcMain.handle('select-images', async () => {
 
 // Handle invidual image selection
 ipcMain.handle('select-single-image', async () => {
-  try {
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
-    });
+    try {
+        const result = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }]
+        });
 
-    if (!result.canceled && result.filePaths.length > 0) {
-      return result.filePaths[0];
+        if (!result.canceled && result.filePaths.length > 0) {
+            return result.filePaths[0];
+        }
+        return null;
+    } catch (error) {
+        console.error('Error in select-single-image:', error);
+        throw error;
     }
-    return null;
-  } catch (error) {
-    console.error('Error in select-single-image:', error);
-    throw error;
-  }
 });
 
 // Apply auto-enhance to image
@@ -86,10 +86,11 @@ async function enhanceImage(buffer, enhanceOptions) {
         // Apply contrast adjustment
         if (contrast !== 1.0) {
             // Convert contrast value to linear contrast parameters
-            processedImage = processedImage.linear(
-                contrast, // Multiply by contrast value
-                (1 - contrast) * 128 // Adjust offset
-            );
+            processedImage = processedImage
+                .linear(
+                    contrast, // Multiply by contrast value
+                    (1 - contrast) * 128 // Adjust offset
+                )
         }
     }
 
@@ -113,32 +114,32 @@ async function determineOptimalLayout(imagePaths) {
         const imageAnalysis = await Promise.all(imagePaths.map(async (path) => {
             const imageBuffer = await fs.promises.readFile(path);
             const metadata = await sharp(imageBuffer).metadata();
-            
+
             // Calculate entropy as a measure of image complexity
             const stats = await sharp(imageBuffer)
                 .grayscale()
                 .raw()
                 .toBuffer({ resolveWithObject: true });
-            
+
             const pixels = new Uint8Array(stats.data);
             let histogram = new Array(256).fill(0);
-            
+
             // Create histogram
             for (let i = 0; i < pixels.length; i++) {
                 histogram[pixels[i]]++;
             }
-            
+
             // Calculate entropy
             let entropy = 0;
             const totalPixels = pixels.length;
-            
+
             for (let i = 0; i < 256; i++) {
                 if (histogram[i] > 0) {
                     const probability = histogram[i] / totalPixels;
                     entropy -= probability * Math.log2(probability);
                 }
             }
-            
+
             return {
                 path,
                 entropy,
@@ -147,16 +148,16 @@ async function determineOptimalLayout(imagePaths) {
                 height: metadata.height
             };
         }));
-        
+
         // Determine if 2 or 3 splits would be better
         const avgComplexity = imageAnalysis.reduce((sum, img) => sum + img.entropy, 0) / imageAnalysis.length;
         const aspectRatioVariance = calculateVariance(imageAnalysis.map(img => img.aspectRatio));
-        
+
         // Use 2 splits if:
         // 1. High complexity images (lots of detail)
         // 2. Very different aspect ratios
         const useThreeSplits = avgComplexity < 4.5 && aspectRatioVariance < 0.5;
-        
+
         return {
             recommendedLayout: useThreeSplits ? 3 : 2,
             analysis: imageAnalysis
@@ -205,7 +206,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         // Use only the first 2 or 3 images based on split count
         const selectedImages = imagePaths.slice(0, splitCount);
-        
+
         // YouTube thumbnail dimensions
         const THUMBNAIL_WIDTH = 1280;
         const THUMBNAIL_HEIGHT = 720;
@@ -227,13 +228,13 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         // Create delimiter positions based on split count
         const sectionWidth = THUMBNAIL_WIDTH / splitCount;
         const delimiterPositions = [];
-        
+
         for (let i = 1; i < splitCount; i++) {
             delimiterPositions.push(Math.floor(sectionWidth * i));
         }
 
         // Create delimiter masks
-        const delimiterMasks = delimiterPositions.map(position => 
+        const delimiterMasks = delimiterPositions.map(position =>
             Buffer.from(createDelimiterSVG(position, tiltDisplacement, delimiterWidth, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, fillColor))
         );
 
@@ -243,7 +244,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 try {
                     // Calculate image width based on section
                     let imageWidth;
-                    
+
                     if (index === 0) {
                         // First image
                         imageWidth = delimiterPositions[0] + (tiltDisplacement < 0 ? tiltDisplacement : 0);
@@ -254,17 +255,17 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         // Middle image(s)
                         imageWidth = delimiterPositions[index] - delimiterPositions[index - 1] - delimiterWidth;
                     }
-                    
+
                     imageWidth = Math.max(imageWidth, sectionWidth - delimiterWidth * 2);
-                    
+
                     // Process image with enhancements if enabled
                     let imageBuffer = await fs.promises.readFile(imagePath);
                     let processedImage = sharp(imageBuffer);
-                    
+
                     if (applyEnhance) {
                         processedImage = await enhanceImage(imageBuffer, enhanceOptions);
                     }
-                    
+
                     return await processedImage
                         .resize({
                             width: Math.floor(imageWidth + delimiterWidth * 2),
@@ -283,7 +284,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         // Calculate positions for composite
         const positions = [];
         let currentPos = 0;
-        
+
         for (let i = 0; i < selectedImages.length; i++) {
             if (i === 0) {
                 positions.push({ left: 0, top: 0 });
@@ -329,13 +330,17 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             .png()
             .toFile(outputPath);
 
+        // Add optimization step
+        const optimizationResult = await optimizeThumbnail(outputPath);
+
         console.log(`Thumbnail created successfully with ${splitCount} splits:`, outputPath);
 
         return {
             success: true,
             outputPath,
             outputDir,
-            splitCount
+            splitCount,
+            optimization: optimizationResult
         };
     } catch (error) {
         console.error('Error creating thumbnail:', error);
@@ -360,4 +365,78 @@ function createDelimiterSVG(position, tiltDisplacement, width, totalWidth, total
           />
         </svg>
       `;
+}
+
+async function optimizeThumbnail(outputPath, quality = 95) {
+    try {
+
+        const originalSize = (await fs.promises.stat(outputPath)).size;
+        const imageBuffer = await fs.promises.readFile(outputPath);
+
+        // Create quality-preserving optimization
+        let optimizedBuffer;
+
+        // Use high-quality optimization that preserves details
+        optimizedBuffer = await sharp(imageBuffer)
+            .png({
+                compressionLevel: 7,      // Slightly reduced from max (9) to preserve quality
+                progressive: true,        // Progressive rendering
+                palette: false,           // Disable palette to preserve full color range
+                quality: quality,         // Higher quality setting (95%)
+                effort: 8,                // High compression effort but not maximum
+                adaptiveFiltering: true,  // Better filtering
+                colors: 256               // Maximum colors for PNG
+            })
+            .toBuffer();
+
+        const extension = '.png';
+
+        // Create optimized file path
+        const optimizedPath = outputPath.replace(/\.[^.]+$/, `_optimized${extension}`);
+
+        // Write optimized file
+        await fs.promises.writeFile(optimizedPath, optimizedBuffer);
+
+        // Get optimized file stats
+        const newSize = (await fs.promises.stat(optimizedPath)).size;
+        const savings = ((originalSize - newSize) / originalSize * 100).toFixed(2);
+
+        console.log(`Thumbnail optimized: ${formatBytes(originalSize)} → ${formatBytes(newSize)} (${savings}% reduction)`);
+
+        // Keep optimized version if size reduced by >10%
+        if (newSize < originalSize * 0.9) {
+            await fs.promises.unlink(outputPath);
+            await fs.promises.rename(optimizedPath, outputPath);
+            return {
+                path: outputPath,
+                originalSize: formatBytes(originalSize),
+                newSize: formatBytes(newSize),
+                savings: `${savings}%`,
+                qualityPreserved: true
+            };
+        }
+
+        // Otherwise keep original
+        await fs.promises.unlink(optimizedPath);
+        return {
+            path: outputPath,
+            originalSize: formatBytes(originalSize),
+            newSize: formatBytes(originalSize),
+            savings: '0%',
+            qualityPreserved: true
+        };
+    } catch (error) {
+        console.error('Error optimizing thumbnail:', error);
+        return { path: outputPath, error: error.message };
+    }
+}
+
+// Helper to format file sizes
+function formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
