@@ -8,7 +8,7 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "mas": "electron-builder --mac mas"
+    "mas": "electron-builder --mac mas  --publish always"
   },
   "author": "Pierre-Henry Soria",
   "license": "MIT",
@@ -17,6 +17,11 @@
     "productName": "YouTube Thumbnail Creator",
     "mac": {
       "category": "public.app-category.graphics-design",
+      "icon": "build/mac/icon.icns",
+      "extendInfo": {
+        "CFBundleIconName": "icon",
+        "CFBundleIconFile": "icon.icns"
+      },
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
