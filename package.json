@@ -1,36 +1,51 @@
 {
-    "name": "youtube-thumbnail-combiner",
-    "version": "1.0.0",
-    "description": "Create YouTube thumbnails by combining three images with white delimiters",
-    "main": "main.js",
-    "scripts": {
-        "start": "electron .",
-        "build": "electron-builder"
+  "name": "thumbnail-creator",
+  "productName": "Thumbnail Creator",
+  "version": "1.0.0",
+  "description": "Create YouTube thumbnails by combining three images",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "mas": "electron-builder --mac mas"
+  },
+  "author": "Pierre-Henry Soria",
+  "license": "MIT",
+  "build": {
+    "appId": "ph7.me.youtube-thumbnail-combiner",
+    "productName": "YouTube Thumbnail Creator",
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "target": [
+        "mas",
+        "dmg"
+      ]
     },
-    "author": "Pierre-Henry Soria <pierre@ph7.me> (https://ph7.me)",
-    "homepage": "https://github.com/pH-7/YouTube-Thumbnail-Creator#readme",
-    "bugs": {
-        "url": "https://github.com/pH-7/YouTube-Thumbnail-Creator/issues"
+    "win": {
+      "target": "nsis"
     },
-    "license": "MIT",
-    "dependencies": {
-        "sharp": "^0.32.1"
+    "linux": {
+      "target": "AppImage"
     },
-    "devDependencies": {
-        "electron": "^25.0.0"
+    "mas": {
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "hardenedRuntime": false,
+      "provisioningProfile": "build/embedded.provisionprofile",
+      "type": "distribution"
     },
-    "build": {
-        "appId": "ph7.me.youtube-thumbnail-combiner",
-        "productName": "YouTube Thumbnail Combiner",
-        "mac": {
-            "category": "public.app-category.graphics-design"
-        },
-        "win": {
-            "target": "nsis"
-        },
-        "linux": {
-            "target": "AppImage"
-        }
-    },
-    "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+    "afterSign": "scripts/notarize.js"
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "devDependencies": {
+    "@electron/osx-sign": "^1.3.3",
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0",
+    "electron-notarize": "^1.2.2"
+  }
 }

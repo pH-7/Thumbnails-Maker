@@ -17,3 +17,13 @@ pnpm-debug.log
 
 # Metadata OS files
 .DS_Store
+
+# Certificates and provisioning profiles
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+
+# Distribution files
+dist/
