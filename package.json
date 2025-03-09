@@ -8,8 +8,10 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "mas": "electron-builder --mac mas  --publish always",
-    "postinstall": "electron-builder install-app-deps && yarn rebuild-sharp",
+    "mas": "electron-builder --mac mas --publish always",
+    "mas-dev": "electron-builder --mac mas",
+    "mas-package": "electron-builder --mac mas --publish never",
+    "postinstall": "electron-builder install-app-deps && npm run rebuild-sharp",
     "rebuild-sharp": "electron-rebuild -f -w sharp"
   },
   "author": "Pierre-Henry Soria",
@@ -44,7 +46,10 @@
       "entitlementsInherit": "build/entitlements.mac.inherit.plist",
       "hardenedRuntime": false,
       "provisioningProfile": "build/embedded.provisionprofile",
-      "type": "distribution"
+      "type": "distribution",
+      "category": "public.app-category.graphics-design",
+      "artifactName": "${productName}-${version}.pkg",
+      "electronTeamId": "2V8LZ2444Y"
     },
     "afterSign": "scripts/notarize.js"
   },

@@ -9,6 +9,7 @@ This app is ideal for any of your next multi-language YouTube vlogs, tutorials, 
 - [⚙️ Requirement](#%EF%B8%8F-requirement)
 - [📦 Installation](#-installation)
 - [🪄 Features](#-features)
+- [🚀 App Store Publication](#-app-store-publication)
 - [👨‍🍳 Who is the baker?](#-who-baked-this)
 - [🎥 Me building this app](#-me-building-this-app)
 - [⚖️ License](#%EF%B8%8F-license)
@@ -51,6 +52,67 @@ Give custom names to your thumbnails or use auto-generated filenames with timest
 See exactly how your thumbnail will look before exporting.
 Make adjustments with immediate visual feedback.
 ```
+
+## 🚀 App Store Publication
+
+This app is designed to be published on the Mac App Store. Follow these instructions for submission:
+
+### Prerequisites
+
+Before starting the build process, you need:
+
+1. An active Apple Developer account
+2. App Store Connect setup for your app
+3. A provisioning profile for Mac App Store distribution
+4. App Store Distribution certificate
+
+### Environment Setup
+
+Set these environment variables before running the build script:
+
+```bash
+# Required environment variables for signing and notarization
+export APPLE_ID=your_apple_id@example.com
+export APPLE_ID_PASSWORD=your_app_specific_password
+export APPLE_TEAM_ID=your_team_id
+```
+
+> **Note**: For the `APPLE_ID_PASSWORD`, use an app-specific password generated from your Apple ID account page rather than your main account password.
+
+### Provisioning Profile
+
+Place your provisioning profile at this location:
+```
+/Users/pierre-henrysoria/Code/Thumbnail-Creator/build/embedded.provisionprofile
+```
+
+### Build Commands
+
+```bash
+# Build for development testing (Mac App Store build)
+npm run mas-dev
+
+# Build for App Store submission (doesn't auto-publish)
+npm run mas-package
+
+# Build and publish to App Store Connect
+npm run mas
+```
+
+### Common Issues & Solutions
+
+1. **Signing Issues**: Ensure your certificates are valid and installed in your keychain
+2. **Entitlements Errors**: Check that the entitlements files match your provisioning profile capabilities
+3. **Notarization Failures**: Verify your Apple ID and app-specific password are correct
+4. **Sharp Module Issues**: If image processing fails, try rebuilding the sharp module with:
+   ```bash
+   npm run rebuild-sharp
+   ```
+
+### Developer Tools
+
+- Use `electron-builder --config` to see the full configuration options
+- Check the project's `.gitignore` to ensure sensitive files (like the provisioning profile) aren't committed
 
 ## 🧑‍🍳 Who baked this?
 [![Pierre-Henry Soria](https://s.gravatar.com/avatar/a210fe61253c43c869d71eaed0e90149?s=200)](https://PH7.me 'Pierre-Henry Soria personal website')
