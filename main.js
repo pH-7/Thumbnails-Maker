@@ -1,7 +1,21 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const sharp = require('sharp');
+
+// Add proper error handling for Sharp module
+let sharp;
+try {
+    sharp = require('sharp');
+    console.log('Sharp module loaded successfully');
+} catch (error) {
+    console.error('Failed to load Sharp module:', error);
+    dialog.showErrorBox(
+        'Module Error',
+        'Failed to load the image processing module (Sharp).\n\n' +
+        'This may be due to missing dependencies or incorrect installation.\n\n' +
+        'Please try reinstalling the application or run: npm rebuild --runtime=electron --target=[your-electron-version] --disturl=https://electronjs.org/headers --abi=[your-abi-version]'
+    );
+}
 
 let mainWindow;
 
@@ -71,6 +85,10 @@ ipcMain.handle('select-single-image', async () => {
 
 // Apply auto-enhance to image
 async function enhanceImage(buffer, enhanceOptions) {
+    if (!sharp) {
+        throw new Error('Image processing module is not available');
+    }
+    
     const { brightness, contrast, saturation, sharpness } = enhanceOptions;
 
     // Apply image enhancements
@@ -110,6 +128,10 @@ async function enhanceImage(buffer, enhanceOptions) {
 // Add this function to analyze images and determine optimal layout
 async function determineOptimalLayout(imagePaths) {
     try {
+        if (!sharp) {
+            throw new Error('Image processing module is not available');
+        }
+        
         // Calculate image complexity and determine optimal layout
         const imageAnalysis = await Promise.all(imagePaths.map(async (path) => {
             const imageBuffer = await fs.promises.readFile(path);
@@ -176,6 +198,13 @@ function calculateVariance(array) {
 
 // Handle thumbnail creation with tilted delimiters and auto-enhance
 ipcMain.handle('create-thumbnail', async (event, data) => {
+    if (!sharp) {
+        return {
+            success: false,
+            error: 'Image processing module is not available. Please restart the application.'
+        };
+    }
+    
     const {
         imagePaths,
         delimiterWidth,
