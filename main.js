@@ -69,60 +69,236 @@ ipcMain.handle('select-single-image', async () => {
     }
 });
 
-// Apply auto-enhance to image
+// Apply intelligent auto-enhance to image
 async function enhanceImage(buffer, enhanceOptions) {
     if (!sharp) {
         throw new Error('Image processing module is not available');
     }
-    
-    const { brightness, contrast, saturation, sharpness } = enhanceOptions;
-
-    // Create a new Sharp instance
-    let processedImage = sharp(buffer);
 
     try {
-        // Get image metadata
-        const metadata = await processedImage.metadata();
+        // Create a new Sharp instance
+        let processedImage = sharp(buffer);
         
-        // Apply image enhancements in a single pipeline
+        // Get image metadata and statistics
+        const metadata = await processedImage.metadata();
+        const stats = await processedImage.stats();
+        
+        // Analyze image characteristics
+        const analysis = await analyzeImage(stats, metadata);
+        
+        // Calculate adaptive enhancement parameters
+        const adaptiveParams = calculateEnhancementParams(analysis, enhanceOptions);
+        
+        // Apply the enhancements in optimal order
         processedImage = processedImage
             .rotate() // Auto-rotate based on EXIF
+            
+            // 1. Normalize colors and exposure
+            .normalise({
+                lower: adaptiveParams.normalise.lower,
+                upper: adaptiveParams.normalise.upper
+            })
+            
+            // 2. Apply white balance correction if needed
             .modulate({
-                brightness: brightness,
-                saturation: saturation
-            });
-
-        // Apply contrast adjustment if needed
-        if (contrast !== 1.0) {
-            processedImage = processedImage.linear(
-                contrast,                    // Multiply by contrast value
-                (1 - contrast) * 128        // Adjust offset for better contrast
-            );
-        }
-
-        // Apply sharpening if needed
-        if (sharpness > 1.0) {
-            const sharpenSigma = Math.max(0.5, Math.min(2.0, 0.5 + ((sharpness - 1.0) * 0.75)));
-            processedImage = processedImage.sharpen({
-                sigma: sharpenSigma,         // Gaussian sigma
-                m1: 1.0,                     // Sharpening strength
-                m2: 2.0,                     // Details preservation
-                x1: 2.0,                     // Threshold edges
-                y2: 10.0                     // Max sharpening
-            });
-        }
-
-        // Ensure proper color handling
-        processedImage = processedImage
-            .normalise()                     // Normalize color range
-            .removeAlpha()                   // Remove alpha channel if present
-            .ensureAlpha(1.0);              // Add back alpha channel with full opacity
+                brightness: adaptiveParams.brightness,
+                saturation: adaptiveParams.saturation,
+                hue: adaptiveParams.whiteBalance
+            })
+            
+            // 3. Apply gamma correction for better midtones
+            .gamma(adaptiveParams.gamma)
+            
+            // 4. Fine-tune contrast
+            .linear(
+                adaptiveParams.contrast.multiply,
+                adaptiveParams.contrast.offset
+            )
+            
+            // 5. Apply intelligent sharpening
+            .sharpen({
+                sigma: adaptiveParams.sharpen.sigma,
+                m1: adaptiveParams.sharpen.m1,
+                m2: adaptiveParams.sharpen.m2,
+                x1: adaptiveParams.sharpen.x1,
+                y2: adaptiveParams.sharpen.y2
+            })
+            
+            // 6. Ensure proper color handling
+            .removeAlpha()
+            .ensureAlpha(1.0);
 
         return processedImage;
     } catch (error) {
         console.error('Error in enhanceImage:', error);
         // If enhancement fails, return original image
         return sharp(buffer);
+    }
+}
+
+// Analyze image characteristics
+async function analyzeImage(stats, metadata) {
+    // Calculate brightness levels
+    const channels = ['r', 'g', 'b'];
+    const meanBrightness = channels.reduce((sum, channel) => sum + stats[channel].mean, 0) / 3;
+    const maxBrightness = Math.max(...channels.map(c => stats[c].max));
+    const minBrightness = Math.min(...channels.map(c => stats[c].min));
+    
+    // Calculate contrast
+    const stdDev = channels.reduce((sum, channel) => sum + stats[channel].stdev, 0) / 3;
+    
+    // Detect color cast
+    const channelMeans = channels.map(c => stats[c].mean);
+    const meanDifferences = channelMeans.map(mean => Math.abs(mean - meanBrightness));
+    const colorCast = Math.max(...meanDifferences) > 0.1;
+    
+    // Calculate saturation
+    const saturationLevel = calculateSaturation(stats);
+    
+    // Detect if image is underexposed or overexposed
+    const isUnderexposed = meanBrightness < 0.3;
+    const isOverexposed = meanBrightness > 0.7;
+    
+    // Calculate dynamic range
+    const dynamicRange = maxBrightness - minBrightness;
+    
+    return {
+        meanBrightness,
+        maxBrightness,
+        minBrightness,
+        contrast: stdDev,
+        colorCast,
+        saturationLevel,
+        isUnderexposed,
+        isOverexposed,
+        dynamicRange,
+        metadata
+    };
+}
+
+// Calculate saturation from RGB values
+function calculateSaturation(stats) {
+    const r = stats.r.mean;
+    const g = stats.g.mean;
+    const b = stats.b.mean;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return max === 0 ? 0 : (max - min) / max;
+}
+
+// Calculate enhancement parameters based on image analysis
+function calculateEnhancementParams(analysis, baseOptions) {
+    // Start with base enhancement level
+    const intensity = {
+        none: 0,
+        light: 0.5,
+        medium: 0.75,
+        high: 1.0
+    }[baseOptions.level] || 0.75;
+
+    // Adaptive brightness adjustment
+    let brightnessAdjust = 1.0;
+    if (analysis.isUnderexposed) {
+        brightnessAdjust = 1.0 + (0.3 * intensity);
+    } else if (analysis.isOverexposed) {
+        brightnessAdjust = 1.0 - (0.2 * intensity);
+    }
+
+    // Adaptive contrast adjustment
+    let contrastAdjust = {
+        multiply: 1.0,
+        offset: 0
+    };
+    if (analysis.contrast < 0.15) {
+        contrastAdjust.multiply = 1.0 + (0.35 * intensity);
+        contrastAdjust.offset = -(0.1 * intensity);
+    }
+
+    // Adaptive saturation adjustment
+    let saturationAdjust = 1.0;
+    if (analysis.saturationLevel < 0.3) {
+        saturationAdjust = 1.0 + (0.25 * intensity);
+    } else if (analysis.saturationLevel > 0.7) {
+        saturationAdjust = 1.0 - (0.15 * intensity);
+    }
+
+    // Calculate white balance adjustment
+    const whiteBalanceAdjust = analysis.colorCast ? calculateWhiteBalance(analysis) : 0;
+
+    // Adaptive sharpening based on image characteristics
+    const sharpenParams = calculateAdaptiveSharpening(analysis, intensity);
+
+    // Normalize parameters based on dynamic range
+    const normaliseParams = {
+        lower: analysis.isUnderexposed ? 0.005 * intensity : 0,
+        upper: analysis.isOverexposed ? 0.995 - (0.01 * intensity) : 0.995
+    };
+
+    // Calculate gamma correction
+    const gammaAdjust = analysis.meanBrightness < 0.5 ? 
+        1.0 - (0.2 * intensity) : 
+        1.0 + (0.2 * intensity);
+
+    return {
+        brightness: brightnessAdjust,
+        contrast: contrastAdjust,
+        saturation: saturationAdjust,
+        whiteBalance: whiteBalanceAdjust,
+        sharpen: sharpenParams,
+        normalise: normaliseParams,
+        gamma: gammaAdjust
+    };
+}
+
+// Calculate white balance adjustment
+function calculateWhiteBalance(analysis) {
+    const targetMean = (analysis.stats.r.mean + analysis.stats.g.mean + analysis.stats.b.mean) / 3;
+    const rOffset = analysis.stats.r.mean - targetMean;
+    const bOffset = analysis.stats.b.mean - targetMean;
+    
+    // Calculate hue adjustment (in degrees)
+    return Math.atan2(bOffset, rOffset) * (180 / Math.PI);
+}
+
+// Calculate adaptive sharpening parameters
+function calculateAdaptiveSharpening(analysis, intensity) {
+    // Base sharpening parameters
+    const baseParams = {
+        sigma: 0.8,
+        m1: 1.0,
+        m2: 2.0,
+        x1: 2.0,
+        y2: 10.0
+    };
+
+    // Adjust based on image characteristics
+    if (analysis.contrast < 0.15) {
+        // Low contrast images need more careful sharpening
+        return {
+            sigma: baseParams.sigma * (1 + 0.3 * intensity),
+            m1: baseParams.m1 * (1 - 0.2 * intensity),
+            m2: baseParams.m2 * (1 - 0.1 * intensity),
+            x1: baseParams.x1 * (1 + 0.2 * intensity),
+            y2: baseParams.y2 * (1 - 0.2 * intensity)
+        };
+    } else if (analysis.meanBrightness < 0.3) {
+        // Dark images need different sharpening to avoid noise
+        return {
+            sigma: baseParams.sigma * (1 - 0.2 * intensity),
+            m1: baseParams.m1 * (1 - 0.3 * intensity),
+            m2: baseParams.m2,
+            x1: baseParams.x1 * (1 + 0.3 * intensity),
+            y2: baseParams.y2 * (1 - 0.1 * intensity)
+        };
+    } else {
+        // Standard sharpening for well-exposed images
+        return {
+            sigma: baseParams.sigma * (1 + 0.2 * intensity),
+            m1: baseParams.m1 * (1 + 0.1 * intensity),
+            m2: baseParams.m2,
+            x1: baseParams.x1,
+            y2: baseParams.y2 * (1 + 0.1 * intensity)
+        };
     }
 }
 

@@ -562,14 +562,23 @@
         </div>
 
         <div class="form-group">
-          <label for="enhanceLevel">Enhancement Level:</label>
-          <select id="enhanceLevel">
-            <option value="none">None</option>
-            <option value="light">Light</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-          </select>
-          <div class="help-text">Automatically enhance images with optimized settings</div>
+          <label for="enhanceLevel">Auto-Enhance Images</label>
+          <input type="hidden" id="enhanceLevel" value="medium">
+          <div class="help-text">Automatically enhance images with optimized settings for thumbnails</div>
+          <div class="enhance-preview">
+            <div class="enhance-preview-item" data-level="none">
+              <div>None</div>
+            </div>
+            <div class="enhance-preview-item" data-level="light">
+              <div>Light</div>
+            </div>
+            <div class="enhance-preview-item active" data-level="medium">
+              <div>Medium</div>
+            </div>
+            <div class="enhance-preview-item" data-level="high">
+              <div>High</div>
+            </div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -626,78 +635,91 @@
   <script>
     const { ipcRenderer, shell } = require('electron');
 
+    // Cache DOM elements
+    const elements = {
+      selectImagesBtn: document.getElementById('selectImagesBtn'),
+      createThumbnailBtn: document.getElementById('createThumbnailBtn'),
+      resetOptionsBtn: document.getElementById('resetOptionsBtn'),
+      imagePreviews: [
+        document.getElementById('imagePreview1'),
+        document.getElementById('imagePreview2'),
+        document.getElementById('imagePreview3')
+      ],
+      delimiterWidthInput: document.getElementById('delimiterWidth'),
+      delimiterColorInput: document.getElementById('delimiterColor'),
+      delimiterTiltInput: document.getElementById('delimiterTilt'),
+      tiltValueOutput: document.getElementById('tiltValue'),
+      enhanceLevel: document.getElementById('enhanceLevel'),
+      enhancePreviewItems: document.querySelectorAll('.enhance-preview-item'),
+      outputNameInput: document.getElementById('outputName'),
+      resultContainer: document.getElementById('resultContainer'),
+      resultThumbnail: document.getElementById('resultThumbnail'),
+      youtubeOptimize: document.getElementById('youtubeOptimize'),
+      openFolderBtn: document.getElementById('openFolderBtn'),
+      startOverBtn: document.getElementById('startOverBtn'),
+      statusEl: document.getElementById('status'),
+      errorEl: document.getElementById('error'),
+      progressContainer: document.getElementById('progressContainer'),
+      progressBarFill: document.getElementById('progressBarFill'),
+      optionsContainer: document.querySelector('.options-container'),
+      delimiters: document.querySelectorAll('.delimiter'),
+      layoutMode: document.getElementById('layoutMode'),
+      enhanceHelpText: document.querySelector('.form-group:has(#enhanceLevel) .help-text')
+    };
+
+    // State
     let selectedImagePaths = [];
     let outputDir = null;
 
-    // Default values for options
-    const DEFAULT_DELIMITER_WIDTH = 18;
-    const DEFAULT_DELIMITER_TILT = 0;
-    const DEFAULT_DELIMITER_COLOR = "#ffffff";
-    const DEFAULT_ENHANCE_LEVEL = "medium";
+    // Constants
+    const DEFAULT_VALUES = {
+      DELIMITER_WIDTH: 18,
+      DELIMITER_TILT: 0,
+      DELIMITER_COLOR: "#ffffff",
+      ENHANCE_LEVEL: "medium"
+    };
 
-    // DOM elements
-    const selectImagesBtn = document.getElementById('selectImagesBtn');
-    const createThumbnailBtn = document.getElementById('createThumbnailBtn');
-    const resetOptionsBtn = document.getElementById('resetOptionsBtn');
-    const imagePreviews = [
-      document.getElementById('imagePreview1'),
-      document.getElementById('imagePreview2'),
-      document.getElementById('imagePreview3')
-    ];
-    const delimiterWidthInput = document.getElementById('delimiterWidth');
-    const delimiterColorInput = document.getElementById('delimiterColor');
-    const delimiterTiltInput = document.getElementById('delimiterTilt');
-    const tiltValueOutput = document.getElementById('tiltValue');
-    const enhanceLevelSelect = document.getElementById('enhanceLevel');
-    const enhancePreviewItems = document.querySelectorAll('.enhance-preview-item');
-    const outputNameInput = document.getElementById('outputName');
-    const resultContainer = document.getElementById('resultContainer');
-    const resultThumbnail = document.getElementById('resultThumbnail');
-    const youtubeOptimize = document.getElementById('youtubeOptimize')
-    const openFolderBtn = document.getElementById('openFolderBtn');
-    const startOverBtn = document.getElementById('startOverBtn');
-    const statusEl = document.getElementById('status');
-    const errorEl = document.getElementById('error');
-    const progressContainer = document.getElementById('progressContainer');
-    const progressBarFill = document.getElementById('progressBarFill');
+    const ENHANCE_MESSAGES = {
+      none: 'No enhancement applied to images',
+      light: 'Smart enhancement with subtle adjustments for high-quality images',
+      medium: 'Intelligent auto-enhance with balanced adjustments - recommended',
+      high: 'Maximum smart enhancement with adaptive adjustments for optimal results'
+    };
+
+    const ENHANCE_OPTIONS = {
+      level: elements.enhanceLevel.value
+    };
 
     // Reset options to default values
-    resetOptionsBtn.addEventListener('click', () => {
+    elements.resetOptionsBtn.addEventListener('click', () => {
       resetFormWithAnimation();
-      statusEl.textContent = 'Options reset to default values.';
+      elements.statusEl.textContent = 'Options reset to default values.';
     });
 
     // Update the delimiter preview
     function updateDelimiterPreview() {
-      const tiltAngle = delimiterTiltInput.value;
-      const delimiterColor = delimiterColorInput.value;
+      const tiltAngle = elements.delimiterTiltInput.value;
+      const delimiterColor = elements.delimiterColorInput.value;
 
-      document.querySelectorAll('.delimiter').forEach(delimiter => {
-        // Update transform for tilt
+      elements.delimiters.forEach(delimiter => {
         delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
-
-        // Set background color directly
         delimiter.style.backgroundColor = delimiterColor;
-
-        // Set a CSS custom property for the line color that we'll use in CSS
         delimiter.style.setProperty('--delimiter-line-color', getContrastingColor(delimiterColor));
       });
     }
 
     function updateDelimiterPreviewWithAnimation() {
-      // First apply the animation
-      document.querySelectorAll('.delimiter').forEach(delimiter => {
+      elements.delimiters.forEach(delimiter => {
         delimiter.animate([
-          { transform: `skewX(${-delimiterTiltInput.value}deg) scale(0.95)` },
-          { transform: `skewX(${-delimiterTiltInput.value}deg) scale(1.05)` },
-          { transform: `skewX(${-delimiterTiltInput.value}deg) scale(1)` }
+          { transform: `skewX(${-elements.delimiterTiltInput.value}deg) scale(0.95)` },
+          { transform: `skewX(${-elements.delimiterTiltInput.value}deg) scale(1.05)` },
+          { transform: `skewX(${-elements.delimiterTiltInput.value}deg) scale(1)` }
         ], {
           duration: 300,
           easing: 'ease-out'
         });
       });
 
-      // Then update the preview
       updateDelimiterPreview();
     }
 
@@ -718,25 +740,19 @@
       return luminance > 0.5 ? '#000000' : '#ffffff';
     }
 
-    // Update the tilt value display when the slider changes
-    delimiterTiltInput.addEventListener('input', () => {
-      const tiltAngle = delimiterTiltInput.value;
-      tiltValueOutput.textContent = `${tiltAngle}°`;
+    // Event Listeners
+    elements.delimiterTiltInput.addEventListener('input', () => {
+      const tiltAngle = elements.delimiterTiltInput.value;
+      elements.tiltValueOutput.textContent = `${tiltAngle}°`;
       updateDelimiterPreview();
     });
 
-    // Update delimiter color when changed
-    delimiterColorInput.addEventListener('input', () => {
-      updateDelimiterPreview();
-    });
+    elements.delimiterColorInput.addEventListener('input', updateDelimiterPreview);
 
-    // Update enhance level preview selection with animation
+    // Update enhance level preview selection
     function updateEnhancePreviewSelection(level) {
-      const prevActive = document.querySelector('.enhance-preview-item.active');
-
-      enhancePreviewItems.forEach(item => {
+      elements.enhancePreviewItems.forEach(item => {
         if (item.dataset.level === level) {
-          // Add a small animation for better feedback
           item.classList.add('active');
           item.style.transition = 'all 0.25s ease';
           item.animate([
@@ -752,35 +768,42 @@
         }
       });
 
-      enhanceLevelSelect.value = level;
-
-      // Update preview message based on level
-      const helpText = document.querySelector('.form-group:has(#enhanceLevel) .help-text');
-
-      if (helpText) {
-        const messages = {
-          none: 'No enhancement applied to images',
-          light: 'Subtle enhancement for already high-quality images',
-          medium: 'Balanced enhancement for most images - recommended',
-          high: 'Maximum enhancement to make images pop on YouTube'
-        };
-
-        helpText.innerHTML = messages[level] || 'Automatically enhance images with optimized settings';
+      elements.enhanceLevel.value = level;
+      
+      if (elements.enhanceHelpText) {
+        elements.enhanceHelpText.textContent = ENHANCE_MESSAGES[level] || 'Automatically enhance images with optimized settings';
       }
     }
 
     // Handle enhance preview clicks
-    enhancePreviewItems.forEach(item => {
+    elements.enhancePreviewItems.forEach(item => {
       item.addEventListener('click', () => {
-        const level = item.dataset.level;
-        updateEnhancePreviewSelection(level);
+        updateEnhancePreviewSelection(item.dataset.level);
       });
     });
 
-    // Handle enhance level select change
-    enhanceLevelSelect.addEventListener('change', () => {
-      updateEnhancePreviewSelection(enhanceLevelSelect.value);
-    });
+    function resetFormWithAnimation() {
+      elements.optionsContainer.animate([
+        { transform: 'scale(0.98)', opacity: 0.8 },
+        { transform: 'scale(1)', opacity: 1 }
+      ], {
+        duration: 300,
+        easing: 'ease-out'
+      });
+
+      // Reset all form values to defaults
+      elements.delimiterWidthInput.value = DEFAULT_VALUES.DELIMITER_WIDTH;
+      elements.delimiterTiltInput.value = DEFAULT_VALUES.DELIMITER_TILT;
+      elements.delimiterColorInput.value = DEFAULT_VALUES.DELIMITER_COLOR;
+      elements.enhanceLevel.value = DEFAULT_VALUES.ENHANCE_LEVEL;
+      elements.tiltValueOutput.textContent = `${DEFAULT_VALUES.DELIMITER_TILT}°`;
+      elements.outputNameInput.value = '';
+      elements.youtubeOptimize.checked = true;
+      elements.layoutMode.value = 'auto';
+
+      updateDelimiterPreviewWithAnimation();
+      updateEnhancePreviewSelection(DEFAULT_VALUES.ENHANCE_LEVEL);
+    }
 
     // Drag and Drop functions
     function allowDrop(event) {
@@ -827,8 +850,8 @@
       const draggedElement = document.getElementById(draggedElementId);
 
       if (draggedElement && draggedElement !== targetElement) {
-        const draggedIndex = imagePreviews.findIndex(preview => preview.id === draggedElementId);
-        const targetIndex = imagePreviews.findIndex(preview => preview.id === targetElement.id);
+        const draggedIndex = elements.imagePreviews.findIndex(preview => preview.id === draggedElementId);
+        const targetIndex = elements.imagePreviews.findIndex(preview => preview.id === targetElement.id);
 
         if (draggedIndex !== -1 && targetIndex !== -1) {
           // Swap the image paths
@@ -838,15 +861,15 @@
 
           // Update the UI
           updateImagePreviews();
-          statusEl.textContent = 'Images rearranged.';
+          elements.statusEl.textContent = 'Images rearranged.';
         }
       }
     }
 
     async function selectSingleImage(index) {
       try {
-        errorEl.textContent = '';
-        statusEl.textContent = `Selecting image for position ${index + 1}...`;
+        elements.errorEl.textContent = '';
+        elements.statusEl.textContent = `Selecting image for position ${index + 1}...`;
 
         // Call a new IPC handler for single image selection
         const imagePath = await ipcRenderer.invoke('select-single-image');
@@ -855,18 +878,18 @@
           // Update only the specific image slot
           selectedImagePaths[index] = imagePath;
           updateImagePreviews();
-          statusEl.textContent = `Image ${index + 1} updated.`;
+          elements.statusEl.textContent = `Image ${index + 1} updated.`;
         } else {
-          statusEl.textContent = 'No image selected.';
+          elements.statusEl.textContent = 'No image selected.';
         }
       } catch (error) {
-        errorEl.textContent = `Error selecting image: ${error.message}`;
-        statusEl.textContent = '';
+        elements.errorEl.textContent = `Error selecting image: ${error.message}`;
+        elements.statusEl.textContent = '';
       }
     }
 
     function updateImagePreviews() {
-      imagePreviews.forEach((preview, index) => {
+      elements.imagePreviews.forEach((preview, index) => {
         const clickHandler = () => selectSingleImage(index);
         preview.removeEventListener('click', preview._clickHandler);
         preview.addEventListener('click', clickHandler);
@@ -904,13 +927,13 @@
       });
 
       // Update delimiter tilt in preview
-      const tiltAngle = delimiterTiltInput.value;
-      document.querySelectorAll('.delimiter').forEach(delimiter => {
+      const tiltAngle = elements.delimiterTiltInput.value;
+      elements.delimiters.forEach(delimiter => {
         delimiter.style.transform = `skewX(${-tiltAngle}deg)`;
       });
 
       // Enable/disable create button
-      createThumbnailBtn.disabled = selectedImagePaths.filter(path => path).length !== 3;
+      elements.createThumbnailBtn.disabled = selectedImagePaths.filter(path => path).length !== 3;
     }
 
     // Remove image
@@ -921,14 +944,14 @@
       selectedImagePaths = selectedImagePaths.filter(path => path !== null);
 
       updateImagePreviews();
-      statusEl.textContent = 'Image removed.';
+      elements.statusEl.textContent = 'Image removed.';
     }
 
     // Select images handler
-    selectImagesBtn.addEventListener('click', async () => {
+    elements.selectImagesBtn.addEventListener('click', async () => {
       try {
-        errorEl.textContent = '';
-        statusEl.textContent = 'Selecting images...';
+        elements.errorEl.textContent = '';
+        elements.statusEl.textContent = 'Selecting images...';
 
         const imagePaths = await ipcRenderer.invoke('select-images');
 
@@ -942,50 +965,45 @@
           }
 
           updateImagePreviews();
-          statusEl.textContent = `${imagePaths.length} image(s) selected.`;
+          elements.statusEl.textContent = `${imagePaths.length} image(s) selected.`;
 
           if (imagePaths.length > 3) {
-            statusEl.textContent += ' Only the first 3 images will be used.';
+            elements.statusEl.textContent += ' Only the first 3 images will be used.';
           }
         } else {
-          statusEl.textContent = 'No images selected.';
+          elements.statusEl.textContent = 'No images selected.';
         }
       } catch (error) {
-        errorEl.textContent = `Error selecting images: ${error.message}`;
-        statusEl.textContent = '';
+        elements.errorEl.textContent = `Error selecting images: ${error.message}`;
+        elements.statusEl.textContent = '';
       }
     });
 
     // Create thumbnail handler
-    createThumbnailBtn.addEventListener('click', async () => {
+    elements.createThumbnailBtn.addEventListener('click', async () => {
       try {
-        errorEl.textContent = '';
-        statusEl.textContent = 'Creating thumbnail...';
-        createThumbnailBtn.disabled = true;
-        resultContainer.classList.remove('active');
+        elements.errorEl.textContent = '';
+        elements.statusEl.textContent = 'Creating thumbnail...';
+        elements.createThumbnailBtn.disabled = true;
+        elements.resultContainer.classList.remove('active');
 
-        progressContainer.classList.add('active');
+        elements.progressContainer.classList.add('active');
         showProcessingAnimation();
 
-        const delimiterWidth = parseInt(delimiterWidthInput.value) || DEFAULT_DELIMITER_WIDTH;
-        const delimiterColor = delimiterColorInput.value || DEFAULT_DELIMITER_COLOR;
-        const delimiterTilt = parseInt(delimiterTiltInput.value) || DEFAULT_DELIMITER_TILT;
-        const enhanceLevel = enhanceLevelSelect.value;
-        const enhanceOptions = {
-          none: { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
-          light: { brightness: 1.05, contrast: 1.1, saturation: 1.08, sharpness: 1.1 },
-          medium: { brightness: 1.08, contrast: 1.2, saturation: 1.15, sharpness: 1.3 },
-          high: { brightness: 1.12, contrast: 1.35, saturation: 1.25, sharpness: 1.5 }
-        };
-        const outputName = outputNameInput.value.trim();
+        const delimiterWidth = parseInt(elements.delimiterWidthInput.value) || DEFAULT_VALUES.DELIMITER_WIDTH;
+        const delimiterColor = elements.delimiterColorInput.value || DEFAULT_VALUES.DELIMITER_COLOR;
+        const delimiterTilt = parseInt(elements.delimiterTiltInput.value) || DEFAULT_VALUES.DELIMITER_TILT;
+        const enhanceLevel = elements.enhanceLevel.value;
+        const enhanceOptions = ENHANCE_OPTIONS[enhanceLevel];
+        const outputName = elements.outputNameInput.value.trim();
         const validImagePaths = selectedImagePaths.filter(path => path);
 
         if (validImagePaths.length !== 3) {
           throw new Error('Please select exactly 3 images');
         }
 
-        const layoutMode = document.getElementById('layoutMode').value;
-        const youtubeOptimize = document.getElementById('youtubeOptimize').checked;
+        const layoutMode = elements.layoutMode.value;
+        const youtubeOptimize = elements.youtubeOptimize.checked;
 
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
@@ -993,18 +1011,18 @@
           delimiterTilt,
           delimiterColor,
           outputName,
-          enhanceOptions: enhanceOptions[enhanceLevel],
+          enhanceOptions,
           applyEnhance: enhanceLevel !== 'none',
           layoutMode,
           youtubeOptimize
         });
 
-        progressBarFill.style.width = '100%';
+        elements.progressBarFill.style.width = '100%';
 
         if (result.success) {
           outputDir = result.outputDir;
-          resultThumbnail.src = `file://${result.outputPath}`;
-          resultContainer.classList.add('active');
+          elements.resultThumbnail.src = `file://${result.outputPath}`;
+          elements.resultContainer.classList.add('active');
 
           // Show optimization results
           if (result.optimizationResult && result.optimizationResult.savings) {
@@ -1019,100 +1037,52 @@
               statusMessage += ` | YouTube optimized: ${result.optimizationResult.savingsPercent}% smaller file size`;
             }
             
-            statusEl.textContent = statusMessage;
+            elements.statusEl.textContent = statusMessage;
           } else {
-            statusEl.textContent = 'Thumbnail created successfully!';
+            elements.statusEl.textContent = 'Thumbnail created successfully!';
           }
         } else if (result.error) {
-          errorEl.textContent = result.error;
-          statusEl.textContent = '';
+          elements.errorEl.textContent = result.error;
+          elements.statusEl.textContent = '';
         } else {
-          errorEl.textContent = 'An unknown error occurred while creating the thumbnail';
-          statusEl.textContent = '';
+          elements.errorEl.textContent = 'An unknown error occurred while creating the thumbnail';
+          elements.statusEl.textContent = '';
         }
       } catch (error) {
-        errorEl.textContent = error.message || 'An unknown error occurred';
-        statusEl.textContent = '';
+        elements.errorEl.textContent = error.message || 'An unknown error occurred';
+        elements.statusEl.textContent = '';
       } finally {
-        createThumbnailBtn.disabled = false;
-        progressContainer.classList.remove('active');
-        progressBarFill.style.width = '0%';
+        elements.createThumbnailBtn.disabled = false;
+        elements.progressContainer.classList.remove('active');
+        elements.progressBarFill.style.width = '0%';
       }
     });
 
-    openFolderBtn.addEventListener('click', () => {
+    elements.openFolderBtn.addEventListener('click', () => {
       if (outputDir) {
         shell.openPath(outputDir);
       }
     });
 
-    startOverBtn.addEventListener('click', () => {
+    elements.startOverBtn.addEventListener('click', () => {
       selectedImagePaths = [];
       updateImagePreviews();
-      resultContainer.classList.remove('active');
-      statusEl.textContent = 'Ready to create a new thumbnail.';
-      errorEl.textContent = '';
+      elements.resultContainer.classList.remove('active');
+      elements.statusEl.textContent = 'Ready to create a new thumbnail.';
+      elements.errorEl.textContent = '';
     });
+
+    function showProcessingAnimation() {
+      elements.createThumbnailBtn.classList.add('processing');
+
+      setTimeout(() => { elements.progressBarFill.style.width = '30%'; }, 200);
+      setTimeout(() => { elements.progressBarFill.style.width = '50%'; }, 600);
+      setTimeout(() => { elements.progressBarFill.style.width = '70%'; }, 1000);
+      setTimeout(() => { elements.progressBarFill.style.width = '90%'; }, 1500);
+    }
 
     updateImagePreviews();
     updateDelimiterPreview();
-
-    function showProcessingAnimation() {
-      createThumbnailBtn.classList.add('processing');
-
-      setTimeout(() => { progressBarFill.style.width = '30%'; }, 200);
-      setTimeout(() => { progressBarFill.style.width = '50%'; }, 600);
-      setTimeout(() => { progressBarFill.style.width = '70%'; }, 1000);
-      setTimeout(() => { progressBarFill.style.width = '90%'; }, 1500);
-    }
-
-    function resetFormWithAnimation() {
-      document.querySelector('.options-container').animate([
-        { transform: 'scale(0.98)', opacity: 0.8 },
-        { transform: 'scale(1)', opacity: 1 }
-      ], {
-        duration: 300,
-        easing: 'ease-out'
-      });
-
-      delimiterWidthInput.value = DEFAULT_DELIMITER_WIDTH;
-      delimiterTiltInput.value = DEFAULT_DELIMITER_TILT;
-      delimiterColorInput.value = DEFAULT_DELIMITER_COLOR;
-      enhanceLevelSelect.value = DEFAULT_ENHANCE_LEVEL;
-      tiltValueOutput.textContent = `${DEFAULT_DELIMITER_TILT}°`;
-      outputNameInput.value = '';
-      youtubeOptimize.checked = true
-
-      updateDelimiterPreviewWithAnimation();
-      updateEnhancePreviewSelection(DEFAULT_ENHANCE_LEVEL);
-    }
-
-    function showValidationError(message) {
-      errorEl.textContent = message;
-      errorEl.animate([
-        { transform: 'translateX(-5px)' },
-        { transform: 'translateX(5px)' },
-        { transform: 'translateX(-5px)' },
-        { transform: 'translateX(5px)' },
-        { transform: 'translateX(0)' }
-      ], {
-        duration: 300,
-        easing: 'ease-in-out'
-      });
-    }
-
-    document.querySelectorAll('input, select').forEach(input => {
-      input.addEventListener('change', () => {
-        input.animate([
-          { transform: 'scale(0.98)' },
-          { transform: 'scale(1.02)' },
-          { transform: 'scale(1)' }
-        ], {
-          duration: 300,
-          easing: 'ease-out'
-        });
-      });
-    });
   </script>
 </body>
 </html>
