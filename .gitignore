@@ -1,8 +1,39 @@
-# Node modules
+# Dependency directories
 node_modules/
+vendor/
+.bundle/
+
+# Build directories
+build/
+dist/
+
+# Logs
 npm-debug.log*
-yarn-error.log
-pnpm-debug.log
+yarn-debug.log*
+yarn-error.log*
+fastlane/report.xml
+fastlane/README.md
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Fastlane specific
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# User specific files
+*.xcuserstate
+xcuserdata/
 
 # Electron build artifacts
 /dist/
@@ -15,9 +46,6 @@ pnpm-debug.log
 *.pid
 *.seed
 
-# Metadata OS files
-.DS_Store
-
 # Certificates and provisioning profiles
 *.p12
 *.cer
@@ -27,3 +55,18 @@ pnpm-debug.log
 
 # Distribution files
 dist/
+
+# Fastlane files
+fastlane/
+
+# App files
+app/
+
+# Scripts
+scripts/
+
+# Electron builder files
+electron-builder.yml
+
+# Electron files
+electron-builder.yml
