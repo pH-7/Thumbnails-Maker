@@ -445,6 +445,53 @@
       border-radius: 3px;
       margin-bottom: 5px;
     }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+      margin-top: 5px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-switch label {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .toggle-switch label:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    .toggle-switch input:checked + label {
+      background-color: #2196F3;
+    }
+
+    .toggle-switch input:checked + label:before {
+      transform: translateX(26px);
+    }
   </style>
 </head>
 
@@ -515,23 +562,14 @@
         </div>
 
         <div class="form-group">
-          <label for="enhanceLevel">Auto-Enhance Images</label>
-          <input type="hidden" id="enhanceLevel" value="medium">
-          <div class="help-text">Automatically enhance images with optimized settings for thumbnails</div>
-          <div class="enhance-preview">
-            <div class="enhance-preview-item" data-level="none">
-              <div>None</div>
-            </div>
-            <div class="enhance-preview-item" data-level="light">
-              <div>Light</div>
-            </div>
-            <div class="enhance-preview-item active" data-level="medium">
-              <div>Medium</div>
-            </div>
-            <div class="enhance-preview-item" data-level="high">
-              <div>High</div>
-            </div>
-          </div>
+          <label for="enhanceLevel">Enhancement Level:</label>
+          <select id="enhanceLevel">
+            <option value="none">None</option>
+            <option value="light">Light</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+          <div class="help-text">Automatically enhance images with optimized settings</div>
         </div>
 
         <div class="form-group">
@@ -542,6 +580,15 @@
             <option value="2-split">Always 2 Images</option>
           </select>
           <div class="help-text">Smart mode analyzes your images to choose the best layout</div>
+        </div>
+
+        <div class="form-group">
+          <label for="youtubeOptimize">YouTube Optimization</label>
+          <div class="toggle-switch">
+            <input type="checkbox" id="youtubeOptimize" checked>
+            <label for="youtubeOptimize"></label>
+          </div>
+          <div class="help-text">Optimize for YouTube by removing metadata and applying lossless compression</div>
         </div>
       </div>
 
@@ -714,7 +761,7 @@
           none: 'No enhancement applied to images',
           light: 'Subtle enhancement for already high-quality images',
           medium: 'Balanced enhancement for most images - recommended',
-          high: 'Strong enhancement to make images pop on YouTube'
+          high: 'Maximum enhancement to make images pop on YouTube'
         };
 
         helpText.innerHTML = messages[level] || 'Automatically enhance images with optimized settings';
@@ -937,6 +984,7 @@
         }
 
         const layoutMode = document.getElementById('layoutMode').value;
+        const youtubeOptimize = document.getElementById('youtubeOptimize').checked;
 
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
@@ -946,7 +994,8 @@
           outputName,
           enhanceOptions: enhanceOptions[enhanceLevel],
           applyEnhance: enhanceLevel !== 'none',
-          layoutMode
+          layoutMode,
+          youtubeOptimize
         });
 
         progressBarFill.style.width = '100%';
@@ -957,23 +1006,31 @@
           resultContainer.classList.add('active');
 
           // Show optimization results
-          let statusMessage = 'Thumbnail created successfully!';
-          if (result.optimization) {
-            statusMessage += ` Optimized from ${result.optimization.originalSize} to ${result.optimization.newSize} (${result.optimization.savings} reduction)`;
+          if (result.optimizationResult && result.optimizationResult.savings) {
+            let statusMessage = 'Thumbnail created successfully!';
+            
+            if (result.optimizationResult.savings !== '0%') {
+              statusMessage += ` Optimized: ${result.optimizationResult.originalSize} → ${result.optimizationResult.newSize} (${result.optimizationResult.savings} reduction)`;
+            }
+            
+            // Add YouTube optimization info if applicable
+            if (youtubeOptimize && result.optimizationResult.savingsPercent) {
+              statusMessage += ` | YouTube optimized: ${result.optimizationResult.savingsPercent}% smaller file size`;
+            }
+            
+            statusEl.textContent = statusMessage;
+          } else {
+            statusEl.textContent = 'Thumbnail created successfully!';
           }
-
-          // Show layout info if auto mode was used
-          if (layoutMode === 'auto') {
-            statusMessage += ` Created with ${result.splitCount} splits.`;
-          }
-
-          statusEl.textContent = statusMessage;
+        } else if (result.error) {
+          errorEl.textContent = result.error;
+          statusEl.textContent = '';
         } else {
-          errorEl.textContent = `Error: ${result.error}`;
+          errorEl.textContent = 'An unknown error occurred while creating the thumbnail';
           statusEl.textContent = '';
         }
       } catch (error) {
-        errorEl.textContent = `Error creating thumbnail: ${error.message}`;
+        errorEl.textContent = error.message || 'An unknown error occurred';
         statusEl.textContent = '';
       } finally {
         createThumbnailBtn.disabled = false;

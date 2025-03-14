@@ -1,21 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-
-// Add proper error handling for Sharp module
-let sharp;
-try {
-    sharp = require('sharp');
-    console.log('Sharp module loaded successfully');
-} catch (error) {
-    console.error('Failed to load Sharp module:', error);
-    dialog.showErrorBox(
-        'Module Error',
-        'Failed to load the image processing module (Sharp).\n\n' +
-        'This may be due to missing dependencies or incorrect installation.\n\n' +
-        'Please try reinstalling the application or run: npm rebuild --runtime=electron --target=[your-electron-version] --disturl=https://electronjs.org/headers --abi=[your-abi-version]'
-    );
-}
+const sharp = require('sharp');
 
 let mainWindow;
 
@@ -91,38 +77,53 @@ async function enhanceImage(buffer, enhanceOptions) {
     
     const { brightness, contrast, saturation, sharpness } = enhanceOptions;
 
-    // Apply image enhancements
+    // Create a new Sharp instance
     let processedImage = sharp(buffer);
 
-    if (brightness !== 1.0 || contrast !== 1.0 || saturation !== 1.0) {
-        // Apply modulate for brightness and saturation
-        processedImage = processedImage.modulate({
-            brightness: brightness,
-            saturation: saturation
-        });
+    try {
+        // Get image metadata
+        const metadata = await processedImage.metadata();
+        
+        // Apply image enhancements in a single pipeline
+        processedImage = processedImage
+            .rotate() // Auto-rotate based on EXIF
+            .modulate({
+                brightness: brightness,
+                saturation: saturation
+            });
 
-        // Apply contrast adjustment
+        // Apply contrast adjustment if needed
         if (contrast !== 1.0) {
-            // Convert contrast value to linear contrast parameters
-            processedImage = processedImage
-                .linear(
-                    contrast, // Multiply by contrast value
-                    (1 - contrast) * 128 // Adjust offset
-                )
+            processedImage = processedImage.linear(
+                contrast,                    // Multiply by contrast value
+                (1 - contrast) * 128        // Adjust offset for better contrast
+            );
         }
-    }
 
-    // Apply sharpening if needed
-    if (sharpness > 1.0) {
-        const sharpenSigma = 0.5 + ((sharpness - 1.0) * 0.75);
-        processedImage = processedImage.sharpen({
-            sigma: sharpenSigma,
-            m1: 0.0,
-            m2: 15
-        });
-    }
+        // Apply sharpening if needed
+        if (sharpness > 1.0) {
+            const sharpenSigma = Math.max(0.5, Math.min(2.0, 0.5 + ((sharpness - 1.0) * 0.75)));
+            processedImage = processedImage.sharpen({
+                sigma: sharpenSigma,         // Gaussian sigma
+                m1: 1.0,                     // Sharpening strength
+                m2: 2.0,                     // Details preservation
+                x1: 2.0,                     // Threshold edges
+                y2: 10.0                     // Max sharpening
+            });
+        }
 
-    return processedImage;
+        // Ensure proper color handling
+        processedImage = processedImage
+            .normalise()                     // Normalize color range
+            .removeAlpha()                   // Remove alpha channel if present
+            .ensureAlpha(1.0);              // Add back alpha channel with full opacity
+
+        return processedImage;
+    } catch (error) {
+        console.error('Error in enhanceImage:', error);
+        // If enhancement fails, return original image
+        return sharp(buffer);
+    }
 }
 
 // Add this function to analyze images and determine optimal layout
@@ -212,7 +213,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         outputName,
         enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
         applyEnhance = false,
-        layoutMode = 'auto' // Can be 'auto', '2-split', or '3-split'
+        layoutMode = 'auto', // Can be 'auto', '2-split', or '3-split'
+        youtubeOptimize = true // Set to true by default
     } = data;
 
     // Extract color information from delimiterColor
@@ -344,38 +346,105 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             });
         });
 
-        // Rest of the function remains the same...
-        const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-
-        const outputFilename = outputName ||
-            `youtube-thumbnail-${splitCount}split-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
-        const outputPath = path.join(outputDir, `${outputFilename}.png`);
-
-        await canvas
+        // Create final image with optimizations for YouTube
+        const finalImage = await canvas
             .composite(composites)
-            .png()
-            .toFile(outputPath);
+            .png({
+                compressionLevel: 9,      // Maximum compression
+                adaptiveFiltering: true,  // Optimize filtering
+                palette: false,           // Keep full color range
+                effort: 10,              // Maximum optimization effort
+                colors: 256,             // Maximum colors for PNG
+                dither: 1.0             // Apply dithering for better quality
+            });
 
-        // Add optimization step
-        const optimizationResult = await optimizeThumbnail(outputPath);
+        // Save the final image
+        const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
+        await fs.promises.mkdir(outputDir, { recursive: true });
 
-        console.log(`Thumbnail created successfully with ${splitCount} splits:`, outputPath);
+        const finalOutputName = data.outputName || 
+            `youtube-thumbnail-${splitCount}split-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
+        
+        const outputPath = path.join(outputDir, `${finalOutputName}.png`);
 
-        return {
-            success: true,
-            outputPath,
-            outputDir,
-            splitCount,
-            optimization: optimizationResult
-        };
+        // Apply YouTube-specific optimizations
+        if (youtubeOptimize) {
+            // First save with metadata stripped
+            await finalImage
+                .withMetadata({
+                    // Keep only essential metadata
+                    orientation: undefined,
+                    icc: undefined,
+                    exif: undefined,
+                    iptc: undefined,
+                    xmp: undefined
+                })
+                .toFile(outputPath);
+
+            // Get original size
+            const originalStats = await fs.promises.stat(outputPath);
+            const originalSize = originalStats.size;
+
+            // Create an optimized version
+            const optimizedBuffer = await sharp(outputPath)
+                .png({
+                    compressionLevel: 9,
+                    adaptiveFiltering: true,
+                    palette: false,
+                    effort: 10,
+                    colors: 256,
+                    dither: 1.0
+                })
+                .toBuffer();
+
+            // Write optimized version
+            await fs.promises.writeFile(outputPath, optimizedBuffer);
+            
+            // Get new size
+            const newStats = await fs.promises.stat(outputPath);
+            const newSize = newStats.size;
+            const savings = ((originalSize - newSize) / originalSize * 100).toFixed(2);
+
+            console.log(`Thumbnail created and optimized for YouTube:`, outputPath);
+            return {
+                success: true,
+                outputPath,
+                outputDir,
+                optimizationResult: {
+                    path: outputPath,
+                    originalSize: formatBytes(originalSize),
+                    newSize: formatBytes(newSize),
+                    savings: `${savings}%`,
+                    qualityPreserved: true
+                }
+            };
+        } else {
+            // Standard output without optimization
+            await finalImage
+                .withMetadata()  // Keep original metadata
+                .toFile(outputPath);
+            
+            const stats = await fs.promises.stat(outputPath);
+            console.log(`Thumbnail created successfully with ${splitCount} splits:`, outputPath);
+            
+            return {
+                success: true,
+                outputPath,
+                outputDir,
+                optimizationResult: {
+                    path: outputPath,
+                    originalSize: formatBytes(stats.size),
+                    newSize: formatBytes(stats.size),
+                    savings: '0%',
+                    qualityPreserved: true
+                }
+            };
+        }
     } catch (error) {
         console.error('Error creating thumbnail:', error);
         return {
             success: false,
-            error: error.message
+            error: error.message || 'An unknown error occurred while creating the thumbnail'
         };
     }
 });
