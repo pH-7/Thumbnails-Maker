@@ -653,6 +653,7 @@
     const outputNameInput = document.getElementById('outputName');
     const resultContainer = document.getElementById('resultContainer');
     const resultThumbnail = document.getElementById('resultThumbnail');
+    const youtubeOptimize = document.getElementById('youtubeOptimize')
     const openFolderBtn = document.getElementById('openFolderBtn');
     const startOverBtn = document.getElementById('startOverBtn');
     const statusEl = document.getElementById('status');
@@ -1080,6 +1081,7 @@
       enhanceLevelSelect.value = DEFAULT_ENHANCE_LEVEL;
       tiltValueOutput.textContent = `${DEFAULT_DELIMITER_TILT}°`;
       outputNameInput.value = '';
+      youtubeOptimize.checked = true
 
       updateDelimiterPreviewWithAnimation();
       updateEnhancePreviewSelection(DEFAULT_ENHANCE_LEVEL);
