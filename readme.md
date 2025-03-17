@@ -53,6 +53,28 @@ See exactly how your thumbnail will look before exporting.
 Make adjustments with immediate visual feedback.
 ```
 
+### Multi-Image Combination
+- Combine 2 or 3 images horizontally with clean white delimiters.
+- Perfect for creating YouTube thumbnails that showcase multiple scenes or perspectives.
+
+### Automatic Layout Detection
+- Smart mode analyzes your images to determine the optimal number of splits.
+- Manual mode lets you choose between 2 or 3 image layouts.
+
+### Image Enhancement
+- Auto-enhance your images with optimized settings for YouTube thumbnails.
+- Choose from None, Light, Medium, or Strong enhancement levels.
+
+### YouTube Optimization
+- NEW! Optimize thumbnails specifically for YouTube with WebP format
+- Reduces file size by 25-35% while maintaining high quality
+- Perfect for faster uploads and better viewer experience
+
+### Customization Options
+- Adjust delimiter width and color.
+- Apply tilt angles to delimiters for a dynamic look.
+- Control enhancement levels to make your thumbnails pop.
+
 ## 🚀 App Store Publication
 
 This app is designed to be published on the Mac App Store. Follow these instructions for submission:
