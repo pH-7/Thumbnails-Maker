@@ -145,8 +145,8 @@ npm run mas
 
 [![@phenrysay][twitter-icon]](https://x.com/phenrysay) [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7)
 
-## 🎥 Me building this app
-Check out my YouTube channel where I explain the process of building this app from scratch using Electron and Node.js: [YouTube Channel](https://www.youtube.com/@pH7Programming/videos).
+## 🎥 Me building apps like this one!
+Check out my YouTube channel where I explain the process of building this app from scratch: [YouTube Channel](https://www.youtube.com/@pH7Programming/videos).
 
 
 ![Universal Style YouTube Thumbnail Creator - Splitter with 3 images](youtube-thumbnail-combiner.png)
