@@ -78,53 +78,66 @@ async function enhanceImage(buffer, enhanceOptions) {
     try {
         // Create a new Sharp instance
         let processedImage = sharp(buffer);
-        
+
         // Get image metadata and statistics
         const metadata = await processedImage.metadata();
         const stats = await processedImage.stats();
-        
+
         // Analyze image characteristics
         const analysis = await analyzeImage(stats, metadata);
-        
-        // Calculate adaptive enhancement parameters
+
+        // Calculate adaptive enhancement parameters with more vibrant settings
         const adaptiveParams = calculateEnhancementParams(analysis, enhanceOptions);
-        
+
+        // For thumbnails, we want more vibrant, eye-catching images
+        adaptiveParams.saturation = Math.min(adaptiveParams.saturation * 1.2, 1.8); // Boost saturation
+        adaptiveParams.contrast.multiply = Math.min(adaptiveParams.contrast.multiply * 1.15, 1.3); // Boost contrast
+
         // Apply the enhancements in optimal order
         processedImage = processedImage
             .rotate() // Auto-rotate based on EXIF
-            
+
             // 1. Normalize colors and exposure
             .normalise({
                 lower: adaptiveParams.normalise.lower,
                 upper: adaptiveParams.normalise.upper
             })
-            
+
             // 2. Apply white balance correction if needed
             .modulate({
                 brightness: adaptiveParams.brightness,
                 saturation: adaptiveParams.saturation,
                 hue: adaptiveParams.whiteBalance
             })
-            
+
             // 3. Apply gamma correction for better midtones
             .gamma(adaptiveParams.gamma)
-            
+
             // 4. Fine-tune contrast
             .linear(
                 adaptiveParams.contrast.multiply,
                 adaptiveParams.contrast.offset
             )
-            
-            // 5. Apply intelligent sharpening
+
+            // 5. Apply intelligent sharpening with higher values for thumbnails
             .sharpen({
                 sigma: adaptiveParams.sharpen.sigma,
-                m1: adaptiveParams.sharpen.m1,
-                m2: adaptiveParams.sharpen.m2,
+                m1: adaptiveParams.sharpen.m1 * 1.2, // Increase flat areas sharpness
+                m2: adaptiveParams.sharpen.m2 * 1.1, // Slightly increase jagged areas
                 x1: adaptiveParams.sharpen.x1,
                 y2: adaptiveParams.sharpen.y2
             })
-            
-            // 6. Ensure proper color handling
+
+            // 6. Apply a subtle vignette effect to draw attention to the center
+            .convolve({
+                width: 3,
+                height: 3,
+                kernel: [1, 1, 1, 1, 1.1, 1, 1, 1, 1],
+                scale: 1,
+                offset: 0
+            })
+
+            // 7. Ensure proper color handling
             .removeAlpha()
             .ensureAlpha(1.0);
 
@@ -143,25 +156,25 @@ async function analyzeImage(stats, metadata) {
     const meanBrightness = channels.reduce((sum, channel) => sum + stats[channel].mean, 0) / 3;
     const maxBrightness = Math.max(...channels.map(c => stats[c].max));
     const minBrightness = Math.min(...channels.map(c => stats[c].min));
-    
+
     // Calculate contrast
     const stdDev = channels.reduce((sum, channel) => sum + stats[channel].stdev, 0) / 3;
-    
+
     // Detect color cast
     const channelMeans = channels.map(c => stats[c].mean);
     const meanDifferences = channelMeans.map(mean => Math.abs(mean - meanBrightness));
     const colorCast = Math.max(...meanDifferences) > 0.1;
-    
+
     // Calculate saturation
     const saturationLevel = calculateSaturation(stats);
-    
+
     // Detect if image is underexposed or overexposed
     const isUnderexposed = meanBrightness < 0.3;
     const isOverexposed = meanBrightness > 0.7;
-    
+
     // Calculate dynamic range
     const dynamicRange = maxBrightness - minBrightness;
-    
+
     return {
         meanBrightness,
         maxBrightness,
@@ -188,65 +201,82 @@ function calculateSaturation(stats) {
 
 // Calculate enhancement parameters based on image analysis
 function calculateEnhancementParams(analysis, baseOptions) {
-    // Start with base enhancement level
-    const intensity = {
-        none: 0,
-        light: 0.5,
-        medium: 0.75,
-        high: 1.0
-    }[baseOptions.level] || 0.75;
+    // Get base enhancement options
+    const enhanceLevel = baseOptions.enhanceLevel || 'medium';
 
-    // Adaptive brightness adjustment
-    let brightnessAdjust = 1.0;
-    if (analysis.isUnderexposed) {
-        brightnessAdjust = 1.0 + (0.3 * intensity);
-    } else if (analysis.isOverexposed) {
-        brightnessAdjust = 1.0 - (0.2 * intensity);
+    // Set intensity multiplier based on enhance level
+    let intensityMultiplier;
+    switch (enhanceLevel) {
+        case 'none':
+            intensityMultiplier = 0;
+            break;
+        case 'light':
+            intensityMultiplier = 0.7;
+            break;
+        case 'medium':
+            intensityMultiplier = 1.0;
+            break;
+        case 'high':
+            intensityMultiplier = 1.3;
+            break;
+        default:
+            intensityMultiplier = 1.0;
     }
 
-    // Adaptive contrast adjustment
-    let contrastAdjust = {
-        multiply: 1.0,
-        offset: 0
-    };
-    if (analysis.contrast < 0.15) {
-        contrastAdjust.multiply = 1.0 + (0.35 * intensity);
-        contrastAdjust.offset = -(0.1 * intensity);
-    }
+    // For thumbnails, boost certain parameters for a more eye-catching look
+    const thumbnailMultiplier = 1.2; // Additional boost for thumbnail creation
 
-    // Adaptive saturation adjustment
-    let saturationAdjust = 1.0;
-    if (analysis.saturationLevel < 0.3) {
-        saturationAdjust = 1.0 + (0.25 * intensity);
-    } else if (analysis.saturationLevel > 0.7) {
-        saturationAdjust = 1.0 - (0.15 * intensity);
-    }
+    // Use intelligent adaptation based on image characteristics
+    const isUnderexposed = analysis.meanBrightness < 0.4;
+    const isOverexposed = analysis.meanBrightness > 0.7;
+    const isLowContrast = analysis.contrast < 0.3;
+    const isLowSaturation = analysis.saturationLevel < 0.25;
+    const isDesaturated = analysis.saturationLevel < 0.15;
 
-    // Calculate white balance adjustment
-    const whiteBalanceAdjust = analysis.colorCast ? calculateWhiteBalance(analysis) : 0;
-
-    // Adaptive sharpening based on image characteristics
-    const sharpenParams = calculateAdaptiveSharpening(analysis, intensity);
-
-    // Normalize parameters based on dynamic range
-    const normaliseParams = {
-        lower: analysis.isUnderexposed ? 0.005 * intensity : 0,
-        upper: analysis.isOverexposed ? 0.995 - (0.01 * intensity) : 0.995
-    };
-
-    // Calculate gamma correction
-    const gammaAdjust = analysis.meanBrightness < 0.5 ? 
-        1.0 - (0.2 * intensity) : 
-        1.0 + (0.2 * intensity);
-
+    // Construct parameters with intelligent, adaptive adjustments
     return {
-        brightness: brightnessAdjust,
-        contrast: contrastAdjust,
-        saturation: saturationAdjust,
-        whiteBalance: whiteBalanceAdjust,
-        sharpen: sharpenParams,
-        normalise: normaliseParams,
-        gamma: gammaAdjust
+        // Enhance normalization to improve dynamic range
+        normalise: {
+            lower: isUnderexposed ? 0.01 : 0.03,
+            upper: isOverexposed ? 0.98 : 0.97
+        },
+
+        // Boost brightness for underexposed images
+        brightness: isUnderexposed
+            ? 1 + (0.2 * intensityMultiplier * thumbnailMultiplier)
+            : isOverexposed
+                ? 1 - (0.1 * intensityMultiplier)
+                : 1 + (0.05 * intensityMultiplier),
+
+        // Enhance saturation more aggressively for thumbnails
+        saturation: isLowSaturation
+            ? 1 + (0.5 * intensityMultiplier * thumbnailMultiplier)
+            : isDesaturated
+                ? 1 + (0.7 * intensityMultiplier * thumbnailMultiplier)
+                : 1 + (0.2 * intensityMultiplier * thumbnailMultiplier),
+
+        // Apply white balance correction
+        whiteBalance: analysis.colorCast ? calculateWhiteBalance(analysis) : 0,
+
+        // Adjust gamma for better midtones
+        gamma: isUnderexposed
+            ? 0.9 - (0.1 * intensityMultiplier)
+            : 1.1 + (0.1 * intensityMultiplier),
+
+        // Boost contrast for more visual pop in thumbnails
+        contrast: {
+            multiply: isLowContrast
+                ? 1 + (0.25 * intensityMultiplier * thumbnailMultiplier)
+                : 1 + (0.15 * intensityMultiplier * thumbnailMultiplier),
+            offset: isUnderexposed
+                ? 0.02 * intensityMultiplier
+                : isOverexposed
+                    ? -0.02 * intensityMultiplier
+                    : 0
+        },
+
+        // Apply adaptive sharpening based on image characteristics
+        sharpen: calculateAdaptiveSharpening(analysis, intensityMultiplier * thumbnailMultiplier)
     };
 }
 
@@ -255,7 +285,7 @@ function calculateWhiteBalance(analysis) {
     const targetMean = (analysis.stats.r.mean + analysis.stats.g.mean + analysis.stats.b.mean) / 3;
     const rOffset = analysis.stats.r.mean - targetMean;
     const bOffset = analysis.stats.b.mean - targetMean;
-    
+
     // Calculate hue adjustment (in degrees)
     return Math.atan2(bOffset, rOffset) * (180 / Math.PI);
 }
@@ -308,7 +338,7 @@ async function determineOptimalLayout(imagePaths) {
         if (!sharp) {
             throw new Error('Image processing module is not available');
         }
-        
+
         // Calculate image complexity and determine optimal layout
         const imageAnalysis = await Promise.all(imagePaths.map(async (path) => {
             const imageBuffer = await fs.promises.readFile(path);
@@ -381,7 +411,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             error: 'Image processing module is not available. Please restart the application.'
         };
     }
-    
+
     const {
         imagePaths,
         delimiterWidth,
@@ -418,9 +448,25 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const THUMBNAIL_WIDTH = 1280;
         const THUMBNAIL_HEIGHT = 720;
 
-        // Calculate tilt displacement
-        const tiltRadians = (delimiterTilt * Math.PI) / 180;
-        const tiltDisplacement = Math.tan(tiltRadians) * THUMBNAIL_HEIGHT;
+        // Use the user's tilt setting as a base but add variation for visual interest
+        const baseTiltRadians = (delimiterTilt * Math.PI) / 180;
+
+        // Create dynamic tilt variations (between 70-130% of base tilt) for visual interest
+        const tiltVariations = [];
+        for (let i = 1; i < splitCount; i++) {
+            // Add some randomness to the tilt for visual interest
+            // Use a pseudorandom approach based on the image paths to keep it consistent
+            const seed = imagePaths.reduce((acc, path, index) => acc + path.length * (index + 1), 0);
+            const variation = 0.7 + ((seed * i) % 1000) / 1666; // Between 0.7 and 1.3
+
+            const dynamicTiltRadians = baseTiltRadians * variation;
+            tiltVariations.push(dynamicTiltRadians);
+        }
+
+        // Calculate tilt displacements
+        const tiltDisplacements = tiltVariations.map(tiltRadian =>
+            Math.tan(tiltRadian) * THUMBNAIL_HEIGHT
+        );
 
         // Create blank canvas
         const canvas = sharp({
@@ -440,9 +486,16 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             delimiterPositions.push(Math.floor(sectionWidth * i));
         }
 
-        // Create delimiter masks
-        const delimiterMasks = delimiterPositions.map(position =>
-            Buffer.from(createDelimiterSVG(position, tiltDisplacement, delimiterWidth, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, fillColor))
+        // Create delimiter masks with different tilts
+        const delimiterMasks = delimiterPositions.map((position, index) =>
+            Buffer.from(createDelimiterSVG(
+                position,
+                tiltDisplacements[index],
+                delimiterWidth,
+                THUMBNAIL_WIDTH,
+                THUMBNAIL_HEIGHT,
+                fillColor
+            ))
         );
 
         // Process images
@@ -454,7 +507,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
                     if (index === 0) {
                         // First image
-                        imageWidth = delimiterPositions[0] + (tiltDisplacement < 0 ? tiltDisplacement : 0);
+                        imageWidth = delimiterPositions[0] + (tiltDisplacements[0] < 0 ? tiltDisplacements[0] : 0);
                     } else if (index === selectedImages.length - 1) {
                         // Last image
                         imageWidth = THUMBNAIL_WIDTH - delimiterPositions[delimiterPositions.length - 1] - delimiterWidth;
@@ -498,7 +551,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             } else {
                 currentPos = delimiterPositions[i - 1] + delimiterWidth / 2;
                 positions.push({
-                    left: Math.floor(currentPos + (tiltDisplacement < 0 ? Math.min(0, tiltDisplacement / 2 * i) : 0)),
+                    left: Math.floor(currentPos + (tiltDisplacements[i] < 0 ? Math.min(0, tiltDisplacements[i] / 2 * i) : 0)),
                     top: 0
                 });
             }
@@ -538,9 +591,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
         await fs.promises.mkdir(outputDir, { recursive: true });
 
-        const finalOutputName = data.outputName || 
+        const finalOutputName = data.outputName ||
             `youtube-thumbnail-${splitCount}split-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
-        
+
         const outputPath = path.join(outputDir, `${finalOutputName}.png`);
 
         // Apply YouTube-specific optimizations
@@ -575,7 +628,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
             // Write optimized version
             await fs.promises.writeFile(outputPath, optimizedBuffer);
-            
+
             // Get new size
             const newStats = await fs.promises.stat(outputPath);
             const newSize = newStats.size;
@@ -599,10 +652,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             await finalImage
                 .withMetadata()  // Keep original metadata
                 .toFile(outputPath);
-            
+
             const stats = await fs.promises.stat(outputPath);
             console.log(`Thumbnail created successfully with ${splitCount} splits:`, outputPath);
-            
+
             return {
                 success: true,
                 outputPath,
@@ -631,11 +684,52 @@ function createDelimiterSVG(position, tiltDisplacement, width, totalWidth, total
     const x1 = position - halfTiltDisp - width / 2;
     const x2 = position + halfTiltDisp - width / 2;
 
+    // Create a gradient effect for more visual appeal
+    // Extract color components from the fillColor
+    let r, g, b;
+    const colorRegex = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
+    const colorMatch = colorRegex.exec(fillColor);
+
+    if (colorMatch) {
+        r = parseInt(colorMatch[1], 16);
+        g = parseInt(colorMatch[2], 16);
+        b = parseInt(colorMatch[3], 16);
+    } else {
+        // Default to white if color parsing fails
+        r = g = b = 255;
+    }
+
+    // Create slightly darker shade for gradient effect
+    const darkerShade = `rgba(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)}, 0.95)`;
+    const lighterShade = `rgba(${Math.min(255, r + 20)}, ${Math.min(255, g + 20)}, ${Math.min(255, b + 20)}, 1)`;
+
+    // Create slightly transparent edges for a more natural blend
+    const edgeColor = `rgba(${r}, ${g}, ${b}, 0.85)`;
+
     return `
         <svg width="${totalWidth}" height="${totalHeight}">
+          <defs>
+            <linearGradient id="dividerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${lighterShade}" />
+              <stop offset="50%" stop-color="${fillColor}" />
+              <stop offset="100%" stop-color="${darkerShade}" />
+            </linearGradient>
+            <filter id="softShadow" width="200%" height="200%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+              <feOffset dx="2" dy="2" result="offsetblur" />
+              <feComponentTransfer>
+                <feFuncA type="linear" slope="0.5" />
+              </feComponentTransfer>
+              <feMerge>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
           <polygon 
             points="${x1},0 ${x1 + width},0 ${x2 + width},${totalHeight} ${x2},${totalHeight}" 
-            fill="${fillColor}"
+            fill="url(#dividerGradient)"
+            filter="url(#softShadow)"
           />
         </svg>
       `;
