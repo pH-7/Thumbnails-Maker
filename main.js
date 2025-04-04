@@ -609,12 +609,12 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const finalImage = await canvas
             .composite(composites)
             .png({
-                compressionLevel: 9,      // Maximum compression
-                adaptiveFiltering: true,  // Optimize filtering
+                compressionLevel: 8,      // Slightly reduced from max to preserve quality
+                progressive: true,        // Progressive rendering
                 palette: false,           // Keep full color range
-                effort: 10,              // Maximum optimization effort
-                colors: 256,             // Maximum colors for PNG
-                dither: 1.0             // Apply dithering for better quality
+                effort: 8,                // High compression effort but not maximum
+                adaptiveFiltering: true,  // Better filtering
+                colors: 256               // Maximum colors for PNG
             });
 
         // Save the final image
@@ -644,15 +644,15 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const originalStats = await fs.promises.stat(outputPath);
             const originalSize = originalStats.size;
 
-            // Create an optimized version
+            // Create an optimized version with quality preservation
             const optimizedBuffer = await sharp(outputPath)
                 .png({
-                    compressionLevel: 9,
-                    adaptiveFiltering: true,
-                    palette: false,
-                    effort: 10,
-                    colors: 256,
-                    dither: 1.0
+                    compressionLevel: 7,      // Slightly reduced from max to preserve quality
+                    progressive: true,        // Progressive rendering
+                    palette: false,           // Keep full color range
+                    effort: 8,                // High compression effort but not maximum
+                    adaptiveFiltering: true,  // Better filtering
+                    colors: 256               // Maximum colors for PNG
                 })
                 .toBuffer();
 
@@ -793,7 +793,6 @@ function createDelimiterSVG(position, tiltDisplacement, width, totalWidth, total
 
 async function optimizeThumbnail(outputPath, quality = 95) {
     try {
-
         const originalSize = (await fs.promises.stat(outputPath)).size;
         const imageBuffer = await fs.promises.readFile(outputPath);
 
