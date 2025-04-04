@@ -498,7 +498,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             ))
         );
 
-        // Process images
+        // Process images with enhanced effects
         const processedImages = await Promise.all(
             selectedImages.map(async (imagePath, index) => {
                 try {
@@ -506,13 +506,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     let imageWidth;
 
                     if (index === 0) {
-                        // First image
                         imageWidth = delimiterPositions[0] + (tiltDisplacements[0] < 0 ? tiltDisplacements[0] : 0);
                     } else if (index === selectedImages.length - 1) {
-                        // Last image
                         imageWidth = THUMBNAIL_WIDTH - delimiterPositions[delimiterPositions.length - 1] - delimiterWidth;
                     } else {
-                        // Middle image(s)
                         imageWidth = delimiterPositions[index] - delimiterPositions[index - 1] - delimiterWidth;
                     }
 
@@ -525,6 +522,39 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     if (applyEnhance) {
                         processedImage = await enhanceImage(imageBuffer, enhanceOptions);
                     }
+
+                    // Add additional visual enhancements for thumbnails
+                    processedImage = processedImage
+                        // Apply subtle vignette to draw attention to center
+                        .composite([{
+                            input: Buffer.from(`
+                                <svg width="${imageWidth}" height="${THUMBNAIL_HEIGHT}">
+                                    <defs>
+                                        <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+                                            <stop offset="0%" stop-color="black" stop-opacity="0" />
+                                            <stop offset="100%" stop-color="black" stop-opacity="0.2" />
+                                        </radialGradient>
+                                    </defs>
+                                    <rect width="100%" height="100%" fill="url(#vignette)" />
+                                </svg>
+                            `),
+                            blend: 'overlay'
+                        }])
+                        // Add subtle sharpening for better detail
+                        .sharpen({
+                            sigma: 1.2,
+                            m1: 1.0,
+                            m2: 2.0,
+                            x1: 2.0,
+                            y2: 10.0
+                        })
+                        // Boost contrast slightly
+                        .linear(1.1, 0)
+                        // Enhance colors
+                        .modulate({
+                            brightness: 1.05,
+                            saturation: 1.1
+                        });
 
                     return await processedImage
                         .resize({
@@ -684,8 +714,7 @@ function createDelimiterSVG(position, tiltDisplacement, width, totalWidth, total
     const x1 = position - halfTiltDisp - width / 2;
     const x2 = position + halfTiltDisp - width / 2;
 
-    // Create a gradient effect for more visual appeal
-    // Extract color components from the fillColor
+    // Extract and enhance color components
     let r, g, b;
     const colorRegex = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
     const colorMatch = colorRegex.exec(fillColor);
@@ -695,41 +724,68 @@ function createDelimiterSVG(position, tiltDisplacement, width, totalWidth, total
         g = parseInt(colorMatch[2], 16);
         b = parseInt(colorMatch[3], 16);
     } else {
-        // Default to white if color parsing fails
         r = g = b = 255;
     }
 
-    // Create slightly darker shade for gradient effect
-    const darkerShade = `rgba(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)}, 0.95)`;
-    const lighterShade = `rgba(${Math.min(255, r + 20)}, ${Math.min(255, g + 20)}, ${Math.min(255, b + 20)}, 1)`;
-
-    // Create slightly transparent edges for a more natural blend
-    const edgeColor = `rgba(${r}, ${g}, ${b}, 0.85)`;
+    // Create enhanced color variations for gradient
+    const baseColor = `rgba(${r}, ${g}, ${b}, 1)`;
+    const highlightColor = `rgba(${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)}, 1)`;
+    const shadowColor = `rgba(${Math.max(0, r - 30)}, ${Math.max(0, g - 30)}, ${Math.max(0, b - 30)}, 0.95)`;
+    const glowColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
 
     return `
         <svg width="${totalWidth}" height="${totalHeight}">
           <defs>
+            <!-- Main gradient -->
             <linearGradient id="dividerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="${lighterShade}" />
-              <stop offset="50%" stop-color="${fillColor}" />
-              <stop offset="100%" stop-color="${darkerShade}" />
+              <stop offset="0%" stop-color="${highlightColor}" />
+              <stop offset="50%" stop-color="${baseColor}" />
+              <stop offset="100%" stop-color="${shadowColor}" />
             </linearGradient>
-            <filter id="softShadow" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
-              <feOffset dx="2" dy="2" result="offsetblur" />
-              <feComponentTransfer>
-                <feFuncA type="linear" slope="0.5" />
-              </feComponentTransfer>
+            
+            <!-- Glow effect -->
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
+              <feComposite in="blur" in2="SourceAlpha" operator="in" result="glow" />
+              <feFlood flood-color="${glowColor}" result="glowColor" />
+              <feComposite in="glowColor" in2="glow" operator="in" result="coloredGlow" />
               <feMerge>
-                <feMergeNode />
+                <feMergeNode in="coloredGlow" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+
+            <!-- Soft shadow -->
+            <filter id="softShadow" width="200%" height="200%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
+              <feOffset dx="2" dy="2" result="offsetblur" />
+              <feComponentTransfer>
+                <feFuncA type="linear" slope="0.3" />
+              </feComponentTransfer>
+              <feMerge>
+                <feMergeNode in="offsetblur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+
+            <!-- Lighting effect -->
+            <filter id="lighting" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
+              <feSpecularLighting in="blur" surfaceScale="5" specularConstant="1" specularExponent="20" lighting-color="white" result="specOut">
+                <fePointLight x="0" y="0" z="200" />
+              </feSpecularLighting>
+              <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" />
+            </filter>
           </defs>
+          
+          <!-- Main delimiter with enhanced effects -->
           <polygon 
             points="${x1},0 ${x1 + width},0 ${x2 + width},${totalHeight} ${x2},${totalHeight}" 
             fill="url(#dividerGradient)"
-            filter="url(#softShadow)"
+            filter="url(#glow) url(#softShadow) url(#lighting)"
+            stroke="${baseColor}"
+            stroke-width="0.5"
+            stroke-opacity="0.3"
           />
         </svg>
       `;

@@ -11,14 +11,38 @@
     "mas": "electron-builder --mac mas --publish always",
     "mas-dev": "electron-builder --mac mas",
     "mas-package": "electron-builder --mac mas --publish never",
+    "mas-build": "node scripts/mas-build.js",
+    "direct-build": "node scripts/direct-build.js",
+    "check-certs": "node scripts/check-certificates.js",
+    "list-certs": "./scripts/list-certificates.sh",
+    "verify-profile": "node scripts/verify-profile.js",
+    "manual-build-mas": "node scripts/manual-build-mas.js",
+    "prepare-for-transporter": "node scripts/prepare-for-transporter.js",
     "postinstall": "electron-builder install-app-deps && npm run rebuild-sharp",
-    "rebuild-sharp": "electron-rebuild -f -w sharp"
+    "rebuild-sharp": "electron-rebuild -f -w sharp",
+    "submit-appstore": "node scripts/app-store-submit.js",
+    "fastlane-setup": "./deploy-to-app-store.sh setup",
+    "fastlane-build": "./deploy-to-app-store.sh build_mac_app",
+    "fastlane-release": "./deploy-to-app-store.sh release",
+    "fastlane-match": "./deploy-to-app-store.sh match_appstore",
+    "fastlane-upload": "./deploy-to-app-store.sh upload_to_app_store",
+    "fastlane-clean": "./deploy-to-app-store.sh clean",
+    "reset-match": "./scripts/reset-match.sh",
+    "no-certs-build": "./deploy-to-app-store.sh no_certs_build",
+    "force-clear-cert": "./scripts/force-clear-cert.sh",
+    "auto-build": "node scripts/auto-cert-build.js",
+    "simple-build": "node scripts/simple-build.js"
   },
   "author": "Pierre-Henry Soria",
   "license": "MIT",
   "build": {
     "appId": "ph7.me.youtube-thumbnail-combiner",
     "productName": "YouTube Thumbnail Creator",
+    "extraMetadata": {
+      "build": {
+        "ElectronTeamID": "2V8LZ2444Y"
+      }
+    },
     "mac": {
       "category": "public.app-category.graphics-design",
       "icon": "build/mac/icon.icns",
@@ -48,8 +72,7 @@
       "provisioningProfile": "build/embedded.provisionprofile",
       "type": "distribution",
       "category": "public.app-category.graphics-design",
-      "artifactName": "${productName}-${version}.pkg",
-      "electronTeamId": "2V8LZ2444Y"
+      "artifactName": "${productName}-${version}.pkg"
     },
     "afterSign": "scripts/notarize.js"
   },
@@ -62,6 +85,7 @@
     "electron": "^25.0.0",
     "electron-builder": "^24.0.0",
     "electron-notarize": "^1.2.2",
+    "electron-packager": "^17.1.2",
     "electron-rebuild": "^3.2.9"
   }
 }
