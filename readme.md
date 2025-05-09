@@ -4,7 +4,7 @@ Create simple but truly efficient **Universal YouTube Thumbnails**, by horizonta
 
 This app is ideal for any of your next multi-language YouTube vlogs, tutorials, cooking, traveling, "Day in the Life" (DITL) videos, and more! With just a few clicks, you can generate professional-looking thumbnails that help boost engagement on your channel.
 
-![Universal Multi Image Thumbnail Generator App](universal-vlog-thumbnail-generator.gif)
+![Universal Multi Image Thumbnail Generator App](media/universal-vlog-thumbnail-generator.gif)
 
 - [⚙️ Requirement](#%EF%B8%8F-requirement)
 - [📦 Installation](#-installation)
@@ -149,9 +149,9 @@ npm run mas
 Check out my YouTube channel where I explain the process of building apps from scratch like this one. [@pH7Programming](https://www.youtube.com/@pH7Programming/videos).
 
 
-![Universal Style YouTube Thumbnail Creator - Splitter with 3 images](youtube-thumbnail-combiner.png)
+![Universal Style YouTube Thumbnail Creator - Splitter with 3 images](media/youtube-thumbnail-combiner.png)
 
-![YouTube Thumbnail Generator from three vlog images](youtube-universal-thumbnail-generator-electron-app-software.png)
+![YouTube Thumbnail Generator from three vlog images](media/youtube-universal-thumbnail-generator-electron-app-software.png)
 
 
 ## ⚖️ License
