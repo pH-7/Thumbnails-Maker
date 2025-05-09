@@ -609,7 +609,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const finalImage = await canvas
             .composite(composites)
             .png({
-                compressionLevel: 8,      // Slightly reduced from max to preserve quality
+                compressionLevel: 8,      // Compression Level
                 progressive: true,        // Progressive rendering
                 palette: false,           // Keep full color range
                 effort: 8,                // High compression effort but not maximum
@@ -647,7 +647,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             // Create an optimized version with quality preservation
             const optimizedBuffer = await sharp(outputPath)
                 .png({
-                    compressionLevel: 7,      // Slightly reduced from max to preserve quality
+                    compressionLevel: 8,      // Compression Level
                     progressive: true,        // Progressive rendering
                     palette: false,           // Keep full color range
                     effort: 8,                // High compression effort but not maximum
