@@ -137,6 +137,7 @@ npm run mas
 - Check the project's `.gitignore` to ensure sensitive files (like the provisioning profile) aren't committed
 
 ## 🧑‍🍳 Who baked this?
+
 [![Pierre-Henry Soria](https://s.gravatar.com/avatar/a210fe61253c43c869d71eaed0e90149?s=200)](https://PH7.me 'Pierre-Henry Soria personal website')
 
 **Pierre-Henry Soria**. A super passionate and enthusiastic software engineer! 🚀 True cheese 🧀 , coffee, and chocolate lover! 😋 Reach me at [PH7.me](https://PH7.me) 💫
@@ -144,6 +145,7 @@ npm run mas
 ☕️ Are you enjoying it? **[Offer me a coffee](https://ko-fi.com/phenry)** (my favorite coffee to start the day is almond flat white 😋)
 
 [![@phenrysay][twitter-icon]](https://x.com/phenrysay) [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7)
+
 
 ## 🎥 Me building apps like this one!
 Check out my YouTube channel where I explain the process of building apps from scratch like this one. [@pH7Programming](https://www.youtube.com/@pH7Programming/videos).
