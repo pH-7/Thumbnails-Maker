@@ -1,4 +1,4 @@
-# YouTube Multi Image Thumbnail Creator 📸🎨
+# 📺 YouTube Thumbnail Maker 🎨
 
 Create simple but truly efficient **Universal YouTube Thumbnails**, by horizontally placing three images with white delimiters 🎨
 
