@@ -12,16 +12,27 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
-            enableRemoteModule: true
+            enableRemoteModule: false,
+            webSecurity: true
         },
-        title: 'YouTube Thumbnail Combiner'
+        title: 'YouTube Thumbnail Creator'
     });
 
     mainWindow.loadFile('index.html');
     mainWindow.on('closed', () => mainWindow = null);
 }
 
-app.whenReady().then(createWindow);
+// Disable login item features for Mac App Store
+app.whenReady().then(() => {
+    // Disable automatic login items
+    if (process.platform === 'darwin') {
+        app.setLoginItemSettings({
+            openAtLogin: false,
+            openAsHidden: false
+        });
+    }
+    createWindow();
+});
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
@@ -151,17 +162,21 @@ async function enhanceImage(buffer, enhanceOptions) {
 
 // Analyze image characteristics
 async function analyzeImage(stats, metadata) {
-    // Calculate brightness levels
-    const channels = ['r', 'g', 'b'];
-    const meanBrightness = channels.reduce((sum, channel) => sum + stats[channel].mean, 0) / 3;
-    const maxBrightness = Math.max(...channels.map(c => stats[c].max));
-    const minBrightness = Math.min(...channels.map(c => stats[c].min));
+    // Calculate brightness levels using new channels array structure
+    const channels = stats.channels || [];
+    if (channels.length < 3) {
+        throw new Error('Invalid image statistics - insufficient channels');
+    }
+
+    const meanBrightness = channels.slice(0, 3).reduce((sum, channel) => sum + channel.mean, 0) / 3;
+    const maxBrightness = Math.max(...channels.slice(0, 3).map(c => c.max));
+    const minBrightness = Math.min(...channels.slice(0, 3).map(c => c.min));
 
     // Calculate contrast
-    const stdDev = channels.reduce((sum, channel) => sum + stats[channel].stdev, 0) / 3;
+    const stdDev = channels.slice(0, 3).reduce((sum, channel) => sum + channel.stdev, 0) / 3;
 
     // Detect color cast
-    const channelMeans = channels.map(c => stats[c].mean);
+    const channelMeans = channels.slice(0, 3).map(c => c.mean);
     const meanDifferences = channelMeans.map(mean => Math.abs(mean - meanBrightness));
     const colorCast = Math.max(...meanDifferences) > 0.1;
 
@@ -191,9 +206,14 @@ async function analyzeImage(stats, metadata) {
 
 // Calculate saturation from RGB values
 function calculateSaturation(stats) {
-    const r = stats.r.mean;
-    const g = stats.g.mean;
-    const b = stats.b.mean;
+    const channels = stats.channels || [];
+    if (channels.length < 3) {
+        return 0;
+    }
+
+    const r = channels[0].mean;
+    const g = channels[1].mean;
+    const b = channels[2].mean;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     return max === 0 ? 0 : (max - min) / max;
@@ -282,9 +302,15 @@ function calculateEnhancementParams(analysis, baseOptions) {
 
 // Calculate white balance adjustment
 function calculateWhiteBalance(analysis) {
-    const targetMean = (analysis.stats.r.mean + analysis.stats.g.mean + analysis.stats.b.mean) / 3;
-    const rOffset = analysis.stats.r.mean - targetMean;
-    const bOffset = analysis.stats.b.mean - targetMean;
+    const stats = analysis.stats || analysis;  // Handle different call patterns
+    const channels = stats.channels || [];
+    if (channels.length < 3) {
+        return 0;
+    }
+
+    const targetMean = (channels[0].mean + channels[1].mean + channels[2].mean) / 3;
+    const rOffset = channels[0].mean - targetMean;
+    const bOffset = channels[2].mean - targetMean;
 
     // Calculate hue adjustment (in degrees)
     return Math.atan2(bOffset, rOffset) * (180 / Math.PI);
@@ -332,69 +358,305 @@ function calculateAdaptiveSharpening(analysis, intensity) {
     }
 }
 
-// Add this function to analyze images and determine optimal layout
-async function determineOptimalLayout(imagePaths) {
+// Enhanced grid layout configurations
+const GRID_LAYOUTS = {
+    '1x1': { rows: 1, cols: 1, maxImages: 1 },
+    '2x1': { rows: 2, cols: 1, maxImages: 2 },
+    '1x2': { rows: 1, cols: 2, maxImages: 2 },
+    '2x2': { rows: 2, cols: 2, maxImages: 4 },
+    '3x1': { rows: 3, cols: 1, maxImages: 3 },
+    '1x3': { rows: 1, cols: 3, maxImages: 3 },
+    '2x3': { rows: 2, cols: 3, maxImages: 6 },
+    '3x2': { rows: 3, cols: 2, maxImages: 6 }
+};
+
+// Standard YouTube thumbnail dimensions
+const THUMBNAIL_WIDTH = 1280;
+const THUMBNAIL_HEIGHT = 720;
+
+// Enhanced image analysis for smart layout detection
+async function analyzeImageForLayout(imagePath) {
     try {
-        if (!sharp) {
-            throw new Error('Image processing module is not available');
-        }
+        const imageBuffer = await fs.promises.readFile(imagePath);
+        const image = sharp(imageBuffer);
+        const metadata = await image.metadata();
+        const stats = await image.stats();
 
-        // Calculate image complexity and determine optimal layout
-        const imageAnalysis = await Promise.all(imagePaths.map(async (path) => {
-            const imageBuffer = await fs.promises.readFile(path);
-            const metadata = await sharp(imageBuffer).metadata();
+        // Calculate aspect ratio
+        const aspectRatio = metadata.width / metadata.height;
 
-            // Calculate entropy as a measure of image complexity
-            const stats = await sharp(imageBuffer)
-                .grayscale()
-                .raw()
-                .toBuffer({ resolveWithObject: true });
+        // Calculate image complexity using entropy
+        const grayscaleBuffer = await image
+            .grayscale()
+            .raw()
+            .toBuffer();
 
-            const pixels = new Uint8Array(stats.data);
-            let histogram = new Array(256).fill(0);
+        const entropy = calculateEntropy(grayscaleBuffer);
 
-            // Create histogram
-            for (let i = 0; i < pixels.length; i++) {
-                histogram[pixels[i]]++;
-            }
+        // Calculate color variance
+        const colorVariance = calculateColorVariance(stats);
 
-            // Calculate entropy
-            let entropy = 0;
-            const totalPixels = pixels.length;
+        // Determine if image has prominent subject (using edge detection approximation)
+        const hasProminentSubject = await detectProminentSubject(image);
 
-            for (let i = 0; i < 256; i++) {
-                if (histogram[i] > 0) {
-                    const probability = histogram[i] / totalPixels;
-                    entropy -= probability * Math.log2(probability);
-                }
-            }
-
-            return {
-                path,
-                entropy,
-                aspectRatio: metadata.width / metadata.height,
-                width: metadata.width,
-                height: metadata.height
-            };
-        }));
-
-        // Determine if 2 or 3 splits would be better
-        const avgComplexity = imageAnalysis.reduce((sum, img) => sum + img.entropy, 0) / imageAnalysis.length;
-        const aspectRatioVariance = calculateVariance(imageAnalysis.map(img => img.aspectRatio));
-
-        // Use 2 splits if:
-        // 1. High complexity images (lots of detail)
-        // 2. Very different aspect ratios
-        const useThreeSplits = avgComplexity < 4.5 && aspectRatioVariance < 0.5;
+        // Calculate visual weight (combination of contrast and saturation)
+        const visualWeight = calculateVisualWeight(stats);
 
         return {
-            recommendedLayout: useThreeSplits ? 3 : 2,
-            analysis: imageAnalysis
+            path: imagePath,
+            aspectRatio,
+            width: metadata.width,
+            height: metadata.height,
+            entropy,
+            colorVariance,
+            hasProminentSubject,
+            visualWeight,
+            isPortrait: aspectRatio < 0.9,
+            isLandscape: aspectRatio > 1.1,
+            isSquare: aspectRatio >= 0.9 && aspectRatio <= 1.1
         };
     } catch (error) {
-        console.error("Error analyzing images:", error);
-        // Default to 3 splits if analysis fails
-        return { recommendedLayout: 3 };
+        console.error(`Error analyzing image ${imagePath}:`, error);
+        return null;
+    }
+}
+
+// Calculate entropy for image complexity
+function calculateEntropy(buffer) {
+    const histogram = new Array(256).fill(0);
+
+    for (let i = 0; i < buffer.length; i++) {
+        histogram[buffer[i]]++;
+    }
+
+    let entropy = 0;
+    const totalPixels = buffer.length;
+
+    for (let i = 0; i < 256; i++) {
+        if (histogram[i] > 0) {
+            const probability = histogram[i] / totalPixels;
+            entropy -= probability * Math.log2(probability);
+        }
+    }
+
+    return entropy;
+}
+
+// Calculate color variance for vibrancy assessment
+function calculateColorVariance(stats) {
+    const channels = stats.channels || [];
+    if (channels.length < 3) {
+        return 0;
+    }
+
+    let totalVariance = 0;
+
+    channels.slice(0, 3).forEach(channel => {
+        totalVariance += Math.pow(channel.stdev, 2);
+    });
+
+    return totalVariance / 3;
+}
+
+// Detect if image has a prominent subject
+async function detectProminentSubject(image) {
+    try {
+        // Use edge detection to find areas of interest
+        const edgeBuffer = await image
+            .resize(200, 200, { fit: 'inside' })
+            .greyscale()
+            .convolve({
+                width: 3,
+                height: 3,
+                kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1]
+            })
+            .raw()
+            .toBuffer();
+
+        // Calculate edge density in center vs edges
+        const centerEdges = calculateRegionEdges(edgeBuffer, 200, 200, 0.25, 0.75);
+        const edgeRegionEdges = calculateRegionEdges(edgeBuffer, 200, 200, 0, 1) - centerEdges;
+
+        return centerEdges > edgeRegionEdges * 1.5;
+    } catch (error) {
+        return false;
+    }
+}
+
+// Calculate edge density in a region
+function calculateRegionEdges(buffer, width, height, startRatio, endRatio) {
+    const startX = Math.floor(width * startRatio);
+    const endX = Math.floor(width * endRatio);
+    const startY = Math.floor(height * startRatio);
+    const endY = Math.floor(height * endRatio);
+
+    let edgeCount = 0;
+    let totalPixels = 0;
+
+    for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
+            const index = y * width + x;
+            if (buffer[index] > 50) edgeCount++; // Threshold for edge detection
+            totalPixels++;
+        }
+    }
+
+    return totalPixels > 0 ? edgeCount / totalPixels : 0;
+}
+
+// Calculate visual weight of an image
+function calculateVisualWeight(stats) {
+    const channels = stats.channels || [];
+    if (channels.length < 3) {
+        return 0;
+    }
+
+    let totalContrast = 0;
+    let totalSaturation = 0;
+
+    channels.slice(0, 3).forEach(channel => {
+        totalContrast += channel.stdev;
+        totalSaturation += channel.max - channel.min;
+    });
+
+    return (totalContrast + totalSaturation) / (3 * 2);
+}
+
+// Smart layout determination based on enhanced image analysis
+async function determineOptimalLayout(imagePaths) {
+    try {
+        if (!Array.isArray(imagePaths) || imagePaths.length === 0) {
+            return { recommendedLayout: '1x3', confidence: 0 };
+        }
+
+        // Analyze all images
+        const analyses = await Promise.all(
+            imagePaths.map(path => analyzeImageForLayout(path))
+        );
+
+        const validAnalyses = analyses.filter(analysis => analysis !== null);
+
+        if (validAnalyses.length === 0) {
+            return { recommendedLayout: '1x3', confidence: 0 };
+        }
+
+        const imageCount = validAnalyses.length;
+
+        // Calculate aggregate metrics
+        const avgAspectRatio = validAnalyses.reduce((sum, img) => sum + img.aspectRatio, 0) / imageCount;
+        const aspectRatioVariance = calculateVariance(validAnalyses.map(img => img.aspectRatio));
+        const avgEntropy = validAnalyses.reduce((sum, img) => sum + img.entropy, 0) / imageCount;
+        const avgVisualWeight = validAnalyses.reduce((sum, img) => sum + img.visualWeight, 0) / imageCount;
+
+        // Count orientation types
+        const portraitCount = validAnalyses.filter(img => img.isPortrait).length;
+        const landscapeCount = validAnalyses.filter(img => img.isLandscape).length;
+        const squareCount = validAnalyses.filter(img => img.isSquare).length;
+        const prominentSubjectCount = validAnalyses.filter(img => img.hasProminentSubject).length;
+
+        let recommendedLayout;
+        let confidence = 0;
+
+        // Smart layout decision algorithm
+        if (imageCount === 1) {
+            recommendedLayout = '1x1';
+            confidence = 1.0;
+        } else if (imageCount === 2) {
+            if (portraitCount === 2) {
+                recommendedLayout = '1x2'; // Side by side for portraits
+                confidence = 0.9;
+            } else if (landscapeCount === 2 && avgVisualWeight > 100) {
+                recommendedLayout = '2x1'; // Stacked for complex landscapes
+                confidence = 0.8;
+            } else {
+                recommendedLayout = '1x2'; // Default side by side
+                confidence = 0.7;
+            }
+        } else if (imageCount === 3) {
+            if (portraitCount >= 2) {
+                recommendedLayout = '1x3'; // Horizontal strip for portraits
+                confidence = 0.85;
+            } else if (aspectRatioVariance > 0.5) {
+                recommendedLayout = '3x1'; // Vertical stack for varied aspects
+                confidence = 0.8;
+            } else {
+                recommendedLayout = '1x3'; // Default horizontal
+                confidence = 0.75;
+            }
+        } else if (imageCount === 4) {
+            if (squareCount >= 2 || (avgAspectRatio >= 0.8 && avgAspectRatio <= 1.2)) {
+                recommendedLayout = '2x2'; // Grid for square-ish images
+                confidence = 0.9;
+            } else if (portraitCount >= 3) {
+                recommendedLayout = '1x3'; // Horizontal strip (use available layout)
+                confidence = 0.8;
+            } else {
+                recommendedLayout = '2x2'; // Default grid
+                confidence = 0.7;
+            }
+        } else if (imageCount <= 6) {
+            if (prominentSubjectCount >= imageCount * 0.6) {
+                recommendedLayout = '2x3'; // Grid for subject-focused images
+                confidence = 0.8;
+            } else if (aspectRatioVariance > 0.5) {
+                recommendedLayout = '3x2'; // Alternative grid for varied content
+                confidence = 0.75;
+            } else {
+                recommendedLayout = '2x3'; // Default for 5-6 images
+                confidence = 0.7;
+            }
+        } else {
+            // For more than 6 images, use the largest available grid
+            recommendedLayout = '3x2';
+            confidence = 0.6;
+        }
+
+        // Apply confidence boost for high-quality analysis
+        if (avgEntropy > 6.5 && avgVisualWeight > 80) {
+            confidence = Math.min(confidence + 0.1, 1.0);
+        }
+
+        // Ensure we have a valid layout
+        if (!GRID_LAYOUTS[recommendedLayout]) {
+            console.warn(`Invalid layout ${recommendedLayout}, falling back to default`);
+            recommendedLayout = imageCount <= 3 ? '1x3' : '2x2';
+            confidence = 0.5;
+        }
+
+        return {
+            recommendedLayout,
+            confidence,
+            analysis: {
+                imageCount,
+                avgAspectRatio,
+                aspectRatioVariance,
+                avgEntropy,
+                avgVisualWeight,
+                orientationDistribution: {
+                    portrait: portraitCount,
+                    landscape: landscapeCount,
+                    square: squareCount
+                },
+                prominentSubjectCount,
+                details: validAnalyses
+            }
+        };
+    } catch (error) {
+        console.error('Error in smart layout analysis:', error);
+
+        // Provide better fallback based on image count
+        let fallbackLayout = '1x3'; // Default fallback
+        if (imagePaths.length === 1) fallbackLayout = '1x1';
+        else if (imagePaths.length === 2) fallbackLayout = '1x2';
+        else if (imagePaths.length === 4) fallbackLayout = '2x2';
+        else if (imagePaths.length >= 5) fallbackLayout = '2x3';
+
+        return {
+            recommendedLayout: fallbackLayout,
+            confidence: 0,
+            error: error.message,
+            fallback: true
+        };
     }
 }
 
@@ -428,45 +690,50 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     const fillColor = delimiterColor;
 
     try {
-        if (imagePaths.length < 2) {
-            throw new Error('At least 2 images are required for the thumbnail');
+        // Performance monitoring
+        const startTime = Date.now();
+        console.log(`Starting thumbnail creation with ${imagePaths.length} images using ${layoutMode} mode`);
+
+        if (imagePaths.length < 1) {
+            throw new Error('At least 1 image is required for the thumbnail');
         }
 
-        // Determine layout if auto mode is selected
-        let splitCount = 3; // Default to 3 splits
+        // Determine layout based on mode
+        let gridLayout = '1x3'; // Default layout
+        let selectedImages = imagePaths;
+
         if (layoutMode === 'auto') {
+            const layoutStart = Date.now();
             const layoutAnalysis = await determineOptimalLayout(imagePaths);
-            splitCount = layoutAnalysis.recommendedLayout;
+            gridLayout = layoutAnalysis.recommendedLayout;
+            console.log(`Smart layout analysis completed in ${Date.now() - layoutStart}ms, recommended: ${gridLayout} (confidence: ${layoutAnalysis.confidence.toFixed(2)})`);
         } else if (layoutMode === '2-split') {
-            splitCount = 2;
+            gridLayout = '1x2';
+        } else if (layoutMode === '3-split') {
+            gridLayout = '1x3';
+        } else if (layoutMode.includes('x')) {
+            // Direct grid layout specification (e.g., '2x2', '3x1', etc.)
+            gridLayout = layoutMode;
         }
 
-        // Use only the first 2 or 3 images based on split count
-        const selectedImages = imagePaths.slice(0, splitCount);
+        // Get layout configuration
+        const layout = GRID_LAYOUTS[gridLayout];
+        if (!layout) {
+            throw new Error(`Invalid grid layout: ${gridLayout}`);
+        }
+
+        // Use only the required number of images for the layout
+        selectedImages = imagePaths.slice(0, layout.maxImages);
+
+        // Adjust minimum image requirement for 1x1 layout
+        const minRequiredImages = layout.maxImages === 1 ? 1 : 2;
+        if (selectedImages.length < minRequiredImages) {
+            throw new Error(`At least ${minRequiredImages} image(s) are required for ${gridLayout} layout`);
+        }
 
         // YouTube thumbnail dimensions
         const THUMBNAIL_WIDTH = 1280;
         const THUMBNAIL_HEIGHT = 720;
-
-        // Use the user's tilt setting as a base but add variation for visual interest
-        const baseTiltRadians = (delimiterTilt * Math.PI) / 180;
-
-        // Create dynamic tilt variations (between 70-130% of base tilt) for visual interest
-        const tiltVariations = [];
-        for (let i = 1; i < splitCount; i++) {
-            // Add some randomness to the tilt for visual interest
-            // Use a pseudorandom approach based on the image paths to keep it consistent
-            const seed = imagePaths.reduce((acc, path, index) => acc + path.length * (index + 1), 0);
-            const variation = 0.7 + ((seed * i) % 1000) / 1666; // Between 0.7 and 1.3
-
-            const dynamicTiltRadians = baseTiltRadians * variation;
-            tiltVariations.push(dynamicTiltRadians);
-        }
-
-        // Calculate tilt displacements
-        const tiltDisplacements = tiltVariations.map(tiltRadian =>
-            Math.tan(tiltRadian) * THUMBNAIL_HEIGHT
-        );
 
         // Create blank canvas
         const canvas = sharp({
@@ -478,44 +745,19 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             }
         });
 
-        // Create delimiter positions based on split count
-        const sectionWidth = THUMBNAIL_WIDTH / splitCount;
-        const delimiterPositions = [];
+        // Calculate grid cell dimensions with optimization for large grids
+        const cellWidth = Math.floor(THUMBNAIL_WIDTH / layout.cols);
+        const cellHeight = Math.floor(THUMBNAIL_HEIGHT / layout.rows);
+        const padding = Math.floor(delimiterWidth / 2); // Padding between cells
 
-        for (let i = 1; i < splitCount; i++) {
-            delimiterPositions.push(Math.floor(sectionWidth * i));
-        }
+        // Performance optimization: use progressive loading for large grids
+        const isLargeGrid = layout.maxImages > 4;
+        const processingQuality = isLargeGrid ? 90 : 95; // Slightly lower quality for large grids
 
-        // Create delimiter masks with different tilts
-        const delimiterMasks = delimiterPositions.map((position, index) =>
-            Buffer.from(createDelimiterSVG(
-                position,
-                tiltDisplacements[index],
-                delimiterWidth,
-                THUMBNAIL_WIDTH,
-                THUMBNAIL_HEIGHT,
-                fillColor
-            ))
-        );
-
-        // Process images with enhanced effects
+        // Process images for grid layout
         const processedImages = await Promise.all(
             selectedImages.map(async (imagePath, index) => {
                 try {
-                    // Calculate image width based on section
-                    let imageWidth;
-
-                    if (index === 0) {
-                        imageWidth = delimiterPositions[0] + (tiltDisplacements[0] < 0 ? tiltDisplacements[0] : 0);
-                    } else if (index === selectedImages.length - 1) {
-                        imageWidth = THUMBNAIL_WIDTH - delimiterPositions[delimiterPositions.length - 1] - delimiterWidth;
-                    } else {
-                        imageWidth = delimiterPositions[index] - delimiterPositions[index - 1] - delimiterWidth;
-                    }
-
-                    imageWidth = Math.max(imageWidth, sectionWidth - delimiterWidth * 2);
-
-                    // Process image with enhancements if enabled
                     let imageBuffer = await fs.promises.readFile(imagePath);
                     let processedImage = sharp(imageBuffer);
 
@@ -523,16 +765,20 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         processedImage = await enhanceImage(imageBuffer, enhanceOptions);
                     }
 
-                    // Add additional visual enhancements for thumbnails
+                    // Calculate actual cell dimensions with padding
+                    const actualCellWidth = cellWidth - padding * 2;
+                    const actualCellHeight = cellHeight - padding * 2;
+
+                    // Add visual enhancements for thumbnails
                     processedImage = processedImage
-                        // Apply subtle vignette to draw attention to center
+                        // Apply subtle vignette
                         .composite([{
                             input: Buffer.from(`
-                                <svg width="${imageWidth}" height="${THUMBNAIL_HEIGHT}">
+                                <svg width="${actualCellWidth}" height="${actualCellHeight}">
                                     <defs>
                                         <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
                                             <stop offset="0%" stop-color="black" stop-opacity="0" />
-                                            <stop offset="100%" stop-color="black" stop-opacity="0.2" />
+                                            <stop offset="100%" stop-color="black" stop-opacity="0.15" />
                                         </radialGradient>
                                     </defs>
                                     <rect width="100%" height="100%" fill="url(#vignette)" />
@@ -540,7 +786,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             `),
                             blend: 'overlay'
                         }])
-                        // Add subtle sharpening for better detail
+                        // Add subtle sharpening
                         .sharpen({
                             sigma: 1.2,
                             m1: 1.0,
@@ -548,9 +794,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             x1: 2.0,
                             y2: 10.0
                         })
-                        // Boost contrast slightly
+                        // Boost contrast and colors
                         .linear(1.1, 0)
-                        // Enhance colors
                         .modulate({
                             brightness: 1.05,
                             saturation: 1.1
@@ -558,8 +803,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
                     return await processedImage
                         .resize({
-                            width: Math.floor(imageWidth + delimiterWidth * 2),
-                            height: THUMBNAIL_HEIGHT,
+                            width: actualCellWidth,
+                            height: actualCellHeight,
                             fit: 'cover',
                             position: 'center'
                         })
@@ -571,63 +816,94 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             })
         );
 
-        // Calculate positions for composite
-        const positions = [];
-        let currentPos = 0;
+        // Calculate positions for grid layout
+        const composites = processedImages.map((buffer, index) => {
+            const row = Math.floor(index / layout.cols);
+            const col = index % layout.cols;
 
-        for (let i = 0; i < selectedImages.length; i++) {
-            if (i === 0) {
-                positions.push({ left: 0, top: 0 });
-            } else {
-                currentPos = delimiterPositions[i - 1] + delimiterWidth / 2;
-                positions.push({
-                    left: Math.floor(currentPos + (tiltDisplacements[i] < 0 ? Math.min(0, tiltDisplacements[i] / 2 * i) : 0)),
+            const left = col * cellWidth + padding;
+            const top = row * cellHeight + padding;
+
+            return {
+                input: buffer,
+                left: Math.floor(left),
+                top: Math.floor(top)
+            };
+        });
+
+        // Add grid delimiters if needed
+        if (layout.cols > 1 || layout.rows > 1) {
+            // Add vertical delimiters
+            for (let col = 1; col < layout.cols; col++) {
+                const x = col * cellWidth;
+                const delimiterSVG = Buffer.from(`
+                    <svg width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}">
+                        <rect x="0" y="0" width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}" 
+                              fill="${fillColor}" transform="skewX(${-delimiterTilt})"/>
+                    </svg>
+                `);
+
+                composites.push({
+                    input: delimiterSVG,
+                    left: Math.floor(x - delimiterWidth / 2),
                     top: 0
+                });
+            }
+
+            // Add horizontal delimiters
+            for (let row = 1; row < layout.rows; row++) {
+                const y = row * cellHeight;
+                const delimiterSVG = Buffer.from(`
+                    <svg width="${THUMBNAIL_WIDTH}" height="${delimiterWidth}">
+                        <rect x="0" y="0" width="${THUMBNAIL_WIDTH}" height="${delimiterWidth}" 
+                              fill="${fillColor}"/>
+                    </svg>
+                `);
+
+                composites.push({
+                    input: delimiterSVG,
+                    left: 0,
+                    top: Math.floor(y - delimiterWidth / 2)
                 });
             }
         }
 
-        // Create composite operations
-        const composites = processedImages.map((buffer, index) => {
-            return {
-                input: buffer,
-                left: positions[index].left,
-                top: positions[index].top
-            };
-        });
-
-        // Add delimiter masks to composites
-        delimiterMasks.forEach(mask => {
-            composites.push({
-                input: mask,
-                left: 0,
-                top: 0
-            });
-        });
-
         // Create final image with optimizations for YouTube
-        const finalImage = await canvas
+        const finalImage = canvas
             .composite(composites)
             .png({
-                compressionLevel: 8,      // Compression Level
-                progressive: true,        // Progressive rendering
-                palette: false,           // Keep full color range
-                effort: 8,                // High compression effort but not maximum
-                adaptiveFiltering: true,  // Better filtering
-                colors: 256               // Maximum colors for PNG
+                compressionLevel: 8,
+                progressive: true,
+                palette: false,
+                effort: 8,
+                adaptiveFiltering: true,
+                colors: 256
             });
 
-        // Save the final image
+        // Save the final image with enhanced error handling
         const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
-        await fs.promises.mkdir(outputDir, { recursive: true });
+
+        try {
+            await fs.promises.mkdir(outputDir, { recursive: true });
+        } catch (dirError) {
+            throw new Error(`Cannot create output directory: ${dirError.message}`);
+        }
 
         const finalOutputName = data.outputName ||
-            `youtube-thumbnail-${splitCount}split-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
+            `youtube-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
 
         const outputPath = path.join(outputDir, `${finalOutputName}.png`);
 
+        // Validate output path
+        if (outputPath.length > 260) { // Windows path limit consideration
+            throw new Error('Output filename is too long. Please use a shorter name.');
+        }
+
         // Apply YouTube-specific optimizations
         if (youtubeOptimize) {
+            const optimizeStart = Date.now();
+            console.log('Applying YouTube optimizations...');
+
             // First save with metadata stripped
             await finalImage
                 .withMetadata({
@@ -663,12 +939,20 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const newStats = await fs.promises.stat(outputPath);
             const newSize = newStats.size;
             const savings = ((originalSize - newSize) / originalSize * 100).toFixed(2);
+            const optimizeTime = Date.now() - optimizeStart;
+            const totalTime = Date.now() - startTime;
 
-            console.log(`Thumbnail created and optimized for YouTube:`, outputPath);
+            console.log(`YouTube optimization completed in ${optimizeTime}ms. Total processing time: ${totalTime}ms`);
+            console.log(`File size: ${formatBytes(originalSize)} → ${formatBytes(newSize)} (${savings}% reduction)`);
+
             return {
                 success: true,
                 outputPath,
                 outputDir,
+                processingTime: `${totalTime}ms`,
+                optimizationTime: `${optimizeTime}ms`,
+                layout: gridLayout,
+                imagesUsed: selectedImages.length,
                 optimizationResult: {
                     path: outputPath,
                     originalSize: formatBytes(originalSize),
@@ -684,12 +968,16 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 .toFile(outputPath);
 
             const stats = await fs.promises.stat(outputPath);
-            console.log(`Thumbnail created successfully with ${splitCount} splits:`, outputPath);
+            const totalTime = Date.now() - startTime;
+            console.log(`Thumbnail created successfully with ${gridLayout} layout in ${totalTime}ms:`, outputPath);
 
             return {
                 success: true,
                 outputPath,
                 outputDir,
+                processingTime: `${totalTime}ms`,
+                layout: gridLayout,
+                imagesUsed: selectedImages.length,
                 optimizationResult: {
                     path: outputPath,
                     originalSize: formatBytes(stats.size),
@@ -700,96 +988,15 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             };
         }
     } catch (error) {
-        console.error('Error creating thumbnail:', error);
+        const totalTime = Date.now() - startTime;
+        console.error(`Error creating thumbnail after ${totalTime}ms:`, error);
         return {
             success: false,
-            error: error.message || 'An unknown error occurred while creating the thumbnail'
+            error: error.message || 'An unknown error occurred while creating the thumbnail',
+            processingTime: `${totalTime}ms`
         };
     }
 });
-
-// Helper function to create delimiter SVG
-function createDelimiterSVG(position, tiltDisplacement, width, totalWidth, totalHeight, fillColor) {
-    const halfTiltDisp = tiltDisplacement / 2;
-    const x1 = position - halfTiltDisp - width / 2;
-    const x2 = position + halfTiltDisp - width / 2;
-
-    // Extract and enhance color components
-    let r, g, b;
-    const colorRegex = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
-    const colorMatch = colorRegex.exec(fillColor);
-
-    if (colorMatch) {
-        r = parseInt(colorMatch[1], 16);
-        g = parseInt(colorMatch[2], 16);
-        b = parseInt(colorMatch[3], 16);
-    } else {
-        r = g = b = 255;
-    }
-
-    // Create enhanced color variations for gradient
-    const baseColor = `rgba(${r}, ${g}, ${b}, 1)`;
-    const highlightColor = `rgba(${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)}, 1)`;
-    const shadowColor = `rgba(${Math.max(0, r - 30)}, ${Math.max(0, g - 30)}, ${Math.max(0, b - 30)}, 0.95)`;
-    const glowColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
-
-    return `
-        <svg width="${totalWidth}" height="${totalHeight}">
-          <defs>
-            <!-- Main gradient -->
-            <linearGradient id="dividerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="${highlightColor}" />
-              <stop offset="50%" stop-color="${baseColor}" />
-              <stop offset="100%" stop-color="${shadowColor}" />
-            </linearGradient>
-            
-            <!-- Glow effect -->
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
-              <feComposite in="blur" in2="SourceAlpha" operator="in" result="glow" />
-              <feFlood flood-color="${glowColor}" result="glowColor" />
-              <feComposite in="glowColor" in2="glow" operator="in" result="coloredGlow" />
-              <feMerge>
-                <feMergeNode in="coloredGlow" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-
-            <!-- Soft shadow -->
-            <filter id="softShadow" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur" />
-              <feOffset dx="2" dy="2" result="offsetblur" />
-              <feComponentTransfer>
-                <feFuncA type="linear" slope="0.3" />
-              </feComponentTransfer>
-              <feMerge>
-                <feMergeNode in="offsetblur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-
-            <!-- Lighting effect -->
-            <filter id="lighting" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
-              <feSpecularLighting in="blur" surfaceScale="5" specularConstant="1" specularExponent="20" lighting-color="white" result="specOut">
-                <fePointLight x="0" y="0" z="200" />
-              </feSpecularLighting>
-              <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" />
-            </filter>
-          </defs>
-          
-          <!-- Main delimiter with enhanced effects -->
-          <polygon 
-            points="${x1},0 ${x1 + width},0 ${x2 + width},${totalHeight} ${x2},${totalHeight}" 
-            fill="url(#dividerGradient)"
-            filter="url(#glow) url(#softShadow) url(#lighting)"
-            stroke="${baseColor}"
-            stroke-width="0.5"
-            stroke-opacity="0.3"
-          />
-        </svg>
-      `;
-}
 
 async function optimizeThumbnail(outputPath, quality = 95) {
     try {

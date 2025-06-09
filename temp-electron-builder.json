@@ -1,0 +1,23 @@
+{
+  "appId": "ph7.me.youtube-thumbnail-combiner",
+  "productName": "YouTube Thumbnail Creator",
+  "buildVersion": "1.0.0",
+  "ElectronTeamID": "2V8LZ2444Y",
+  "mac": {
+    "category": "public.app-category.graphics-design",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+    "identity": "V3U6559QP8"
+  },
+  "mas": {
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+    "hardenedRuntime": false,
+    "provisioningProfile": "build/embedded.provisionprofile",
+    "type": "distribution",
+    "category": "public.app-category.graphics-design",
+    "identity": "V3U6559QP8"
+  }
+}

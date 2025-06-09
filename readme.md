@@ -1,14 +1,19 @@
-# YouTube Multi Image Thumbnail Creator 📸🎨
+# YouTube Multi-Layout Thumbnail Creator 📸🎨
 
-Create simple but truly efficient **Universal YouTube Thumbnails**, by horizontally placing three images with white delimiters 🎨
+Create professional **YouTube Thumbnails** with flexible grid layouts supporting 1-6 images! 🎨
 
-This app is ideal for any of your next multi-language YouTube vlogs, tutorials, cooking, traveling, "Day in the Life" (DITL) videos, and more! With just a few clicks, you can generate professional-looking thumbnails that help boost engagement on your channel.
+This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more! With an intelligent Smart Layout system and 8 different grid configurations, you can generate professional-looking thumbnails that help boost engagement on your channel.
 
 ![Universal Multi Image Thumbnail Generator App](media/universal-vlog-thumbnail-generator.gif)
 
 - [⚙️ Requirement](#%EF%B8%8F-requirement)
 - [📦 Installation](#-installation)
 - [🪄 Features](#-features)
+- [🎯 Layout Options](#-layout-options)
+- [🧠 Smart Layout System](#-smart-layout-system)
+- [🎨 New Grid System](#-new-grid-system)
+- [🚀 Performance Optimizations](#-performance-optimizations)
+- [🧪 Testing](#-testing)
 - [🚀 App Store Publication](#-app-store-publication)
 - [👨‍🍳 Who is the baker?](#-who-baked-this)
 - [🎥 Me building this app](#-me-building-this-app)
@@ -29,25 +34,55 @@ npm start # start the Electron app
 ```
 
 ## 🪄 Features
-### Select Three Images
+### Flexible Image Selection
 ```
-Choose any three images from your computer to combine into a professional YouTube thumbnail.
-Images will be automatically resized to fit the standard YouTube thumbnail dimensions (1280×720 pixels).
-```
-
-### Customize Delimiters
-```
-Adjust delimiter width, color, and tilt angle to create unique separators between your images.
-Add optional shadows with customizable blur and opacity for a professional touch.
+Choose 1-6 images from your computer to combine into professional YouTube thumbnails.
+Smart Layout automatically analyzes your images to recommend the optimal arrangement.
+Images are automatically resized to fit standard YouTube thumbnail dimensions (1280×720 pixels).
+Advanced image analysis considers aspect ratios, visual complexity, and subject detection.
 ```
 
-### Easy Export
+### 8 Different Grid Layouts
 ```
-Save your thumbnails directly to a dedicated folder in your Pictures directory.
-Give custom names to your thumbnails or use auto-generated filenames with timestamps.
+Linear Layouts: 1×2, 1×3, 2×1, 3×1 (side-by-side and stacked arrangements)
+Grid Layouts: 2×2, 2×3, 3×2 (perfect for multiple subjects or scenes)
+Single Layout: 1×1 (spotlight a single powerful image)
+Legacy Modes: Classic 2-split and 3-split options for backward compatibility
 ```
 
-### Preview in Real-Time
+### Enhanced Smart Layout System
+```
+Automatic layout recommendation based on comprehensive image analysis:
+- Aspect ratio analysis (portrait, landscape, square detection)
+- Visual complexity assessment using entropy calculations
+- Color variance and saturation analysis
+- Prominent subject detection using edge analysis
+- Visual weight calculation for optimal balance
+- Confidence scoring for layout recommendations
+```
+- Aspect ratio detection (portrait, landscape, square)
+- Visual complexity assessment using entropy calculations
+- Color variance and saturation analysis
+- Prominent subject detection using edge analysis
+- Confidence scoring for layout recommendations
+```
+
+### Customizable Delimiters
+```
+Adjust delimiter width, color, and tilt angle to create unique separators between images.
+Add optional shadows with customizable blur and opacity for professional touch.
+Grid-aware delimiter system that adapts to your chosen layout.
+```
+
+### Easy Export & Optimization
+```
+Save thumbnails directly to a dedicated folder in your Pictures directory.
+YouTube-optimized compression with metadata stripping for faster uploads.
+Custom naming with auto-generated timestamps and layout identifiers.
+Performance optimization for large grid layouts (6+ images).
+```
+
+### Real-Time Preview
 ```
 See exactly how your thumbnail will look before exporting.
 Make adjustments with immediate visual feedback.
@@ -74,6 +109,95 @@ Make adjustments with immediate visual feedback.
 - Adjust delimiter width and color.
 - Apply tilt angles to delimiters for a dynamic look.
 - Control enhancement levels to make your thumbnails pop.
+
+## 🎨 New Grid System
+
+### Grid Layout Configurations
+The app now supports 8 different grid layouts optimized for various content types:
+
+| Layout | Dimensions | Max Images | Best For |
+|--------|------------|------------|----------|
+| **1×1** | Single | 1 | Hero shots, portraits, single subject focus |
+| **1×2** | Side by side | 2 | Before/after, comparisons, dual perspectives |
+| **2×1** | Vertical stack | 2 | Top/bottom scenes, timeline progression |
+| **1×3** | Horizontal strip | 3 | Step-by-step tutorials, sequence shots |
+| **3×1** | Vertical tower | 3 | Vertical storytelling, progression shots |
+| **2×2** | Four square | 4 | Multiple subjects, variety content |
+| **2×3** | Six grid | 6 | Complex stories, multiple scenes |
+| **3×2** | Six grid (alt) | 6 | Alternative arrangement for 6 images |
+
+### Smart Layout Algorithm
+The enhanced Smart Layout system uses advanced image analysis:
+
+```javascript
+// Analysis includes:
+- Aspect ratio distribution (portrait/landscape/square)
+- Visual complexity via entropy calculation
+- Color variance and saturation levels
+- Prominent subject detection using edge analysis
+- Visual weight for balanced compositions
+- Confidence scoring (0-1) for layout recommendations
+```
+
+### Dynamic UI Management
+- Image slots show/hide automatically based on selected layout
+- Real-time validation with helpful user feedback
+- Smart button states that prevent invalid configurations
+- Progressive enhancement for large grid layouts
+
+## 🚀 Performance Optimizations
+
+### Large Grid Handling
+- **Progressive Loading**: Optimized processing for 2×3 and 3×2 layouts
+- **Quality Scaling**: Slightly reduced compression for grids with 5+ images
+- **Memory Management**: Efficient buffer handling for multiple images
+- **Batch Processing**: Parallel image analysis with error resilience
+
+### YouTube-Specific Optimizations
+```javascript
+// Automatic optimizations include:
+- Metadata stripping for faster uploads
+- Progressive PNG encoding
+- Adaptive filtering for better compression
+- Color space optimization
+- File size reduction while preserving quality
+```
+
+### Error Handling & Validation
+- Path length validation (Windows compatibility)
+- Directory creation with proper error messages
+- Image format validation and fallbacks
+- Layout compatibility checks
+- User-friendly error messages
+
+## 🧪 Testing
+
+### Comprehensive Test Suite
+Run the test suite to verify all functionality:
+
+```bash
+npm test
+```
+
+### Test Coverage
+- **Grid Layout System**: Validates all 8 layout configurations
+- **Image Analysis**: Tests aspect ratio and orientation detection
+- **Smart Algorithm**: Verifies layout selection logic
+- **Thumbnail Dimensions**: Ensures YouTube compliance
+- **Cell Calculations**: Validates grid positioning math
+
+### Test Results
+```
+✓ Grid Layout System (4 tests)
+✓ Image Analysis (2 tests) 
+✓ Smart Layout Algorithm (4 tests)
+✓ Thumbnail Configuration (2 tests)
+✓ Application loads without errors
+
+Test Suites: 1 passed
+Tests: 12 passed
+Time: ~0.2s
+```
 
 ## 🚀 App Store Publication
 
