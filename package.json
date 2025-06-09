@@ -1,8 +1,8 @@
 {
-  "name": "thumbnail-creator",
-  "productName": "Thumbnail Creator",
-  "version": "1.0.0",
-  "description": "Create YouTube thumbnails by combining three images",
+  "name": "thumbnail-maker",
+  "productName": "Thumbnail Maker",
+  "version": "3.0.0",
+  "description": "Create YouTube thumbnails with ease. Drag and drop images, add text, and export your custom thumbnails.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -35,6 +35,7 @@
     "simple-build": "node scripts/simple-build.js"
   },
   "author": "Pierre-Henry Soria",
+  "homepage": "https://github.com/pH-7/Thumbnails-Maker",
   "license": "MIT",
   "build": {
     "appId": "ph7.me.youtube-thumbnail-combiner",
