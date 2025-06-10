@@ -269,7 +269,7 @@ npm run mas
 ☕️ Are you enjoying it? **[Offer me a coffee](https://ko-fi.com/phenry)** (my favorite coffee to start the day is almond flat white 😋)
 
 
-[![@phenrysay][x-icon]](https://x.com/phenrysay) [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7)
+[![@phenrysay][x-icon]](https://x.com/phenrysay "") [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7)
 
 ## 🎥 Me building apps like this one!
 Check out my YouTube channel where I explain the process of building apps from scratch like this one. [@pH7Programming](https://www.youtube.com/@pH7Programming/videos).
@@ -282,7 +282,7 @@ Check out my YouTube channel where I explain the process of building apps from s
 
 ## ⚖️ License
 
-This YouTube Thumbnail Creator is licensed under the MIT License.
+This YouTube Thumbnail Creator is licensed under the [MIT License](license.md).
 
 [x-icon]: https://img.shields.io/badge/x-000000?style=for-the-badge&logo=x
 [youtube-icon]: https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white
