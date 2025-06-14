@@ -19,7 +19,7 @@
     "verify-profile": "node scripts/verify-profile.js",
     "manual-build-mas": "node scripts/manual-build-mas.js",
     "prepare-for-transporter": "node scripts/prepare-for-transporter.js",
-    "postinstall": "electron-builder install-app-deps && npm run rebuild-sharp",
+    "setup": "electron-builder install-app-deps && npm run rebuild-sharp",
     "rebuild-sharp": "electron-rebuild -f -w sharp",
     "submit-appstore": "node scripts/app-store-submit.js",
     "fastlane-setup": "./deploy-to-app-store.sh setup",
@@ -84,7 +84,7 @@
   },
   "devDependencies": {
     "@electron/osx-sign": "^1.3.3",
-    "electron": "^25.0.0",
+    "electron": "^25.9.8",
     "electron-builder": "^24.0.0",
     "electron-notarize": "^1.2.2",
     "electron-packager": "^17.1.2",
