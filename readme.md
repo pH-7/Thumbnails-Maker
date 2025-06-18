@@ -277,7 +277,8 @@ npm run mas
 [![@phenrysay][x-icon]](https://x.com/phenrysay "") [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7)
 
 ## 🎥 Me building apps like this one!
-Check out my YouTube channel where I explain the process of building apps from scratch like this one. [@pH7Programming](https://www.youtube.com/@pH7Programming/videos).
+
+Subscribe to my YouTube channel and watch me explain how I build apps from scratch, just like this one. [@pH7Programming](https://www.youtube.com/@pH7Programming/videos).
 
 
 ## ⚖️ License
