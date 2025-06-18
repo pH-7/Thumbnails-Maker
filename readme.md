@@ -37,6 +37,7 @@ npm start # start the Electron app
 ### Flexible Image Selection
 ```
 Choose 1-6 images from your computer to combine into professional YouTube thumbnails.
+Create thumbnails with ANY layout mode regardless of image count - system adapts intelligently.
 Smart Layout automatically analyzes your images to recommend the optimal arrangement.
 Images are automatically resized to fit standard YouTube thumbnail dimensions (1280×720 pixels).
 Advanced image analysis considers aspect ratios, visual complexity, and subject detection.
@@ -60,11 +61,14 @@ Automatic layout recommendation based on comprehensive image analysis:
 - Visual weight calculation for optimal balance
 - Confidence scoring for layout recommendations
 ```
-- Aspect ratio detection (portrait, landscape, square)
-- Visual complexity assessment using entropy calculations
-- Color variance and saturation analysis
-- Prominent subject detection using edge analysis
-- Confidence scoring for layout recommendations
+
+### Flexible Image Requirements
+```
+NEW! Create thumbnails with any number of images regardless of selected layout:
+- Works with 1-6 images for any layout mode
+- Smart layout adjustment when fewer images than required
+- Automatic image repetition to fill empty slots
+- No workflow interruptions - always clickable "Create Thumbnail" button
 ```
 
 ### Customizable Delimiters
@@ -142,7 +146,8 @@ The enhanced Smart Layout system uses advanced image analysis:
 ### Dynamic UI Management
 - Image slots show/hide automatically based on selected layout
 - Real-time validation with helpful user feedback
-- Smart button states that prevent invalid configurations
+- Smart button states that enable creation with any image count
+- Flexible workflow - no layout restrictions or blocked buttons
 - Progressive enhancement for large grid layouts
 
 ## 🚀 Performance Optimizations
