@@ -16,7 +16,7 @@ This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, trave
 - [🧪 Testing](#-testing)
 - [🚀 App Store Publication](#-app-store-publication)
 - [👨‍🍳 Who is the baker?](#-who-baked-this)
-- [🎥 Me building this app](#-me-building-this-app)
+- [🎥 Me building apps like this one](#-me-building-apps-like-this-one)
 - [⚖️ License](#%EF%B8%8F-license)
 
 ## ⚙️ Requirement
