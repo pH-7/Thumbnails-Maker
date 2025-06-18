@@ -725,10 +725,42 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         // Use only the required number of images for the layout
         selectedImages = imagePaths.slice(0, layout.maxImages);
 
-        // Adjust minimum image requirement for 1x1 layout
-        const minRequiredImages = layout.maxImages === 1 ? 1 : 2;
-        if (selectedImages.length < minRequiredImages) {
-            throw new Error(`At least ${minRequiredImages} image(s) are required for ${gridLayout} layout`);
+        // Allow thumbnail creation with any number of images (minimum 1)
+        if (selectedImages.length < 1) {
+            throw new Error(`At least 1 image is required to create a thumbnail`);
+        }
+
+        // If we have fewer images than the layout requires, fill empty slots by repeating images
+        // or adjust to a smaller layout that fits the available images
+        if (selectedImages.length < layout.maxImages) {
+            console.log(`Layout ${gridLayout} requires ${layout.maxImages} images but only ${selectedImages.length} provided. Adjusting...`);
+
+            if (selectedImages.length === 1) {
+                // Use single image layout for 1 image
+                gridLayout = '1x1';
+            } else if (selectedImages.length === 2) {
+                // Use 2-image layout for 2 images
+                gridLayout = '1x2';
+            } else if (selectedImages.length === 3) {
+                // Use 3-image layout for 3 images
+                gridLayout = '1x3';
+            }
+            // For 4+ images, keep the original layout and fill missing slots by repeating images
+            else {
+                // Fill missing slots by cycling through available images
+                const originalLength = selectedImages.length;
+                while (selectedImages.length < layout.maxImages) {
+                    const nextImageIndex = selectedImages.length % originalLength;
+                    selectedImages.push(selectedImages[nextImageIndex]);
+                }
+                console.log(`Filled ${layout.maxImages - originalLength} empty slots by repeating images`);
+            }
+
+            // Update layout configuration after potential layout change
+            const updatedLayout = GRID_LAYOUTS[gridLayout];
+            if (updatedLayout) {
+                selectedImages = selectedImages.slice(0, updatedLayout.maxImages);
+            }
         }
 
         // YouTube thumbnail dimensions
