@@ -280,11 +280,6 @@ npm run mas
 Check out my YouTube channel where I explain the process of building apps from scratch like this one. [@pH7Programming](https://www.youtube.com/@pH7Programming/videos).
 
 
-![Universal Style YouTube Thumbnail Creator - Splitter with 3 images](youtube-thumbnail-combiner.png)
-
-![YouTube Thumbnail Generator from three vlog images](youtube-universal-thumbnail-generator-electron-app-software.png)
-
-
 ## ⚖️ License
 
 This YouTube Thumbnail Creator is licensed under the [MIT License](license.md).
