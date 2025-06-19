@@ -1066,9 +1066,9 @@
       const requiredImages = layout ? layout.maxImages : 3;
       const validImageCount = selectedImagePaths.filter(path => path).length;
 
-      // Minimum 2 images required for most layouts, 1 for single layout
-      const minImages = layoutMode === '1x1' ? 1 : 2;
-      const isValidCount = validImageCount >= minImages && (layoutMode === 'auto' || validImageCount <= requiredImages);
+      // Allow creating thumbnail with any number of images (minimum 1)
+      const minImages = 1;
+      const isValidCount = validImageCount >= minImages;
 
       elements.createThumbnailBtn.disabled = !isValidCount;
 
@@ -1076,9 +1076,11 @@
       if (validImageCount === 0) {
         elements.statusEl.textContent = 'Select images to get started.';
       } else if (validImageCount < minImages) {
-        elements.statusEl.textContent = `Select at least ${minImages} image(s) for this layout.`;
+        elements.statusEl.textContent = `Select at least ${minImages} image(s) to create a thumbnail.`;
       } else if (layoutMode !== 'auto' && validImageCount > requiredImages) {
         elements.statusEl.textContent = `This layout uses ${requiredImages} images. Extra images will be ignored.`;
+      } else if (layoutMode !== 'auto' && validImageCount < requiredImages) {
+        elements.statusEl.textContent = `${validImageCount} image(s) selected for ${layoutMode} layout. Empty slots will be filled automatically.`;
       } else if (layoutMode === 'auto') {
         elements.statusEl.textContent = `${validImageCount} image(s) selected. Smart Layout will optimize the arrangement.`;
       } else {
@@ -1156,8 +1158,8 @@
         const layout = GRID_LAYOUTS[currentLayoutMode];
         const requiredImages = layout ? layout.maxImages : 3;
 
-        if (validImagePaths.length < 2) {
-          throw new Error('Please select at least 2 images');
+        if (validImagePaths.length < 1) {
+          throw new Error('Please select at least 1 image');
         }
 
         // For non-auto layouts, trim to the layout's maximum if we have more images
