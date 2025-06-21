@@ -1,16 +1,21 @@
 # YouTube Multi-Layout Thumbnail Creator 📸🎨
 
+![Version](https://img.shields.io/badge/version-3.0.0-blue.svg) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
+
 Create professional **YouTube Thumbnails** with flexible grid layouts supporting 1-6 images! 🎨
 
-This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more! With an intelligent Smart Layout system and 8 different grid configurations, you can generate professional-looking thumbnails that help boost engagement on your channel.
+This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more! With an intelligent Smart Layout system, 8 different grid configurations, and **NEW flexible image requirements**, you can generate professional-looking thumbnails that help boost engagement on your channel.
+
+**🆕 Latest Update**: Create thumbnails with ANY layout mode regardless of image count - the system now adapts intelligently to your available images!
 
 ![Universal Multi Image Thumbnail Generator App](media/universal-vlog-thumbnail-generator.gif)
 
 - [⚙️ Requirement](#%EF%B8%8F-requirement)
 - [📦 Installation](#-installation)
 - [🪄 Features](#-features)
-- [🎯 Layout Options](#-layout-options)
-- [🧠 Smart Layout System](#-smart-layout-system)
+  - [Flexible Image Requirements](#flexible-image-requirements)
+  - [Enhanced Smart Layout System](#enhanced-smart-layout-system)
+  - [Dynamic UI Management](#dynamic-ui-management)
 - [🎨 New Grid System](#-new-grid-system)
 - [🚀 Performance Optimizations](#-performance-optimizations)
 - [🧪 Testing](#-testing)
@@ -206,7 +211,14 @@ Time: ~0.2s
 
 ## 🚀 App Store Publication
 
-This app is designed to be published on the Mac App Store. Follow these instructions for submission:
+This app is designed to be published on the Mac App Store and includes pre-built packages ready for submission.
+
+### Quick Start for App Store Submission
+
+We've already created signed packages for you! Check the `dist/` folder for:
+- `YouTube-Thumbnail-Creator-MAS-3.0.0.pkg` - Ready for Transporter upload
+- Pre-signed with Mac App Store distribution certificates
+- Includes proper entitlements and provisioning profiles
 
 ### Prerequisites
 
@@ -274,7 +286,7 @@ npm run mas
 ☕️ Are you enjoying it? **[Offer me a coffee](https://ko-fi.com/phenry)** (my favorite coffee to start the day is almond flat white 😋)
 
 
-[![@phenrysay][x-icon]](https://x.com/phenrysay "") [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7)
+[![@phenrysay][x-icon]](https://x.com/phenrysay "Follow Me on X") [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7 "Follow Me on GitHub")
 
 ## 🎥 Me building apps like this one!
 
