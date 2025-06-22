@@ -308,6 +308,8 @@ Subscribe to my YouTube channel and watch me explain how I build apps from scrat
 
 This YouTube Thumbnail Creator is licensed under the [MIT License](license.md).
 
+
+<!-- GitHub's Markdown reference links -->
 [x-icon]: https://img.shields.io/badge/x-000000?style=for-the-badge&logo=x
 [youtube-icon]: https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white
 [github-icon]: https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white
