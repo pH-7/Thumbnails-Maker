@@ -6,7 +6,9 @@ Create professional **YouTube Thumbnails** with flexible grid layouts supporting
 
 This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more! With an intelligent Smart Layout system, 8 different grid configurations, and **NEW flexible image requirements**, you can generate professional-looking thumbnails that help boost engagement on your channel.
 
-**🆕 Latest Update**: Create thumbnails with ANY layout mode regardless of image count - the system now adapts intelligently to your available images!
+**🆕 Latest Updates**:
+- Create thumbnails with ANY layout mode regardless of image count - the system now adapts intelligently to your available images!
+- **ENTER key shortcut** for instant thumbnail creation - streamlined workflow for faster content creation!
 
 ![Universal Multi Image Thumbnail Generator App](media/universal-vlog-thumbnail-generator.gif)
 
@@ -97,6 +99,14 @@ See exactly how your thumbnail will look before exporting.
 Make adjustments with immediate visual feedback.
 ```
 
+### **🚀 Keyboard Shortcuts**
+```
+Speed up your workflow with convenient keyboard shortcuts:
+- ENTER key: Instantly create thumbnails (when button is enabled)
+- Smart context detection: Shortcuts don't interfere when typing in form fields
+- System shortcut compatibility: Works alongside Cmd/Ctrl shortcuts
+```
+
 ### Multi-Image Combination
 - Combine 2 or 3 images horizontally with clean white delimiters.
 - Perfect for creating YouTube thumbnails that showcase multiple scenes or perspectives.
@@ -154,6 +164,7 @@ The enhanced Smart Layout system uses advanced image analysis:
 - Smart button states that enable creation with any image count
 - Flexible workflow - no layout restrictions or blocked buttons
 - Progressive enhancement for large grid layouts
+- **ENTER key shortcut** - Create thumbnails instantly without clicking buttons
 
 ## 🚀 Performance Optimizations
 
