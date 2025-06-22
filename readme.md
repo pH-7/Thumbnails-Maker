@@ -102,9 +102,9 @@ Make adjustments with immediate visual feedback.
 ### **🚀 Keyboard Shortcuts**
 ```
 Speed up your workflow with convenient keyboard shortcuts:
-- ENTER key: Instantly create thumbnails (when button is enabled)
-- Smart context detection: Shortcuts don't interfere when typing in form fields
-- System shortcut compatibility: Works alongside Cmd/Ctrl shortcuts
+- ENTER key: Instantly create thumbnails (works anywhere in the app when button is enabled)
+- Universal trigger: No restrictions - works regardless of cursor position or active element
+- System shortcut compatibility: Works alongside Cmd/Ctrl shortcuts without conflicts
 ```
 
 ### Multi-Image Combination
@@ -164,7 +164,7 @@ The enhanced Smart Layout system uses advanced image analysis:
 - Smart button states that enable creation with any image count
 - Flexible workflow - no layout restrictions or blocked buttons
 - Progressive enhancement for large grid layouts
-- **ENTER key shortcut** - Create thumbnails instantly without clicking buttons
+- **Universal ENTER shortcut** - Create thumbnails instantly from anywhere in the app
 
 ## 🚀 Performance Optimizations
 
