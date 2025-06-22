@@ -1241,6 +1241,38 @@
       elements.errorEl.textContent = '';
     });
 
+    // Enhanced keyboard shortcuts handler
+    function handleKeyboardShortcuts(event) {
+      // Early return if modifier keys are pressed (avoid conflicts with system shortcuts)
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      // Check if user is in an interactive element
+      const activeElement = document.activeElement;
+      const isInFormField = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.tagName === 'SELECT' ||
+        activeElement.contentEditable === 'true' ||
+        activeElement.closest('[contenteditable="true"]')
+      );
+
+      // ENTER Shortcut: Trigger "Create Thumbnail" button
+      if (event.key === 'Enter' && !isInFormField && !elements.createThumbnailBtn.disabled) {
+        event.preventDefault();
+        elements.createThumbnailBtn.click();
+        return;
+      }
+
+      // Future shortcuts can be added here easily
+      // ESC key: Could clear errors or cancel operations
+      // Space key: Could trigger button when focused
+    }
+
+    // Attach keyboard shortcut handler
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+
     function showProcessingAnimation() {
       elements.createThumbnailBtn.classList.add('processing');
 
