@@ -1243,23 +1243,10 @@
 
     // Enhanced keyboard shortcuts handler
     function handleKeyboardShortcuts(event) {
-      // Early return if modifier keys are pressed (avoid conflicts with system shortcuts)
-      if (event.ctrlKey || event.metaKey || event.altKey) {
-        return;
-      }
-
-      // Check if user is in an interactive element
-      const activeElement = document.activeElement;
-      const isInFormField = activeElement && (
-        activeElement.tagName === 'INPUT' ||
-        activeElement.tagName === 'TEXTAREA' ||
-        activeElement.tagName === 'SELECT' ||
-        activeElement.contentEditable === 'true' ||
-        activeElement.closest('[contenteditable="true"]')
-      );
-
-      // ENTER Shortcut: Trigger "Create Thumbnail" button
-      if (event.key === 'Enter' && !isInFormField && !elements.createThumbnailBtn.disabled) {
+      // ENTER Shortcut: Always trigger "Create Thumbnail" button when available
+      // Works regardless of cursor position or active element
+      if (event.key === 'Enter' && !elements.createThumbnailBtn.disabled) {
+        // Only prevent default if we're actually triggering the button
         event.preventDefault();
         elements.createThumbnailBtn.click();
         return;
