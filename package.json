@@ -13,7 +13,7 @@
     "mas-dev": "electron-builder --mac mas",
     "mas-package": "electron-builder --mac mas --publish never",
     "setup": "electron-builder install-app-deps && npm run rebuild-sharp",
-    "rebuild-sharp": "electron-rebuild -f -w sharp",
+    "rebuild-sharp": "electron-rebuild -f -w sharp"
   },
   "author": "Pierre-Henry Soria",
   "homepage": "https://github.com/pH-7/Thumbnails-Maker",
