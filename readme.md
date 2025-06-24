@@ -10,7 +10,7 @@ This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, trave
 - Create thumbnails with ANY layout mode regardless of image count - the system now adapts intelligently to your available images!
 - **ENTER key shortcut** for instant thumbnail creation - streamlined workflow for faster content creation!
 
-![Universal Multi Image Thumbnail Generator App](universal-vlog-thumbnail-generator.gif)
+![Universal Multi Image Thumbnail Generator App](Thumbnails-Generator.gif)
 
 - [⚙️ Requirement](#%EF%B8%8F-requirement)
 - [📦 Installation](#-installation)
