@@ -21,11 +21,6 @@
   "build": {
     "appId": "ph7.me.youtube-thumbnail-combiner",
     "productName": "YouTube Thumbnail Creator",
-    "extraMetadata": {
-      "build": {
-        "ElectronTeamID": "2V8LZ2444Y"
-      }
-    },
     "mac": {
       "category": "public.app-category.graphics-design",
       "icon": "build/mac/icon.icns",
