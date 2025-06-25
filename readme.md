@@ -12,7 +12,7 @@ This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, trave
 - 🧠 **Enhanced AI analysis**: Improved image analysis for better automatic layout selection
 - 🔧 **Mac App Store ready**: Pre-built packages available for App Store submission
 
-![Universal Multi Image Thumbnail Generator App](media/youtube-thumbnail-creator-app.gif)
+![Universal Multi Image Thumbnail Generator App](media/demo-youyube-thumbnail-maker-studio.gif)
 
 - [⚙️ Requirements](#%EF%B8%8F-requirements)
 - [📦 Installation](#-installation)
