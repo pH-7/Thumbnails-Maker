@@ -34,14 +34,38 @@ describe('Grid Layout System', () => {
 		'3x1': { rows: 3, cols: 1, maxImages: 3 },
 		'1x3': { rows: 1, cols: 3, maxImages: 3 },
 		'2x3': { rows: 2, cols: 3, maxImages: 6 },
-		'3x2': { rows: 3, cols: 2, maxImages: 6 }
+		'3x2': { rows: 3, cols: 2, maxImages: 6 },
+		// Innovative YouTube-optimized layouts
+		'hero-side': { type: 'custom', maxImages: 4, layout: 'hero-side' },
+		'corner-grid': { type: 'custom', maxImages: 5, layout: 'corner-grid' },
+		'banner-split': { type: 'custom', maxImages: 3, layout: 'banner-split' },
+		'spotlight': { type: 'custom', maxImages: 4, layout: 'spotlight' },
+		'l-shape': { type: 'custom', maxImages: 5, layout: 'l-shape' }
 	};
 
-	test('all grid layouts have valid configurations', () => {
-		Object.entries(GRID_LAYOUTS).forEach(([key, layout]) => {
+	test('all standard grid layouts have valid configurations', () => {
+		const standardLayouts = Object.entries(GRID_LAYOUTS).filter(([key, layout]) => !layout.type);
+		standardLayouts.forEach(([key, layout]) => {
 			expect(layout.rows).toBeGreaterThan(0);
 			expect(layout.cols).toBeGreaterThan(0);
 			expect(layout.maxImages).toBe(layout.rows * layout.cols);
+		});
+	});
+
+	test('innovative layouts have valid configurations', () => {
+		const innovativeLayouts = Object.entries(GRID_LAYOUTS).filter(([key, layout]) => layout.type === 'custom');
+		innovativeLayouts.forEach(([key, layout]) => {
+			expect(layout.type).toBe('custom');
+			expect(layout.maxImages).toBeGreaterThan(0);
+			expect(layout.layout).toBeDefined();
+			expect(typeof layout.layout).toBe('string');
+		});
+	});
+
+	test('all layouts have maximum image limits', () => {
+		Object.entries(GRID_LAYOUTS).forEach(([key, layout]) => {
+			expect(layout.maxImages).toBeGreaterThan(0);
+			expect(layout.maxImages).toBeLessThanOrEqual(6);
 		});
 	});
 
@@ -50,11 +74,26 @@ describe('Grid Layout System', () => {
 		expect(GRID_LAYOUTS['2x2'].maxImages).toBe(4);
 		expect(GRID_LAYOUTS['2x3'].maxImages).toBe(6);
 		expect(GRID_LAYOUTS['3x2'].maxImages).toBe(6);
+		// Test innovative layouts
+		expect(GRID_LAYOUTS['hero-side'].maxImages).toBe(4);
+		expect(GRID_LAYOUTS['corner-grid'].maxImages).toBe(5);
+		expect(GRID_LAYOUTS['banner-split'].maxImages).toBe(3);
+		expect(GRID_LAYOUTS['spotlight'].maxImages).toBe(4);
+		expect(GRID_LAYOUTS['l-shape'].maxImages).toBe(5);
 	});
 
-	test('layout keys match expected format', () => {
-		Object.keys(GRID_LAYOUTS).forEach(key => {
+	test('standard layout keys match expected format', () => {
+		const standardLayouts = Object.keys(GRID_LAYOUTS).filter(key => !GRID_LAYOUTS[key].type);
+		standardLayouts.forEach(key => {
 			expect(key).toMatch(/^\d+x\d+$/);
+		});
+	});
+
+	test('innovative layout keys are descriptive', () => {
+		const innovativeLayouts = Object.keys(GRID_LAYOUTS).filter(key => GRID_LAYOUTS[key].type === 'custom');
+		innovativeLayouts.forEach(key => {
+			expect(key).toMatch(/^[a-z-]+$/);
+			expect(key.length).toBeGreaterThan(2);
 		});
 	});
 });
