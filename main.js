@@ -358,8 +358,9 @@ function calculateAdaptiveSharpening(analysis, intensity) {
     }
 }
 
-// Enhanced grid layout configurations
+// Enhanced grid layout configurations with innovative YouTube layouts
 const GRID_LAYOUTS = {
+    // Standard grid layouts
     '1x1': { rows: 1, cols: 1, maxImages: 1 },
     '2x1': { rows: 2, cols: 1, maxImages: 2 },
     '1x2': { rows: 1, cols: 2, maxImages: 2 },
@@ -367,7 +368,39 @@ const GRID_LAYOUTS = {
     '3x1': { rows: 3, cols: 1, maxImages: 3 },
     '1x3': { rows: 1, cols: 3, maxImages: 3 },
     '2x3': { rows: 2, cols: 3, maxImages: 6 },
-    '3x2': { rows: 3, cols: 2, maxImages: 6 }
+    '3x2': { rows: 3, cols: 2, maxImages: 6 },
+
+    // Creative YouTube-optimized layouts
+    'hero-side': {
+        type: 'custom',
+        maxImages: 4,
+        layout: 'hero-side',
+        description: 'Large hero image with smaller side images'
+    },
+    'corner-grid': {
+        type: 'custom',
+        maxImages: 5,
+        layout: 'corner-grid',
+        description: 'Main center image with corner elements'
+    },
+    'banner-split': {
+        type: 'custom',
+        maxImages: 3,
+        layout: 'banner-split',
+        description: 'Wide banner with split content below'
+    },
+    'spotlight': {
+        type: 'custom',
+        maxImages: 4,
+        layout: 'spotlight',
+        description: 'Center spotlight with surrounding elements'
+    },
+    'l-shape': {
+        type: 'custom',
+        maxImages: 5,
+        layout: 'l-shape',
+        description: 'L-shaped dynamic arrangement'
+    }
 };
 
 // Standard YouTube thumbnail dimensions
@@ -616,6 +649,42 @@ async function determineOptimalLayout(imagePaths) {
             confidence = Math.min(confidence + 0.1, 1.0);
         }
 
+        // Consider innovative layouts for higher engagement potential
+        if (imageCount >= 3 && confidence < 0.9) {
+            let innovativeRecommendation = null;
+            let innovativeConfidence = 0;
+
+            if (imageCount === 3 && prominentSubjectCount >= 1) {
+                // Banner-split is great for storytelling with 3 images
+                innovativeRecommendation = 'banner-split';
+                innovativeConfidence = 0.85;
+            } else if (imageCount === 4 && prominentSubjectCount >= 2) {
+                // Hero-side or spotlight for 4 images with prominent subjects
+                if (avgAspectRatio > 1.2) {
+                    innovativeRecommendation = 'hero-side';
+                    innovativeConfidence = 0.9;
+                } else {
+                    innovativeRecommendation = 'spotlight';
+                    innovativeConfidence = 0.85;
+                }
+            } else if (imageCount === 5) {
+                // Corner-grid or L-shape for 5 images
+                if (aspectRatioVariance < 0.3) {
+                    innovativeRecommendation = 'corner-grid';
+                    innovativeConfidence = 0.8;
+                } else {
+                    innovativeRecommendation = 'l-shape';
+                    innovativeConfidence = 0.85;
+                }
+            }
+
+            // Use innovative layout if it has higher confidence
+            if (innovativeRecommendation && innovativeConfidence > confidence) {
+                recommendedLayout = innovativeRecommendation;
+                confidence = innovativeConfidence;
+            }
+        }
+
         // Ensure we have a valid layout
         if (!GRID_LAYOUTS[recommendedLayout]) {
             console.warn(`Invalid layout ${recommendedLayout}, falling back to default`);
@@ -665,6 +734,178 @@ function calculateVariance(array) {
     return array.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / array.length;
 }
 
+// Calculate positions for innovative YouTube layouts
+function calculateInnovativeLayoutPositions(layoutType, imageCount, width, height, padding) {
+    const positions = [];
+
+    switch (layoutType) {
+        case 'hero-side':
+            // Large hero image (70% width) + smaller side images (30% width)
+            const heroWidth = Math.floor(width * 0.7) - padding;
+            const sideWidth = Math.floor(width * 0.3) - padding;
+            const sideHeight = Math.floor(height / Math.max(1, imageCount - 1));
+
+            positions.push({
+                width: heroWidth,
+                height: height - padding * 2,
+                left: padding,
+                top: padding
+            });
+
+            for (let i = 1; i < imageCount; i++) {
+                positions.push({
+                    width: sideWidth,
+                    height: sideHeight - padding,
+                    left: heroWidth + padding * 2,
+                    top: (i - 1) * sideHeight + padding
+                });
+            }
+            break;
+
+        case 'corner-grid':
+            // Center image (60% of both dimensions) + corner elements
+            const centerSize = Math.floor(Math.min(width, height) * 0.6);
+            const cornerSize = Math.floor(Math.min(width, height) * 0.25);
+            const centerX = Math.floor((width - centerSize) / 2);
+            const centerY = Math.floor((height - centerSize) / 2);
+
+            positions.push({
+                width: centerSize,
+                height: centerSize,
+                left: centerX,
+                top: centerY
+            });
+
+            // Corner positions
+            const corners = [
+                { left: padding, top: padding }, // Top-left
+                { left: width - cornerSize - padding, top: padding }, // Top-right
+                { left: padding, top: height - cornerSize - padding }, // Bottom-left
+                { left: width - cornerSize - padding, top: height - cornerSize - padding } // Bottom-right
+            ];
+
+            for (let i = 1; i < Math.min(imageCount, 5); i++) {
+                const corner = corners[i - 1];
+                positions.push({
+                    width: cornerSize,
+                    height: cornerSize,
+                    left: corner.left,
+                    top: corner.top
+                });
+            }
+            break;
+
+        case 'banner-split':
+            // Wide banner (full width, 50% height) + split content below
+            const bannerHeight = Math.floor(height * 0.5);
+            const splitWidth = Math.floor(width / Math.max(1, imageCount - 1));
+
+            positions.push({
+                width: width - padding * 2,
+                height: bannerHeight - padding,
+                left: padding,
+                top: padding
+            });
+
+            for (let i = 1; i < imageCount; i++) {
+                positions.push({
+                    width: splitWidth - padding,
+                    height: height - bannerHeight - padding * 2,
+                    left: (i - 1) * splitWidth + padding,
+                    top: bannerHeight + padding
+                });
+            }
+            break;
+
+        case 'spotlight':
+            // Center spotlight (50% of dimensions) + surrounding elements
+            const spotlightSize = Math.floor(Math.min(width, height) * 0.5);
+            const spotlightX = Math.floor((width - spotlightSize) / 2);
+            const spotlightY = Math.floor((height - spotlightSize) / 2);
+            const surroundSize = Math.floor(Math.min(width, height) * 0.2);
+
+            positions.push({
+                width: spotlightSize,
+                height: spotlightSize,
+                left: spotlightX,
+                top: spotlightY
+            });
+
+            // Surrounding positions
+            const surroundPositions = [
+                { left: padding, top: spotlightY }, // Left
+                { left: width - surroundSize - padding, top: spotlightY }, // Right
+                { left: spotlightX, top: padding } // Top
+            ];
+
+            for (let i = 1; i < Math.min(imageCount, 4); i++) {
+                const pos = surroundPositions[i - 1];
+                positions.push({
+                    width: surroundSize,
+                    height: surroundSize,
+                    left: pos.left,
+                    top: pos.top
+                });
+            }
+            break;
+
+        case 'l-shape':
+            // L-shaped arrangement with main image and smaller elements
+            const mainWidth = Math.floor(width * 0.6);
+            const mainHeight = Math.floor(height * 0.6);
+            const smallSize = Math.floor(Math.min(width, height) * 0.25);
+
+            positions.push({
+                width: mainWidth,
+                height: mainHeight,
+                left: padding,
+                top: padding
+            });
+
+            // L-shape arrangement for remaining images
+            for (let i = 1; i < imageCount; i++) {
+                if (i <= 2) {
+                    // Right side of L
+                    positions.push({
+                        width: width - mainWidth - padding * 3,
+                        height: smallSize,
+                        left: mainWidth + padding * 2,
+                        top: padding + (i - 1) * (smallSize + padding)
+                    });
+                } else {
+                    // Bottom of L
+                    positions.push({
+                        width: smallSize,
+                        height: height - mainHeight - padding * 3,
+                        left: padding + (i - 3) * (smallSize + padding),
+                        top: mainHeight + padding * 2
+                    });
+                }
+            }
+            break;
+
+        default:
+            // Fallback to basic grid
+            const cols = Math.ceil(Math.sqrt(imageCount));
+            const rows = Math.ceil(imageCount / cols);
+            const cellWidth = Math.floor(width / cols);
+            const cellHeight = Math.floor(height / rows);
+
+            for (let i = 0; i < imageCount; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                positions.push({
+                    width: cellWidth - padding * 2,
+                    height: cellHeight - padding * 2,
+                    left: col * cellWidth + padding,
+                    top: row * cellHeight + padding
+                });
+            }
+    }
+
+    return positions;
+}
+
 // Handle thumbnail creation with tilted delimiters and auto-enhance
 ipcMain.handle('create-thumbnail', async (event, data) => {
     if (!sharp) {
@@ -707,12 +948,12 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const layoutAnalysis = await determineOptimalLayout(imagePaths);
             gridLayout = layoutAnalysis.recommendedLayout;
             console.log(`Smart layout analysis completed in ${Date.now() - layoutStart}ms, recommended: ${gridLayout} (confidence: ${layoutAnalysis.confidence.toFixed(2)})`);
-        } else if (layoutMode === '2-split') {
-            gridLayout = '1x2';
-        } else if (layoutMode === '3-split') {
-            gridLayout = '1x3';
+
         } else if (layoutMode.includes('x')) {
             // Direct grid layout specification (e.g., '2x2', '3x1', etc.)
+            gridLayout = layoutMode;
+        } else {
+            // Handle innovative custom layouts
             gridLayout = layoutMode;
         }
 
@@ -848,23 +1089,112 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             })
         );
 
-        // Calculate positions for grid layout
-        const composites = processedImages.map((buffer, index) => {
-            const row = Math.floor(index / layout.cols);
-            const col = index % layout.cols;
+        // Calculate positions for grid layout or innovative layouts
+        let composites;
 
-            const left = col * cellWidth + padding;
-            const top = row * cellHeight + padding;
+        if (layout.type === 'custom') {
+            // Use innovative layout positioning
+            const positions = calculateInnovativeLayoutPositions(
+                layout.layout,
+                selectedImages.length,
+                THUMBNAIL_WIDTH,
+                THUMBNAIL_HEIGHT,
+                padding
+            );
 
-            return {
-                input: buffer,
-                left: Math.floor(left),
-                top: Math.floor(top)
-            };
-        });
+            // Process images with custom sizing for innovative layouts
+            const customProcessedImages = await Promise.all(
+                selectedImages.map(async (imagePath, index) => {
+                    try {
+                        let imageBuffer = await fs.promises.readFile(imagePath);
+                        let processedImage = sharp(imageBuffer);
 
-        // Add grid delimiters if needed
-        if (layout.cols > 1 || layout.rows > 1) {
+                        if (applyEnhance) {
+                            processedImage = await enhanceImage(imageBuffer, enhanceOptions);
+                        }
+
+                        const pos = positions[index];
+                        if (pos) {
+                            // Add visual enhancements for thumbnails
+                            processedImage = processedImage
+                                // Apply subtle vignette
+                                .composite([{
+                                    input: Buffer.from(`
+                                        <svg width="${pos.width}" height="${pos.height}">
+                                            <defs>
+                                                <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+                                                    <stop offset="0%" stop-color="black" stop-opacity="0" />
+                                                    <stop offset="100%" stop-color="black" stop-opacity="0.15" />
+                                                </radialGradient>
+                                            </defs>
+                                            <rect width="100%" height="100%" fill="url(#vignette)" />
+                                        </svg>
+                                    `),
+                                    blend: 'overlay'
+                                }])
+                                // Add subtle sharpening
+                                .sharpen({
+                                    sigma: 1.2,
+                                    m1: 1.0,
+                                    m2: 2.0,
+                                    x1: 2.0,
+                                    y2: 10.0
+                                })
+                                // Boost contrast and colors
+                                .linear(1.1, 0)
+                                .modulate({
+                                    brightness: 1.05,
+                                    saturation: 1.1
+                                });
+
+                            return await processedImage
+                                .resize({
+                                    width: pos.width,
+                                    height: pos.height,
+                                    fit: 'cover',
+                                    position: 'center'
+                                })
+                                .toBuffer();
+                        }
+                        return null;
+                    } catch (error) {
+                        console.error(`Error processing custom layout image ${index}:`, error);
+                        throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
+                    }
+                })
+            );
+
+            composites = customProcessedImages.map((buffer, index) => {
+                const pos = positions[index];
+                if (pos && buffer) {
+                    return {
+                        input: buffer,
+                        left: Math.floor(pos.left),
+                        top: Math.floor(pos.top)
+                    };
+                }
+                return null;
+            }).filter(comp => comp !== null);
+
+        } else {
+            // Standard grid layout positioning
+            composites = processedImages.map((buffer, index) => {
+                const row = Math.floor(index / layout.cols);
+                const col = index % layout.cols;
+
+                const left = col * cellWidth + padding;
+                const top = row * cellHeight + padding;
+
+                return {
+                    input: buffer,
+                    left: Math.floor(left),
+                    top: Math.floor(top)
+                };
+            });
+        }
+
+        // Add grid delimiters if needed (only for standard grid layouts)
+        if (layout.type !== 'custom' && (layout.cols > 1 || layout.rows > 1)) {
             // Add vertical delimiters
             for (let col = 1; col < layout.cols; col++) {
                 const x = col * cellWidth;

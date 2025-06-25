@@ -35,7 +35,7 @@ describe('Grid Layout System', () => {
 		'1x3': { rows: 1, cols: 3, maxImages: 3 },
 		'2x3': { rows: 2, cols: 3, maxImages: 6 },
 		'3x2': { rows: 3, cols: 2, maxImages: 6 },
-		// Innovative YouTube-optimized layouts
+		// Creative YouTube-optimized layouts
 		'hero-side': { type: 'custom', maxImages: 4, layout: 'hero-side' },
 		'corner-grid': { type: 'custom', maxImages: 5, layout: 'corner-grid' },
 		'banner-split': { type: 'custom', maxImages: 3, layout: 'banner-split' },
