@@ -908,6 +908,9 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
 
 // Handle thumbnail creation with tilted delimiters and auto-enhance
 ipcMain.handle('create-thumbnail', async (event, data) => {
+    // Performance monitoring - define startTime early for error handling
+    const startTime = Date.now();
+
     if (!sharp) {
         return {
             success: false,
@@ -931,8 +934,6 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     const fillColor = delimiterColor;
 
     try {
-        // Performance monitoring
-        const startTime = Date.now();
         console.log(`Starting thumbnail creation with ${imagePaths.length} images using ${layoutMode} mode`);
 
         if (imagePaths.length < 1) {
