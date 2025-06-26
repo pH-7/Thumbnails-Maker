@@ -738,16 +738,35 @@ function calculateVariance(array) {
 function calculateInnovativeLayoutPositions(layoutType, imageCount, width, height, padding) {
     const positions = [];
 
+    // Validate inputs to prevent NaN
+    if (!width || !height || width <= 0 || height <= 0 || imageCount <= 0) {
+        console.error('Invalid parameters for layout calculation:', { layoutType, imageCount, width, height, padding });
+        return positions;
+    }
+
+    // Ensure all parameters are valid numbers
+    width = Math.max(100, Math.floor(Number(width) || 1280));
+    height = Math.max(100, Math.floor(Number(height) || 720));
+    padding = Math.max(0, Math.floor(Number(padding) || 0));
+    imageCount = Math.max(1, Math.floor(Number(imageCount) || 1));
+
+    // Helper function to validate and ensure minimum dimensions
+    const ensureValidDimension = (value, minimum = 100) => {
+        const num = Math.floor(Number(value) || minimum);
+        return Math.max(minimum, num);
+    };
+
     switch (layoutType) {
         case 'hero-side':
             // Large hero image (70% width) + smaller side images (30% width)
-            const heroWidth = Math.floor(width * 0.7) - padding;
-            const sideWidth = Math.floor(width * 0.3) - padding;
-            const sideHeight = Math.floor(height / Math.max(1, imageCount - 1));
+            const heroWidth = ensureValidDimension(width * 0.7 - padding, 200);
+            const sideWidth = ensureValidDimension(width * 0.3 - padding, 100);
+            const sideImageCount = Math.max(1, imageCount - 1);
+            const sideHeight = ensureValidDimension(height / sideImageCount, 100);
 
             positions.push({
                 width: heroWidth,
-                height: height - padding * 2,
+                height: ensureValidDimension(height - padding * 2, 100),
                 left: padding,
                 top: padding
             });
@@ -755,7 +774,7 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
             for (let i = 1; i < imageCount; i++) {
                 positions.push({
                     width: sideWidth,
-                    height: sideHeight - padding,
+                    height: ensureValidDimension(sideHeight - padding, 100),
                     left: heroWidth + padding * 2,
                     top: (i - 1) * sideHeight + padding
                 });
@@ -764,10 +783,10 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
 
         case 'corner-grid':
             // Center image (60% of both dimensions) + corner elements
-            const centerSize = Math.floor(Math.min(width, height) * 0.6);
-            const cornerSize = Math.floor(Math.min(width, height) * 0.25);
-            const centerX = Math.floor((width - centerSize) / 2);
-            const centerY = Math.floor((height - centerSize) / 2);
+            const centerSize = ensureValidDimension(Math.min(width, height) * 0.6, 200);
+            const cornerSize = ensureValidDimension(Math.min(width, height) * 0.25, 100);
+            const centerX = Math.max(0, Math.floor((width - centerSize) / 2));
+            const centerY = Math.max(0, Math.floor((height - centerSize) / 2));
 
             positions.push({
                 width: centerSize,
@@ -779,38 +798,41 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
             // Corner positions
             const corners = [
                 { left: padding, top: padding }, // Top-left
-                { left: width - cornerSize - padding, top: padding }, // Top-right
-                { left: padding, top: height - cornerSize - padding }, // Bottom-left
-                { left: width - cornerSize - padding, top: height - cornerSize - padding } // Bottom-right
+                { left: Math.max(0, width - cornerSize - padding), top: padding }, // Top-right
+                { left: padding, top: Math.max(0, height - cornerSize - padding) }, // Bottom-left
+                { left: Math.max(0, width - cornerSize - padding), top: Math.max(0, height - cornerSize - padding) } // Bottom-right
             ];
 
             for (let i = 1; i < Math.min(imageCount, 5); i++) {
                 const corner = corners[i - 1];
-                positions.push({
-                    width: cornerSize,
-                    height: cornerSize,
-                    left: corner.left,
-                    top: corner.top
-                });
+                if (corner) {
+                    positions.push({
+                        width: cornerSize,
+                        height: cornerSize,
+                        left: corner.left,
+                        top: corner.top
+                    });
+                }
             }
             break;
 
         case 'banner-split':
             // Wide banner (full width, 50% height) + split content below
-            const bannerHeight = Math.floor(height * 0.5);
-            const splitWidth = Math.floor(width / Math.max(1, imageCount - 1));
+            const bannerHeight = ensureValidDimension(height * 0.5, 100);
+            const splitImageCount = Math.max(1, imageCount - 1);
+            const splitWidth = ensureValidDimension(width / splitImageCount, 100);
 
             positions.push({
-                width: width - padding * 2,
-                height: bannerHeight - padding,
+                width: ensureValidDimension(width - padding * 2, 100),
+                height: ensureValidDimension(bannerHeight - padding, 100),
                 left: padding,
                 top: padding
             });
 
             for (let i = 1; i < imageCount; i++) {
                 positions.push({
-                    width: splitWidth - padding,
-                    height: height - bannerHeight - padding * 2,
+                    width: ensureValidDimension(splitWidth - padding, 100),
+                    height: ensureValidDimension(height - bannerHeight - padding * 2, 100),
                     left: (i - 1) * splitWidth + padding,
                     top: bannerHeight + padding
                 });
@@ -819,10 +841,10 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
 
         case 'spotlight':
             // Center spotlight (50% of dimensions) + surrounding elements
-            const spotlightSize = Math.floor(Math.min(width, height) * 0.5);
-            const spotlightX = Math.floor((width - spotlightSize) / 2);
-            const spotlightY = Math.floor((height - spotlightSize) / 2);
-            const surroundSize = Math.floor(Math.min(width, height) * 0.2);
+            const spotlightSize = ensureValidDimension(Math.min(width, height) * 0.5, 200);
+            const spotlightX = Math.max(0, Math.floor((width - spotlightSize) / 2));
+            const spotlightY = Math.max(0, Math.floor((height - spotlightSize) / 2));
+            const surroundSize = ensureValidDimension(Math.min(width, height) * 0.2, 100);
 
             positions.push({
                 width: spotlightSize,
@@ -834,26 +856,28 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
             // Surrounding positions
             const surroundPositions = [
                 { left: padding, top: spotlightY }, // Left
-                { left: width - surroundSize - padding, top: spotlightY }, // Right
+                { left: Math.max(0, width - surroundSize - padding), top: spotlightY }, // Right
                 { left: spotlightX, top: padding } // Top
             ];
 
             for (let i = 1; i < Math.min(imageCount, 4); i++) {
                 const pos = surroundPositions[i - 1];
-                positions.push({
-                    width: surroundSize,
-                    height: surroundSize,
-                    left: pos.left,
-                    top: pos.top
-                });
+                if (pos) {
+                    positions.push({
+                        width: surroundSize,
+                        height: surroundSize,
+                        left: pos.left,
+                        top: pos.top
+                    });
+                }
             }
             break;
 
         case 'l-shape':
             // L-shaped arrangement with main image and smaller elements
-            const mainWidth = Math.floor(width * 0.6);
-            const mainHeight = Math.floor(height * 0.6);
-            const smallSize = Math.floor(Math.min(width, height) * 0.25);
+            const mainWidth = ensureValidDimension(width * 0.6, 300);
+            const mainHeight = ensureValidDimension(height * 0.6, 300);
+            const smallSize = ensureValidDimension(Math.min(width, height) * 0.25, 100);
 
             positions.push({
                 width: mainWidth,
@@ -867,7 +891,7 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
                 if (i <= 2) {
                     // Right side of L
                     positions.push({
-                        width: width - mainWidth - padding * 3,
+                        width: ensureValidDimension(width - mainWidth - padding * 3, 100),
                         height: smallSize,
                         left: mainWidth + padding * 2,
                         top: padding + (i - 1) * (smallSize + padding)
@@ -876,7 +900,7 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
                     // Bottom of L
                     positions.push({
                         width: smallSize,
-                        height: height - mainHeight - padding * 3,
+                        height: ensureValidDimension(height - mainHeight - padding * 3, 100),
                         left: padding + (i - 3) * (smallSize + padding),
                         top: mainHeight + padding * 2
                     });
@@ -886,24 +910,30 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
 
         default:
             // Fallback to basic grid
-            const cols = Math.ceil(Math.sqrt(imageCount));
-            const rows = Math.ceil(imageCount / cols);
-            const cellWidth = Math.floor(width / cols);
-            const cellHeight = Math.floor(height / rows);
+            const cols = Math.max(1, Math.ceil(Math.sqrt(imageCount)));
+            const rows = Math.max(1, Math.ceil(imageCount / cols));
+            const cellWidth = ensureValidDimension(width / cols, 100);
+            const cellHeight = ensureValidDimension(height / rows, 100);
 
             for (let i = 0; i < imageCount; i++) {
                 const row = Math.floor(i / cols);
                 const col = i % cols;
                 positions.push({
-                    width: cellWidth - padding * 2,
-                    height: cellHeight - padding * 2,
+                    width: ensureValidDimension(cellWidth - padding * 2, 100),
+                    height: ensureValidDimension(cellHeight - padding * 2, 100),
                     left: col * cellWidth + padding,
                     top: row * cellHeight + padding
                 });
             }
     }
 
-    return positions;
+    // Final validation to ensure all positions have valid dimensions
+    return positions.map(pos => ({
+        width: ensureValidDimension(pos.width, 100),
+        height: ensureValidDimension(pos.height, 100),
+        left: Math.max(0, Math.floor(Number(pos.left) || 0)),
+        top: Math.max(0, Math.floor(Number(pos.top) || 0))
+    }));
 }
 
 // Handle thumbnail creation with tilted delimiters and auto-enhance
@@ -920,7 +950,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
     const {
         imagePaths,
-        delimiterWidth,
+        delimiterWidth: rawDelimiterWidth,
         delimiterTilt,
         outputName,
         enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
@@ -928,6 +958,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         layoutMode = 'auto', // Can be 'auto', '2-split', or '3-split'
         youtubeOptimize = true // Set to true by default
     } = data;
+
+    // Validate and sanitize delimiterWidth to prevent NaN
+    const delimiterWidth = Math.max(0, Math.floor(Number(rawDelimiterWidth) || 18));
 
     // Extract color information from delimiterColor
     const delimiterColor = data.delimiterColor || '#ffffff';
@@ -1020,9 +1053,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         });
 
         // Calculate grid cell dimensions with optimization for large grids
-        const cellWidth = Math.floor(THUMBNAIL_WIDTH / layout.cols);
-        const cellHeight = Math.floor(THUMBNAIL_HEIGHT / layout.rows);
-        const padding = Math.floor(delimiterWidth / 2); // Padding between cells
+        // For custom layouts, use default values since they don't use grid cells
+        const cellWidth = layout.cols ? Math.floor(THUMBNAIL_WIDTH / layout.cols) : THUMBNAIL_WIDTH;
+        const cellHeight = layout.rows ? Math.floor(THUMBNAIL_HEIGHT / layout.rows) : THUMBNAIL_HEIGHT;
+        const padding = Math.max(0, Math.floor((delimiterWidth || 0) / 2)); // Padding between cells
 
         // Performance optimization: use progressive loading for large grids
         const isLargeGrid = layout.maxImages > 4;
@@ -1039,9 +1073,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         processedImage = await enhanceImage(imageBuffer, enhanceOptions);
                     }
 
-                    // Calculate actual cell dimensions with padding
-                    const actualCellWidth = cellWidth - padding * 2;
-                    const actualCellHeight = cellHeight - padding * 2;
+                    // Calculate actual cell dimensions with padding and validate
+                    const actualCellWidth = Math.max(100, Math.floor(Number(cellWidth - padding * 2) || 100));
+                    const actualCellHeight = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
 
                     // Add visual enhancements for thumbnails
                     processedImage = processedImage
@@ -1077,8 +1111,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
                     return await processedImage
                         .resize({
-                            width: actualCellWidth,
-                            height: actualCellHeight,
+                            width: Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
+                            height: Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
                             fit: 'cover',
                             position: 'center'
                         })
@@ -1095,6 +1129,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         if (layout.type === 'custom') {
             // Use innovative layout positioning
+            console.log(`Using innovative layout: ${layout.layout} with ${selectedImages.length} images`);
+            console.log(`Dimensions: ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT}, padding: ${padding}`);
+
             const positions = calculateInnovativeLayoutPositions(
                 layout.layout,
                 selectedImages.length,
@@ -1102,6 +1139,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 THUMBNAIL_HEIGHT,
                 padding
             );
+
+            console.log(`Generated ${positions.length} positions:`, positions);
 
             // Process images with custom sizing for innovative layouts
             const customProcessedImages = await Promise.all(
@@ -1116,6 +1155,15 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
                         const pos = positions[index];
                         if (pos) {
+                            // Validate position dimensions before using them
+                            if (isNaN(pos.width) || isNaN(pos.height) || pos.width <= 0 || pos.height <= 0) {
+                                console.error(`Invalid position dimensions for image ${index}:`, pos);
+                                console.error(`Layout: ${layout.layout}, Image count: ${selectedImages.length}`);
+                                return null;
+                            }
+
+                            console.log(`Processing image ${index} with dimensions: ${pos.width}x${pos.height}`);
+
                             // Add visual enhancements for thumbnails
                             processedImage = processedImage
                                 // Apply subtle vignette
@@ -1150,8 +1198,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
                             return await processedImage
                                 .resize({
-                                    width: pos.width,
-                                    height: pos.height,
+                                    width: Math.max(100, Math.floor(Number(pos.width) || 100)),
+                                    height: Math.max(100, Math.floor(Number(pos.height) || 100)),
                                     fit: 'cover',
                                     position: 'center'
                                 })
