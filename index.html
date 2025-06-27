@@ -496,6 +496,46 @@
     .toggle-switch input:checked+label:before {
       transform: translateX(26px);
     }
+
+    /* App Footer Styling */
+    .app-footer {
+      margin-top: 50px;
+      padding: 20px 0;
+      border-top: 1px solid #eee;
+      background-color: #f9f9f9;
+      text-align: center;
+    }
+
+    .footer-content {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .footer-content p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .footer-content a {
+      color: #ff0000;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .footer-content a:hover {
+      color: #cc0000;
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .footer-content p {
+        font-size: 13px;
+      }
+    }
   </style>
 </head>
 
@@ -682,6 +722,13 @@
     </div>
   </div>
   </div>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <p>Made with ❤️ by <a href="https://github.com/pH-7" target="_blank" rel="noopener noreferrer">Pierre-Henry</a> – Founder of <a href="https://mealsnap.ph7.me" target="_blank" rel="noopener noreferrer">MealSnap - Diary Tracking meal log journal 🥕</a></p>
+    </div>
+  </footer>
 
   <script>
     const { ipcRenderer, shell } = require('electron');
