@@ -556,6 +556,7 @@ function calculateVisualWeight(stats) {
 }
 
 // Smart layout determination based on enhanced image analysis
+// Prioritize true side-by-side layouts (1x2) for 2 images in Auto Smart mode
 async function determineOptimalLayout(imagePaths) {
     try {
         if (!Array.isArray(imagePaths) || imagePaths.length === 0) {
@@ -595,15 +596,15 @@ async function determineOptimalLayout(imagePaths) {
             recommendedLayout = '1x1';
             confidence = 1.0;
         } else if (imageCount === 2) {
-            if (portraitCount === 2) {
-                recommendedLayout = '1x2'; // Side by side for portraits
-                confidence = 0.9;
-            } else if (landscapeCount === 2 && avgVisualWeight > 100) {
-                recommendedLayout = '2x1'; // Stacked for complex landscapes
+            // Always prioritize side-by-side (1x2) for 2 images in Auto Smart mode
+            // This creates proper side-by-side positioning, not a strip
+            recommendedLayout = '1x2'; // Side by side layout - 2 images with equal width
+            confidence = 0.9;
+
+            // Only use vertical stacking (2x1) for very specific cases
+            if (landscapeCount === 2 && avgVisualWeight > 120 && avgAspectRatio > 2.0) {
+                recommendedLayout = '2x1'; // Vertical stack for very wide, complex landscapes
                 confidence = 0.8;
-            } else {
-                recommendedLayout = '1x2'; // Default side by side
-                confidence = 0.7;
             }
         } else if (imageCount === 3) {
             if (portraitCount >= 2) {
