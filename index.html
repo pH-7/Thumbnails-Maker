@@ -531,9 +531,47 @@
       text-decoration: underline;
     }
 
+    .footer-content .pro-tip {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      color: #555;
+      font-style: italic;
+      opacity: 0.9;
+    }
+
+    .footer-content .pro-tip strong {
+      color: #ff0000;
+      font-weight: 600;
+    }
+
+    .footer-content kbd {
+      background-color: #f4f4f4;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 0 0 2px #fff inset;
+      color: #333;
+      display: inline-block;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 11px;
+      font-weight: bold;
+      line-height: 1.4;
+      margin: 0 2px;
+      padding: 2px 6px;
+      text-shadow: 0 1px 0 #fff;
+    }
+
     @media (max-width: 768px) {
       .footer-content p {
         font-size: 13px;
+      }
+
+      .footer-content .pro-tip {
+        font-size: 12px;
+      }
+
+      .footer-content kbd {
+        font-size: 10px;
+        padding: 1px 4px;
       }
     }
   </style>
@@ -726,7 +764,10 @@
   <!-- App Footer -->
   <footer class="app-footer">
     <div class="footer-content">
-      <p>Made with ❤️ by <a href="https://github.com/pH-7" target="_blank" rel="noopener noreferrer">Pierre-Henry</a> – Founder of <a href="https://mealsnap.ph7.me" target="_blank" rel="noopener noreferrer">MealSnap - Diary Tracking meal log journal 🥕</a></p>
+      <p class="pro-tip">💡 <strong>Pro Tip:</strong> Press <kbd>ENTER</kbd> to generate thumbnails quickly!</p>
+      <p>Made with ❤️ by <a href="https://github.com/pH-7" target="_blank" rel="noopener noreferrer">Pierre-Henry</a> –
+        Founder of <a href="https://mealsnap.ph7.me" target="_blank" rel="noopener noreferrer">MealSnap - Diary Tracking
+          meal log journal 🥕</a></p>
     </div>
   </footer>
 
