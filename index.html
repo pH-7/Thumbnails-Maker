@@ -1325,10 +1325,25 @@
       setTimeout(() => { elements.progressBarFill.style.width = '90%'; }, 1500);
     }
 
+    // Footer link handler - open external links in default browser
+    function handleFooterLinks() {
+      const footerLinks = document.querySelectorAll('.app-footer a');
+      footerLinks.forEach(link => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault(); // Prevent default Electron behavior
+          const url = link.getAttribute('href');
+          if (url) {
+            shell.openExternal(url); // Open in system's default browser
+          }
+        });
+      });
+    }
+
     // Initialize the interface
     updateVisibleImageSlots();
     updateImagePreviews();
     updateDelimiterPreview();
+    handleFooterLinks(); // Initialize footer link handlers
   </script>
 </body>
 
