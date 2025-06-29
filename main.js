@@ -759,12 +759,13 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
 
     switch (layoutType) {
         case 'hero-side':
-            // Large hero image (70% width) + smaller side images (30% width)
-            const heroWidth = ensureValidDimension(width * 0.7 - padding, 200);
-            const sideWidth = ensureValidDimension(width * 0.3 - padding, 100);
+            // Improved: Adaptive hero + stacked side images (no gaps)
+            const heroWidth = ensureValidDimension(width * 0.65 - padding, 200);
+            const sideWidth = ensureValidDimension(width - heroWidth - padding * 3, 100);
             const sideImageCount = Math.max(1, imageCount - 1);
-            const sideHeight = ensureValidDimension(height / sideImageCount, 100);
+            const sideHeight = ensureValidDimension((height - padding * (sideImageCount + 1)) / sideImageCount, 100);
 
+            // Hero image (left side)
             positions.push({
                 width: heroWidth,
                 height: ensureValidDimension(height - padding * 2, 100),
@@ -772,139 +773,244 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
                 top: padding
             });
 
+            // Side images (right side, stacked vertically with no gaps)
             for (let i = 1; i < imageCount; i++) {
                 positions.push({
                     width: sideWidth,
-                    height: ensureValidDimension(sideHeight - padding, 100),
+                    height: sideHeight,
                     left: heroWidth + padding * 2,
-                    top: (i - 1) * sideHeight + padding
+                    top: padding + (i - 1) * (sideHeight + padding)
                 });
             }
             break;
 
         case 'corner-grid':
-            // Center image (60% of both dimensions) + corner elements
-            const centerSize = ensureValidDimension(Math.min(width, height) * 0.6, 200);
-            const cornerSize = ensureValidDimension(Math.min(width, height) * 0.25, 100);
-            const centerX = Math.max(0, Math.floor((width - centerSize) / 2));
-            const centerY = Math.max(0, Math.floor((height - centerSize) / 2));
+            // Improved: Mosaic-style with better space utilization
+            if (imageCount === 3) {
+                // Vertical split: large left + 2 stacked right
+                const leftWidth = ensureValidDimension(width * 0.6 - padding, 200);
+                const rightWidth = ensureValidDimension(width - leftWidth - padding * 3, 100);
+                const rightHeight = ensureValidDimension((height - padding * 3) / 2, 100);
 
-            positions.push({
-                width: centerSize,
-                height: centerSize,
-                left: centerX,
-                top: centerY
-            });
+                positions.push({
+                    width: leftWidth,
+                    height: ensureValidDimension(height - padding * 2, 100),
+                    left: padding,
+                    top: padding
+                });
 
-            // Corner positions
-            const corners = [
-                { left: padding, top: padding }, // Top-left
-                { left: Math.max(0, width - cornerSize - padding), top: padding }, // Top-right
-                { left: padding, top: Math.max(0, height - cornerSize - padding) }, // Bottom-left
-                { left: Math.max(0, width - cornerSize - padding), top: Math.max(0, height - cornerSize - padding) } // Bottom-right
-            ];
+                positions.push({
+                    width: rightWidth,
+                    height: rightHeight,
+                    left: leftWidth + padding * 2,
+                    top: padding
+                });
 
-            for (let i = 1; i < Math.min(imageCount, 5); i++) {
-                const corner = corners[i - 1];
-                if (corner) {
+                positions.push({
+                    width: rightWidth,
+                    height: rightHeight,
+                    left: leftWidth + padding * 2,
+                    top: padding * 2 + rightHeight
+                });
+            } else if (imageCount === 4) {
+                // 2x2 grid with equal sizes
+                const cellWidth = ensureValidDimension((width - padding * 3) / 2, 100);
+                const cellHeight = ensureValidDimension((height - padding * 3) / 2, 100);
+
+                for (let i = 0; i < 4; i++) {
+                    const row = Math.floor(i / 2);
+                    const col = i % 2;
                     positions.push({
-                        width: cornerSize,
-                        height: cornerSize,
-                        left: corner.left,
-                        top: corner.top
+                        width: cellWidth,
+                        height: cellHeight,
+                        left: padding + col * (cellWidth + padding),
+                        top: padding + row * (cellHeight + padding)
                     });
+                }
+            } else {
+                // 5+ images: center + corners layout
+                const centerSize = ensureValidDimension(Math.min(width, height) * 0.5, 200);
+                const cornerSize = ensureValidDimension(Math.min(width, height) * 0.22, 100);
+                const centerX = Math.max(0, Math.floor((width - centerSize) / 2));
+                const centerY = Math.max(0, Math.floor((height - centerSize) / 2));
+
+                positions.push({
+                    width: centerSize,
+                    height: centerSize,
+                    left: centerX,
+                    top: centerY
+                });
+
+                // Corner positions
+                const corners = [
+                    { left: padding, top: padding }, // Top-left
+                    { left: Math.max(0, width - cornerSize - padding), top: padding }, // Top-right
+                    { left: padding, top: Math.max(0, height - cornerSize - padding) }, // Bottom-left
+                    { left: Math.max(0, width - cornerSize - padding), top: Math.max(0, height - cornerSize - padding) } // Bottom-right
+                ];
+
+                for (let i = 1; i < Math.min(imageCount, 5); i++) {
+                    const corner = corners[i - 1];
+                    if (corner) {
+                        positions.push({
+                            width: cornerSize,
+                            height: cornerSize,
+                            left: corner.left,
+                            top: corner.top
+                        });
+                    }
                 }
             }
             break;
 
         case 'banner-split':
-            // Wide banner (full width, 50% height) + split content below
-            const bannerHeight = ensureValidDimension(height * 0.5, 100);
+            // Improved: Better proportions and no gaps
+            const bannerHeight = ensureValidDimension(height * 0.55, 150);
+            const bottomHeight = ensureValidDimension(height - bannerHeight - padding * 3, 100);
             const splitImageCount = Math.max(1, imageCount - 1);
-            const splitWidth = ensureValidDimension(width / splitImageCount, 100);
+            const splitWidth = ensureValidDimension((width - padding * (splitImageCount + 1)) / splitImageCount, 100);
 
+            // Banner image (top, full width)
             positions.push({
                 width: ensureValidDimension(width - padding * 2, 100),
-                height: ensureValidDimension(bannerHeight - padding, 100),
+                height: bannerHeight,
                 left: padding,
                 top: padding
             });
 
+            // Split images below (no gaps between them)
             for (let i = 1; i < imageCount; i++) {
                 positions.push({
-                    width: ensureValidDimension(splitWidth - padding, 100),
-                    height: ensureValidDimension(height - bannerHeight - padding * 2, 100),
-                    left: (i - 1) * splitWidth + padding,
-                    top: bannerHeight + padding
+                    width: splitWidth,
+                    height: bottomHeight,
+                    left: padding + (i - 1) * (splitWidth + padding),
+                    top: bannerHeight + padding * 2
                 });
             }
             break;
 
         case 'spotlight':
-            // Center spotlight (50% of dimensions) + surrounding elements
-            const spotlightSize = ensureValidDimension(Math.min(width, height) * 0.5, 200);
-            const spotlightX = Math.max(0, Math.floor((width - spotlightSize) / 2));
-            const spotlightY = Math.max(0, Math.floor((height - spotlightSize) / 2));
-            const surroundSize = ensureValidDimension(Math.min(width, height) * 0.2, 100);
+            // Improved: Magazine-style layout with better proportions
+            if (imageCount <= 3) {
+                // Horizontal layout for fewer images
+                const mainWidth = ensureValidDimension(width * 0.6 - padding, 250);
+                const sideWidth = ensureValidDimension((width - mainWidth - padding * 3) / Math.max(1, imageCount - 1), 100);
+                const imageHeight = ensureValidDimension(height - padding * 2, 100);
 
-            positions.push({
-                width: spotlightSize,
-                height: spotlightSize,
-                left: spotlightX,
-                top: spotlightY
-            });
+                positions.push({
+                    width: mainWidth,
+                    height: imageHeight,
+                    left: padding,
+                    top: padding
+                });
 
-            // Surrounding positions
-            const surroundPositions = [
-                { left: padding, top: spotlightY }, // Left
-                { left: Math.max(0, width - surroundSize - padding), top: spotlightY }, // Right
-                { left: spotlightX, top: padding } // Top
-            ];
-
-            for (let i = 1; i < Math.min(imageCount, 4); i++) {
-                const pos = surroundPositions[i - 1];
-                if (pos) {
+                for (let i = 1; i < imageCount; i++) {
                     positions.push({
-                        width: surroundSize,
-                        height: surroundSize,
-                        left: pos.left,
-                        top: pos.top
+                        width: sideWidth,
+                        height: imageHeight,
+                        left: mainWidth + padding + (i - 1) * (sideWidth + padding),
+                        top: padding
+                    });
+                }
+            } else {
+                // Grid layout for 4+ images
+                const cols = 2;
+                const rows = Math.ceil(imageCount / cols);
+                const cellWidth = ensureValidDimension((width - padding * (cols + 1)) / cols, 100);
+                const cellHeight = ensureValidDimension((height - padding * (rows + 1)) / rows, 100);
+
+                for (let i = 0; i < imageCount; i++) {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    positions.push({
+                        width: cellWidth,
+                        height: cellHeight,
+                        left: padding + col * (cellWidth + padding),
+                        top: padding + row * (cellHeight + padding)
                     });
                 }
             }
             break;
 
         case 'l-shape':
-            // L-shaped arrangement with main image and smaller elements
-            const mainWidth = ensureValidDimension(width * 0.6, 300);
-            const mainHeight = ensureValidDimension(height * 0.6, 300);
-            const smallSize = ensureValidDimension(Math.min(width, height) * 0.25, 100);
+            // Improved: True L-shape with better space utilization
+            if (imageCount === 3) {
+                // Perfect L-shape for 3 images
+                const topWidth = ensureValidDimension(width * 0.7 - padding, 250);
+                const topHeight = ensureValidDimension(height * 0.6 - padding, 200);
+                const bottomLeftWidth = topWidth;
+                const bottomLeftHeight = ensureValidDimension(height - topHeight - padding * 3, 100);
+                const rightWidth = ensureValidDimension(width - topWidth - padding * 3, 100);
+                const rightHeight = topHeight;
 
-            positions.push({
-                width: mainWidth,
-                height: mainHeight,
-                left: padding,
-                top: padding
-            });
+                // Top horizontal
+                positions.push({
+                    width: topWidth,
+                    height: topHeight,
+                    left: padding,
+                    top: padding
+                });
 
-            // L-shape arrangement for remaining images
-            for (let i = 1; i < imageCount; i++) {
-                if (i <= 2) {
-                    // Right side of L
+                // Bottom left
+                positions.push({
+                    width: bottomLeftWidth,
+                    height: bottomLeftHeight,
+                    left: padding,
+                    top: topHeight + padding * 2
+                });
+
+                // Right vertical
+                positions.push({
+                    width: rightWidth,
+                    height: rightHeight,
+                    left: topWidth + padding * 2,
+                    top: padding
+                });
+            } else {
+                // Adaptive L-shape for other counts
+                const mainWidth = ensureValidDimension(width * 0.6, 300);
+                const mainHeight = ensureValidDimension(height * 0.6, 200);
+                const remainingWidth = ensureValidDimension(width - mainWidth - padding * 3, 100);
+                const remainingHeight = ensureValidDimension(height - mainHeight - padding * 3, 100);
+
+                // Main image (top-left)
+                positions.push({
+                    width: mainWidth,
+                    height: mainHeight,
+                    left: padding,
+                    top: padding
+                });
+
+                // Distribute remaining images
+                let imageIndex = 1;
+
+                // Right side images
+                const rightImages = Math.min(2, imageCount - 1);
+                const rightCellHeight = ensureValidDimension(mainHeight / rightImages, 100);
+
+                for (let i = 0; i < rightImages && imageIndex < imageCount; i++) {
                     positions.push({
-                        width: ensureValidDimension(width - mainWidth - padding * 3, 100),
-                        height: smallSize,
+                        width: remainingWidth,
+                        height: rightCellHeight,
                         left: mainWidth + padding * 2,
-                        top: padding + (i - 1) * (smallSize + padding)
+                        top: padding + i * rightCellHeight
                     });
-                } else {
-                    // Bottom of L
-                    positions.push({
-                        width: smallSize,
-                        height: ensureValidDimension(height - mainHeight - padding * 3, 100),
-                        left: padding + (i - 3) * (smallSize + padding),
-                        top: mainHeight + padding * 2
-                    });
+                    imageIndex++;
+                }
+
+                // Bottom images
+                const bottomImages = imageCount - imageIndex;
+                if (bottomImages > 0) {
+                    const bottomCellWidth = ensureValidDimension(width / bottomImages, 100);
+
+                    for (let i = 0; i < bottomImages; i++) {
+                        positions.push({
+                            width: ensureValidDimension(bottomCellWidth - padding, 100),
+                            height: remainingHeight,
+                            left: padding + i * bottomCellWidth,
+                            top: mainHeight + padding * 2
+                        });
+                    }
                 }
             }
             break;
