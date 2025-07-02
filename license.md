@@ -1,4 +1,4 @@
-# MIT License
+# MIT License - YouTube Thumbnail Maker Studio
 
 *Copyright (c) 2025 [Pierre-Henry Soria](https://ph7.me)*
 

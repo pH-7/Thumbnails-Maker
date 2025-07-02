@@ -247,6 +247,37 @@
       margin: 0;
     }
 
+    .options-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .options-buttons button {
+      margin: 0;
+      font-size: 13px;
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+      .options-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .options-buttons {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .options-buttons button {
+        flex: 1;
+        min-width: auto;
+      }
+    }
+
     .form-group {
       margin-bottom: 15px;
     }
@@ -648,7 +679,11 @@
   <div class="options-container">
     <div class="options-header">
       <h3>Thumbnail Options</h3>
-      <button id="resetOptionsBtn" class="secondary">Reset Options</button>
+      <div class="options-buttons">
+        <button id="saveFavoriteBtn" class="secondary">⭐ Save as Favorite</button>
+        <button id="loadFavoriteBtn" class="secondary">📁 Load Favorite</button>
+        <button id="resetOptionsBtn" class="secondary">Reset Options</button>
+      </div>
     </div>
 
     <div class="options-grid">
@@ -807,7 +842,10 @@
       delimiters: document.querySelectorAll('.delimiter'),
       layoutMode: document.getElementById('layoutMode'),
       enhanceHelpText: document.querySelector('.form-group:has(#enhanceLevel) .help-text'),
-      imagesContainer: document.getElementById('imagesContainer')
+      imagesContainer: document.getElementById('imagesContainer'),
+      saveFavoriteBtn: document.getElementById('saveFavoriteBtn'),
+      loadFavoriteBtn: document.getElementById('loadFavoriteBtn'),
+      resetOptionsBtn: document.getElementById('resetOptionsBtn')
     };
 
     // State
@@ -851,14 +889,160 @@
       high: 'Maximum smart enhancement with adaptive adjustments for optimal results'
     };
 
-    const ENHANCE_OPTIONS = {
-      level: elements.enhanceLevel.value
-    };
+    // Favorites management system
+    const FAVORITES_KEY = 'youtube-thumbnail-creator-favorites';
+
+    // Function to get current preferences from the form
+    function getCurrentPreferences() {
+      return {
+        delimiterWidth: parseInt(elements.delimiterWidthInput.value) || DEFAULT_VALUES.DELIMITER_WIDTH,
+        delimiterColor: elements.delimiterColorInput.value || DEFAULT_VALUES.DELIMITER_COLOR,
+        delimiterTilt: parseInt(elements.delimiterTiltInput.value) || DEFAULT_VALUES.DELIMITER_TILT,
+        enhanceLevel: elements.enhanceLevel.value || DEFAULT_VALUES.ENHANCE_LEVEL,
+        layoutMode: elements.layoutMode.value || 'auto',
+        youtubeOptimize: elements.youtubeOptimize.checked,
+        // Add timestamp for reference
+        savedAt: new Date().toISOString()
+      };
+    }
+
+    // Function to save current preferences as favorites
+    function saveFavoritePreferences() {
+      try {
+        const preferences = getCurrentPreferences();
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(preferences));
+        console.log('Favorite preferences saved:', preferences);
+
+        // Show success feedback
+        elements.statusEl.textContent = '⭐ Favorite preferences saved! These will be loaded when you start the app.';
+
+        // Update UI to show saved status
+        const saveBtn = elements.saveFavoriteBtn;
+        if (saveBtn) {
+          const originalText = saveBtn.textContent;
+          saveBtn.textContent = '✅ Saved!';
+          saveBtn.style.background = '#d4edda';
+          saveBtn.style.borderColor = '#28a745';
+          saveBtn.style.color = '#155724';
+
+          setTimeout(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.style.background = '';
+            saveBtn.style.borderColor = '';
+            saveBtn.style.color = '';
+          }, 2000);
+        }
+
+        // Update button states
+        updateFavoriteButtonStates();
+
+        return true;
+      } catch (error) {
+        console.error('Error saving favorite preferences:', error);
+        elements.errorEl.textContent = 'Failed to save favorite preferences. Please try again.';
+        return false;
+      }
+    }
+
+    // Function to load saved favorite preferences
+    function loadFavoritePreferences() {
+      try {
+        const savedPreferences = localStorage.getItem(FAVORITES_KEY);
+        if (!savedPreferences) {
+          console.log('No saved favorite preferences found');
+          return null;
+        }
+
+        const preferences = JSON.parse(savedPreferences);
+        console.log('Loading favorite preferences:', preferences);
+
+        return preferences;
+      } catch (error) {
+        console.error('Error loading favorite preferences:', error);
+        return null;
+      }
+    }
+
+    // Function to apply preferences to the form
+    function applyPreferences(preferences) {
+      if (!preferences) return false;
+
+      try {
+        // Apply delimiter settings
+        elements.delimiterWidthInput.value = preferences.delimiterWidth || DEFAULT_VALUES.DELIMITER_WIDTH;
+        elements.delimiterColorInput.value = preferences.delimiterColor || DEFAULT_VALUES.DELIMITER_COLOR;
+        elements.delimiterTiltInput.value = preferences.delimiterTilt || DEFAULT_VALUES.DELIMITER_TILT;
+        elements.tiltValueOutput.textContent = `${preferences.delimiterTilt || DEFAULT_VALUES.DELIMITER_TILT}°`;
+
+        // Apply enhance level
+        elements.enhanceLevel.value = preferences.enhanceLevel || DEFAULT_VALUES.ENHANCE_LEVEL;
+        updateEnhancePreviewSelection(preferences.enhanceLevel || DEFAULT_VALUES.ENHANCE_LEVEL);
+
+        // Apply layout mode
+        elements.layoutMode.value = preferences.layoutMode || 'auto';
+
+        // Apply YouTube optimization
+        elements.youtubeOptimize.checked = preferences.youtubeOptimize !== undefined ? preferences.youtubeOptimize : true;
+
+        // Update delimiter preview
+        updateDelimiterPreview();
+
+        // Update visible image slots based on layout
+        updateVisibleImageSlots();
+        updateImagePreviews();
+
+        console.log('Preferences applied successfully');
+        return true;
+      } catch (error) {
+        console.error('Error applying preferences:', error);
+        return false;
+      }
+    }
+
+    // Function to check if user has saved favorites
+    function hasSavedFavorites() {
+      return localStorage.getItem(FAVORITES_KEY) !== null;
+    }
+
+    // Function to clear saved favorites
+    function clearFavoritePreferences() {
+      try {
+        localStorage.removeItem(FAVORITES_KEY);
+        console.log('Favorite preferences cleared');
+        elements.statusEl.textContent = 'Favorite preferences cleared. Default values will be used.';
+        updateFavoriteButtonStates();
+        return true;
+      } catch (error) {
+        console.error('Error clearing favorite preferences:', error);
+        return false;
+      }
+    }
 
     // Reset options to default values
     elements.resetOptionsBtn.addEventListener('click', () => {
       resetFormWithAnimation();
       elements.statusEl.textContent = 'Options reset to default values.';
+    });
+
+    // Save current preferences as favorite
+    elements.saveFavoriteBtn.addEventListener('click', () => {
+      saveFavoritePreferences();
+    });
+
+    // Load favorite preferences
+    elements.loadFavoriteBtn.addEventListener('click', () => {
+      const favorites = loadFavoritePreferences();
+      if (favorites) {
+        if (applyPreferences(favorites)) {
+          const savedDate = new Date(favorites.savedAt).toLocaleDateString();
+          elements.statusEl.textContent = `⭐ Favorite preferences loaded! (Saved on ${savedDate})`;
+        } else {
+          elements.errorEl.textContent = 'Failed to apply favorite preferences.';
+        }
+      } else {
+        elements.statusEl.textContent = 'No favorite preferences found. Save your current settings first!';
+      }
+      updateFavoriteButtonStates();
     });
 
     // Handle layout mode changes
@@ -1016,7 +1200,21 @@
         easing: 'ease-out'
       });
 
-      // Reset all form values to defaults
+      // Check if user has saved favorites
+      const savedFavorites = loadFavoritePreferences();
+
+      if (savedFavorites) {
+        // Ask user if they want to reset to favorites or factory defaults
+        const useFavorites = confirm('Reset to your saved favorite preferences or to factory defaults?\n\nClick OK for favorites, Cancel for factory defaults.');
+
+        if (useFavorites) {
+          applyPreferences(savedFavorites);
+          elements.statusEl.textContent = 'Options reset to your saved favorite preferences.';
+          return;
+        }
+      }
+
+      // Reset to factory defaults
       elements.delimiterWidthInput.value = DEFAULT_VALUES.DELIMITER_WIDTH;
       elements.delimiterTiltInput.value = DEFAULT_VALUES.DELIMITER_TILT;
       elements.delimiterColorInput.value = DEFAULT_VALUES.DELIMITER_COLOR;
@@ -1385,6 +1583,56 @@
     updateImagePreviews();
     updateDelimiterPreview();
     handleFooterLinks(); // Initialize footer link handlers
+
+    // Auto-load favorite preferences on app startup
+    function initializeAppWithFavorites() {
+      const savedFavorites = loadFavoritePreferences();
+
+      if (savedFavorites) {
+        console.log('Auto-loading favorite preferences on app startup');
+        applyPreferences(savedFavorites);
+
+        // Show subtle notification that favorites were loaded
+        const savedDate = new Date(savedFavorites.savedAt).toLocaleDateString();
+        elements.statusEl.textContent = `⭐ Loaded your favorite preferences (saved ${savedDate})`;
+        elements.statusEl.style.color = '#28a745';
+
+        // Clear the message after 3 seconds
+        setTimeout(() => {
+          elements.statusEl.textContent = '';
+          elements.statusEl.style.color = '';
+        }, 3000);
+      } else {
+        console.log('No saved favorites found, using default settings');
+      }
+    }
+
+    // Initialize app with saved preferences when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      // Small delay to ensure all elements are properly initialized
+      setTimeout(() => {
+        initializeAppWithFavorites();
+        updateFavoriteButtonStates();
+      }, 100);
+    });
+
+    // Function to update UI button states based on saved favorites
+    function updateFavoriteButtonStates() {
+      const loadBtn = elements.loadFavoriteBtn;
+      const hasFavorites = hasSavedFavorites();
+
+      if (loadBtn) {
+        if (hasFavorites) {
+          loadBtn.disabled = false;
+          loadBtn.title = 'Load your saved favorite preferences';
+          loadBtn.innerHTML = '📁 Load Favorite';
+        } else {
+          loadBtn.disabled = true;
+          loadBtn.title = 'No saved favorites available. Save your current settings first!';
+          loadBtn.innerHTML = '📁 No Favorites';
+        }
+      }
+    }
   </script>
 </body>
 
