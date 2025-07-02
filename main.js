@@ -1073,6 +1073,26 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     const delimiterColor = data.delimiterColor || '#ffffff';
     const fillColor = delimiterColor;
 
+    // Convert hex color to RGB for Sharp.js background
+    const hexToRgb = (hex) => {
+        // Remove # if present
+        hex = hex.replace('#', '');
+        // Ensure it's 6 characters
+        if (hex.length === 3) {
+            hex = hex.split('').map(char => char + char).join('');
+        }
+        const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16),
+            alpha: 1
+        } : { r: 255, g: 255, b: 255, alpha: 1 }; // fallback to white
+    };
+
+    const backgroundColor = hexToRgb(delimiterColor);
+    console.log(`Using delimiter color: ${delimiterColor}, RGB: ${JSON.stringify(backgroundColor)}`);
+
     try {
         console.log(`Starting thumbnail creation with ${imagePaths.length} images using ${layoutMode} mode`);
 
@@ -1149,13 +1169,13 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const THUMBNAIL_WIDTH = 1280;
         const THUMBNAIL_HEIGHT = 720;
 
-        // Create blank canvas
+        // Create blank canvas with user-selected delimiter color
         const canvas = sharp({
             create: {
                 width: THUMBNAIL_WIDTH,
                 height: THUMBNAIL_HEIGHT,
                 channels: 4,
-                background: { r: 255, g: 255, b: 255, alpha: 1 }
+                background: backgroundColor
             }
         });
 

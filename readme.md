@@ -216,11 +216,11 @@ npm run dist
 
 [![Pierre-Henry Soria](https://s.gravatar.com/avatar/a210fe61253c43c869d71eaed0e90149?s=200)](https://PH7.me 'Pierre-Henry Soria personal website')
 
-**Pierre-Henry Soria**. A super passionate and enthusiastic software engineer! 🚀 True cheese 🧀 , coffee, and chocolate lover! 😋 Reach me at [PH7.me](https://PH7.me) 💫
+**Pierre-Henry Soria**. A super passionate and enthusiastic software engineer! 🚀 True cheese 🧀 , coffee, and chocolate lover! 😋 Reach me at [pH7.me](https://ph7.me) 💫
+
+[![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![@phenrysay][x-icon]](https://x.com/phenrysay "Follow Me on X") [![pH-7][github-icon]](https://github.com/pH-7 "Follow Me on GitHub")
 
 ☕️ **Enjoying this project?** [Buy me a coffee](https://ko-fi.com/phenry) (my favorite is almond flat white ☕️)
-
-[![@phenrysay][x-icon]](https://x.com/phenrysay "Follow Me on X") [![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![pH-7][github-icon]](https://github.com/pH-7 "Follow Me on GitHub")
 
 
 ## 🎥 Watch me build apps like this
@@ -230,7 +230,7 @@ Subscribe to my YouTube channel to watch me explain how I build apps from scratc
 
 ## ⚖️ License
 
-This YouTube Thumbnail Creator is licensed under the [MIT License](license.md).
+This **YouTube Thumbnail Creator** is licensed under the [MIT License](license.md).
 
 
 <!-- GitHub's Markdown reference links -->
