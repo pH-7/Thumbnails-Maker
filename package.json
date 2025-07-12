@@ -1,17 +1,18 @@
 {
   "name": "thumbnail-maker",
-  "productName": "Thumbnail Maker",
-  "version": "3.0.0",
-  "description": "Create YouTube thumbnails with ease. Drag and drop images, add text, and export your custom thumbnails.",
+  "productName": "YouTube Thumbnail Creator",
+  "version": "3.1.0",
+  "description": "Create professional YouTube thumbnails with multiple images, custom layouts, and intelligent enhancement features.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "test": "jest",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "mas": "electron-builder --mac mas --publish always",
-    "mas-dev": "electron-builder --mac mas",
+    "mas": "electron-builder --mac mas",
+    "mas-dev": "electron-builder --mac mas --publish never",
     "mas-package": "electron-builder --mac mas --publish never",
+    "mas-upload": "xcrun altool --upload-app --type osx --file dist/mas/*.pkg --username pierre-henry@soria.tel --password @keychain:Application\\ Loader",
     "setup": "electron-builder install-app-deps && npm run rebuild-sharp",
     "rebuild-sharp": "electron-rebuild -f -w sharp"
   },
@@ -50,7 +51,8 @@
       "provisioningProfile": "build/embedded.provisionprofile",
       "type": "distribution",
       "category": "public.app-category.graphics-design",
-      "artifactName": "${productName}-${version}.pkg"
+      "artifactName": "${productName}-${version}.pkg",
+      "identity": "DF441120118B19010DDC6C6C4D51B089AB622AD4"
     },
     "afterSign": "scripts/notarize.js"
   },
