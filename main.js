@@ -1457,7 +1457,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         // Create text overlay if enabled
         if (textOverlay && textOverlay.enabled && textOverlay.text) {
-            await addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay);
+            await addTextOverlay(composites, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, textOverlay);
         }
 
         // Create final image with optimizations for YouTube
@@ -2009,3 +2009,323 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                                 </svg>
                             `),
                             blend: 'overlay'
+                        }])
+                        // Add subtle sharpening
+                        .sharpen({
+                            sigma: 1.2,
+                            m1: 1.0,
+                            m2: 2.0,
+                            x1: 2.0,
+                            y2: 10.0
+                        })
+                        // Boost contrast and colors
+                        .linear(1.1, 0)
+                        .modulate({
+                            brightness: 1.05,
+                            saturation: 1.1
+                        });
+
+                    return await processedImage
+                        .resize({
+                            width: Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
+                            height: Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
+                            fit: 'cover',
+                            position: 'center'
+                        })
+                        .toBuffer();
+                } catch (error) {
+                    console.error(`Error processing image ${index}:`, error);
+                    throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
+                }
+            })
+        );
+
+        // Calculate positions for grid layout or innovative layouts
+        let composites;
+
+        if (layout.type === 'custom') {
+            // Use innovative layout positioning
+            console.log(`Using innovative layout: ${layout.layout} with ${selectedImages.length} images`);
+            console.log(`Dimensions: ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT}, padding: ${padding}`);
+
+            const positions = calculateInnovativeLayoutPositions(
+                layout.layout,
+                selectedImages.length,
+                THUMBNAIL_WIDTH,
+                THUMBNAIL_HEIGHT,
+                padding
+            );
+
+            console.log(`Generated ${positions.length} positions:`, positions);
+
+            // Process images with custom sizing for innovative layouts
+            const customProcessedImages = await Promise.all(
+                selectedImages.map(async (imagePath, index) => {
+                    try {
+                        let imageBuffer = await fs.promises.readFile(imagePath);
+                        let processedImage = sharp(imageBuffer);
+
+                        if (applyEnhance) {
+                            processedImage = await enhanceImage(imageBuffer, enhanceOptions);
+                        }
+
+                        const pos = positions[index];
+                        if (pos) {
+                            // Validate position dimensions before using them
+                            if (isNaN(pos.width) || isNaN(pos.height) || pos.width <= 0 || pos.height <= 0) {
+                                console.error(`Invalid position dimensions for image ${index}:`, pos);
+                                console.error(`Layout: ${layout.layout}, Image count: ${selectedImages.length}`);
+                                return null;
+                            }
+
+                            console.log(`Processing image ${index} with dimensions: ${pos.width}x${pos.height}`);
+
+                            // Add visual enhancements for thumbnails
+                            processedImage = processedImage
+                                // Apply subtle vignette
+                                .composite([{
+                                    input: Buffer.from(`
+                                        <svg width="${pos.width}" height="${pos.height}">
+                                            <defs>
+                                                <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+                                                    <stop offset="0%" stop-color="black" stop-opacity="0" />
+                                                    <stop offset="100%" stop-color="black" stop-opacity="0.15" />
+                                                </radialGradient>
+                                            </defs>
+                                            <rect width="100%" height="100%" fill="url(#vignette)" />
+                                        </svg>
+                                    `),
+                                    blend: 'overlay'
+                                }])
+                                // Add subtle sharpening
+                                .sharpen({
+                                    sigma: 1.2,
+                                    m1: 1.0,
+                                    m2: 2.0,
+                                    x1: 2.0,
+                                    y2: 10.0
+                                })
+                                // Boost contrast and colors
+                                .linear(1.1, 0)
+                                .modulate({
+                                    brightness: 1.05,
+                                    saturation: 1.1
+                                });
+
+                            return await processedImage
+                                .resize({
+                                    width: Math.max(100, Math.floor(Number(pos.width) || 100)),
+                                    height: Math.max(100, Math.floor(Number(pos.height) || 100)),
+                                    fit: 'cover',
+                                    position: 'center'
+                                })
+                                .toBuffer();
+                        }
+                        return null;
+                    } catch (error) {
+                        console.error(`Error processing custom layout image ${index}:`, error);
+                        throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
+                    }
+                })
+            );
+
+            composites = customProcessedImages.map((buffer, index) => {
+                const pos = positions[index];
+                if (pos && buffer) {
+                    return {
+                        input: buffer,
+                        left: Math.floor(pos.left),
+                        top: Math.floor(pos.top)
+                    };
+                }
+                return null;
+            }).filter(comp => comp !== null);
+
+        } else {
+            // Standard grid layout positioning
+            composites = processedImages.map((buffer, index) => {
+                const row = Math.floor(index / layout.cols);
+                const col = index % layout.cols;
+
+                const left = col * cellWidth + padding;
+                const top = row * cellHeight + padding;
+
+                return {
+                    input: buffer,
+                    left: Math.floor(left),
+                    top: Math.floor(top)
+                };
+            });
+        }
+
+        // Add grid delimiters if needed (only for standard grid layouts)
+        if (layout.type !== 'custom' && (layout.cols > 1 || layout.rows > 1)) {
+            // Add vertical delimiters
+            for (let col = 1; col < layout.cols; col++) {
+                const x = col * cellWidth;
+                const delimiterSVG = Buffer.from(`
+                    <svg width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}">
+                        <rect x="0" y="0" width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}" 
+                              fill="${fillColor}" transform="skewX(${-delimiterTilt})"/>
+                    </svg>
+                `);
+
+                composites.push({
+                    input: delimiterSVG,
+                    left: Math.floor(x - delimiterWidth / 2),
+                    top: 0
+                });
+            }
+
+            // Add horizontal delimiters
+            for (let row = 1; row < layout.rows; row++) {
+                const y = row * cellHeight;
+                const delimiterSVG = Buffer.from(`
+                    <svg width="${THUMBNAIL_WIDTH}" height="${delimiterWidth}">
+                        <rect x="0" y="0" width="${THUMBNAIL_WIDTH}" height="${delimiterWidth}" 
+                              fill="${fillColor}"/>
+                    </svg>
+                `);
+
+                composites.push({
+                    input: delimiterSVG,
+                    left: 0,
+                    top: Math.floor(y - delimiterWidth / 2)
+                });
+            }
+        }
+
+        // Create text overlay if enabled
+        if (textOverlay && textOverlay.enabled && textOverlay.text) {
+            await addTextOverlay(composites, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, textOverlay);
+        }
+
+        // Create final image with optimizations for YouTube
+        const finalImage = canvas
+            .composite(composites)
+            .png({
+                compressionLevel: 8,
+                progressive: true,
+                palette: false,
+                effort: 8,
+                adaptiveFiltering: true,
+                colors: 256
+            });
+
+        // Save the final image with enhanced error handling
+        const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
+
+        try {
+            await fs.promises.mkdir(outputDir, { recursive: true });
+        } catch (dirError) {
+            throw new Error(`Cannot create output directory: ${dirError.message}`);
+        }
+
+        const finalOutputName = data.outputName ||
+            `youtube-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
+
+        const outputPath = path.join(outputDir, `${finalOutputName}.png`);
+
+        // Validate output path
+        if (outputPath.length > 260) { // Windows path limit consideration
+            throw new Error('Output filename is too long. Please use a shorter name.');
+        }
+
+        // Apply YouTube-specific optimizations
+        if (youtubeOptimize) {
+            const optimizeStart = Date.now();
+            console.log('Applying YouTube optimizations...');
+
+            // First save with metadata stripped
+            await finalImage
+                .withMetadata({
+                    // Keep only essential metadata
+                    orientation: undefined,
+                    icc: undefined,
+                    exif: undefined,
+                    iptc: undefined,
+                    xmp: undefined
+                })
+                .toFile(outputPath);
+
+            // Get original size
+            const originalStats = await fs.promises.stat(outputPath);
+            const originalSize = originalStats.size;
+
+            // Create an optimized version with quality preservation
+            const optimizedBuffer = await sharp(outputPath)
+                .png({
+                    compressionLevel: 8,      // Compression Level
+                    progressive: true,        // Progressive rendering
+                    palette: false,           // Keep full color range
+                    effort: 8,                // High compression effort but not maximum
+                    adaptiveFiltering: true,  // Better filtering
+                    colors: 256               // Maximum colors for PNG
+                })
+                .toBuffer();
+
+            // Write optimized version
+            await fs.promises.writeFile(outputPath, optimizedBuffer);
+
+            // Get new size
+            const newStats = await fs.promises.stat(outputPath);
+            const newSize = newStats.size;
+            const savings = ((originalSize - newSize) / originalSize * 100).toFixed(2);
+            const optimizeTime = Date.now() - optimizeStart;
+            const totalTime = Date.now() - startTime;
+
+            console.log(`YouTube optimization completed in ${optimizeTime}ms. Total processing time: ${totalTime}ms`);
+            console.log(`File size: ${formatBytes(originalSize)} → ${formatBytes(newSize)} (${savings}% reduction)`);
+
+            return {
+                success: true,
+                outputPath,
+                outputDir,
+                processingTime: `${totalTime}ms`,
+                optimizationTime: `${optimizeTime}ms`,
+                layout: gridLayout,
+                imagesUsed: selectedImages.length,
+                optimizationResult: {
+                    path: outputPath,
+                    originalSize: formatBytes(originalSize),
+                    newSize: formatBytes(newSize),
+                    savings: `${savings}%`,
+                    qualityPreserved: true
+                }
+            };
+        } else {
+            // Standard output without optimization
+            await finalImage
+                .withMetadata()  // Keep original metadata
+                .toFile(outputPath);
+
+            const stats = await fs.promises.stat(outputPath);
+            const totalTime = Date.now() - startTime;
+            console.log(`Thumbnail created successfully with ${gridLayout} layout in ${totalTime}ms:`, outputPath);
+
+            return {
+                success: true,
+                outputPath,
+                outputDir,
+                processingTime: `${totalTime}ms`,
+                layout: gridLayout,
+                imagesUsed: selectedImages.length,
+                optimizationResult: {
+                    path: outputPath,
+                    originalSize: formatBytes(stats.size),
+                    newSize: formatBytes(stats.size),
+                    savings: '0%',
+                    qualityPreserved: true
+                }
+            };
+        }
+    } catch (error) {
+        const totalTime = Date.now() - startTime;
+        console.error(`Error creating thumbnail after ${totalTime}ms:`, error);
+        return {
+            success: false,
+            error: error.message || 'An unknown error occurred while creating the thumbnail',
+            processingTime: `${totalTime}ms`
+        };
+    }
+});
