@@ -720,6 +720,151 @@
       font-size: 12px;
       margin-top: 5px;
     }
+
+    /* Enhanced text options with auto-design */
+    .auto-btn {
+      background-color: #e1f5fe;
+      border: 1px solid #81d4fa;
+      color: #01579b;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      margin-left: 10px;
+    }
+
+    .auto-btn:hover {
+      background-color: #b3e5fc;
+      border-color: #039be5;
+      color: #01579b;
+    }
+
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .preset-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preset-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .preset-btn.active {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+      transform: scale(1.05);
+    }
+
+    .preset-btn[data-preset="bold-impact"] {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    }
+
+    .preset-btn[data-preset="elegant-clean"] {
+      background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+      color: #333;
+    }
+
+    .preset-btn[data-preset="modern-tech"] {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .preset-btn[data-preset="creative-fun"] {
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      color: #333;
+    }
+
+    .preset-btn[data-preset="professional"] {
+      background: linear-gradient(135deg, #434343 0%, #000000 100%);
+    }
+
+    .preset-btn[data-preset="cinematic"] {
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    }
+
+    .advanced-text-options {
+      margin-top: 15px;
+      padding: 20px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      border-radius: 12px;
+      border: 1px solid #dee2e6;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .advanced-text-options.show {
+      display: block;
+      animation: slideDown 0.3s ease;
+    }
+
+    /* Enhanced output styling */
+    output {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+      min-width: 40px;
+      text-align: center;
+      display: inline-block;
+    }
+
+    /* Improved range sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+      outline: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+
+    input[type="range"]:hover {
+      opacity: 1;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
   </style>
 </head>
 
@@ -890,24 +1035,56 @@
       </div>
 
       <div class="text-overlay-options" id="textOverlayOptions" style="display: none;">
+        <!-- Auto Design Toggle -->
+        <div class="form-group">
+          <label for="autoDesignText">
+            <span>✨ Auto Design Text</span>
+          </label>
+          <div class="toggle-switch">
+            <input type="checkbox" id="autoDesignText" checked>
+            <label for="autoDesignText"></label>
+          </div>
+          <div class="help-text">Automatically choose perfect fonts, colors, and effects</div>
+        </div>
+
         <div class="form-group">
           <label for="overlayText">Text Content:</label>
           <input type="text" id="overlayText" placeholder="Enter your text here..." maxlength="100">
           <div class="help-text">Text to display (max 100 characters)</div>
         </div>
 
-        <div class="form-group">
-          <label for="textFont">Font Style:</label>
-          <select id="textFont">
-            <option value="Arial Black">Arial Black (Bold & Clean)</option>
-            <option value="Impact">Impact (Strong & Bold)</option>
-            <option value="Helvetica Neue">Helvetica Neue (Modern)</option>
-            <option value="Montserrat">Montserrat (Trendy)</option>
-            <option value="Bebas Neue">Bebas Neue (Condensed)</option>
-            <option value="Oswald">Oswald (Display)</option>
-            <option value="Roboto Condensed">Roboto Condensed</option>
-            <option value="Anton">Anton (Heavy)</option>
-          </select>
+        <!-- Text Style Presets -->
+        <div class="form-group" id="textPresets">
+          <label>Quick Style Presets:</label>
+          <div class="preset-buttons">
+            <button type="button" class="preset-btn" data-preset="bold-impact">💥 Bold Impact</button>
+            <button type="button" class="preset-btn" data-preset="elegant-clean">✨ Elegant Clean</button>
+            <button type="button" class="preset-btn" data-preset="modern-tech">🚀 Modern Tech</button>
+            <button type="button" class="preset-btn" data-preset="creative-fun">🎨 Creative Fun</button>
+            <button type="button" class="preset-btn" data-preset="professional">💼 Professional</button>
+            <button type="button" class="preset-btn" data-preset="cinematic">🎬 Cinematic</button>
+          </div>
+          <div class="help-text">Choose a style or let auto-design select the best one</div>
+        </div>
+
+        <div class="manual-controls" id="manualControls" style="display: none;">
+          <div class="form-group">
+            <label for="textFont">Font Style:</label>
+            <select id="textFont">
+              <option value="Arial Black">Arial Black (Bold & Clean)</option>
+              <option value="Impact">Impact (Strong & Bold)</option>
+              <option value="Helvetica Neue">Helvetica Neue (Modern)</option>
+              <option value="Montserrat">Montserrat (Trendy)</option>
+              <option value="Bebas Neue">Bebas Neue (Condensed)</option>
+              <option value="Oswald">Oswald (Display)</option>
+              <option value="Roboto Condensed">Roboto Condensed</option>
+              <option value="Anton">Anton (Heavy)</option>
+              <option value="Bangers">Bangers (Comic Style)</option>
+              <option value="Fredoka One">Fredoka One (Playful)</option>
+              <option value="Righteous">Righteous (Retro)</option>
+              <option value="Comfortaa">Comfortaa (Rounded)</option>
+            </select>
+          </div>
         </div>
 
         <div class="options-grid text-options-grid">
@@ -920,6 +1097,7 @@
           <div class="form-group">
             <label for="textColor">Text Color:</label>
             <input type="color" id="textColor" value="#ffffff">
+            <button type="button" id="autoColorBtn" class="auto-btn">🎨 Auto Color</button>
           </div>
 
           <div class="form-group">
@@ -940,6 +1118,7 @@
               <option value="top-right">Top Right</option>
               <option value="bottom-left">Bottom Left</option>
               <option value="bottom-right">Bottom Right</option>
+              <option value="smart-auto">🧠 Smart Auto Position</option>
             </select>
           </div>
         </div>
@@ -947,11 +1126,16 @@
         <div class="form-group">
           <label for="textEffect">Text Effect:</label>
           <select id="textEffect">
+            <option value="auto">🎯 Auto Perfect Effect</option>
             <option value="none">None</option>
             <option value="shadow">Drop Shadow</option>
             <option value="outline">Outline</option>
             <option value="glow">Glow Effect</option>
             <option value="background">Background Box</option>
+            <option value="gradient">Gradient Fill</option>
+            <option value="neon">Neon Glow</option>
+            <option value="vintage">Vintage Style</option>
+            <option value="3d">3D Effect</option>
           </select>
         </div>
 
@@ -961,8 +1145,47 @@
             <option value="behind">Behind Images</option>
             <option value="overlay">Over Images</option>
             <option value="between">Between Layers</option>
+            <option value="smart-blend">🎨 Smart Blend</option>
           </select>
           <div class="help-text">Choose whether text appears behind, over, or between images</div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="form-group">
+          <label for="advancedTextOptions">
+            <span>⚙️ Advanced Options</span>
+          </label>
+          <div class="toggle-switch">
+            <input type="checkbox" id="advancedTextOptions">
+            <label for="advancedTextOptions"></label>
+          </div>
+        </div>
+
+        <div class="advanced-text-options" id="advancedTextOptionsPanel" style="display: none;">
+          <div class="options-grid">
+            <div class="form-group">
+              <label for="textRotation">Rotation:</label>
+              <input type="range" id="textRotation" min="-45" max="45" value="0" step="1">
+              <output for="textRotation" id="textRotationValue">0°</output>
+            </div>
+
+            <div class="form-group">
+              <label for="textStroke">Stroke Width:</label>
+              <input type="range" id="textStroke" min="0" max="10" value="0" step="0.5">
+              <output for="textStroke" id="textStrokeValue">0px</output>
+            </div>
+
+            <div class="form-group">
+              <label for="textStrokeColor">Stroke Color:</label>
+              <input type="color" id="textStrokeColor" value="#000000">
+            </div>
+
+            <div class="form-group">
+              <label for="textLetterSpacing">Letter Spacing:</label>
+              <input type="range" id="textLetterSpacing" min="-5" max="20" value="0" step="0.5">
+              <output for="textLetterSpacing" id="textLetterSpacingValue">0px</output>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1059,7 +1282,19 @@
       textEffect: document.getElementById('textEffect'),
       textLayer: document.getElementById('textLayer'),
       textSizeValue: document.getElementById('textSizeValue'),
-      textOpacityValue: document.getElementById('textOpacityValue')
+      textOpacityValue: document.getElementById('textOpacityValue'),
+      autoDesignText: document.getElementById('autoDesignText'),
+      autoColorBtn: document.getElementById('autoColorBtn'),
+      textRotation: document.getElementById('textRotation'),
+      textRotationValue: document.getElementById('textRotationValue'),
+      textStroke: document.getElementById('textStroke'),
+      textStrokeValue: document.getElementById('textStrokeValue'),
+      textLetterSpacing: document.getElementById('textLetterSpacing'),
+      textLetterSpacingValue: document.getElementById('textLetterSpacingValue'),
+      textStrokeColor: document.getElementById('textStrokeColor'),
+      advancedTextOptions: document.getElementById('advancedTextOptions'),
+      advancedTextOptionsPanel: document.getElementById('advancedTextOptionsPanel'),
+      manualControls: document.getElementById('manualControls')
     };
 
     // State
