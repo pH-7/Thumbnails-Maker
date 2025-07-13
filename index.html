@@ -511,21 +511,26 @@
     .toggle-switch label:before {
       position: absolute;
       content: "";
-      height: 16px;
-      width: 16px;
-      left: 4px;
-      bottom: 4px;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
       background-color: white;
-      transition: .4s;
+      transition: 0.3s;
       border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     .toggle-switch input:checked+label {
-      background-color: #2196F3;
+      background-color: #ff0000;
     }
 
     .toggle-switch input:checked+label:before {
       transform: translateX(26px);
+    }
+
+    .toggle-switch input:focus+label {
+      box-shadow: 0 0 1px #ff0000;
     }
 
     /* App Footer Styling */
@@ -604,6 +609,116 @@
         font-size: 10px;
         padding: 1px 4px;
       }
+    }
+
+    /* Text Overlay Styles */
+    .text-overlay-options {
+      margin-top: 15px;
+      padding: 20px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+      transition: all 0.3s ease;
+    }
+
+    .text-overlay-options.show {
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .text-options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .text-overlay-options .form-group {
+      margin-bottom: 15px;
+    }
+
+    .text-overlay-options label {
+      color: #495057;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .text-overlay-options input[type="text"] {
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .text-overlay-options input[type="text"]:focus {
+      border-color: #ff0000;
+      box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
+      outline: none;
+    }
+
+    .text-overlay-options select {
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 14px;
+      color: #495057;
+      transition: all 0.2s ease;
+    }
+
+    .text-overlay-options select:focus {
+      border-color: #ff0000;
+      box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
+      outline: none;
+    }
+
+    .text-overlay-options input[type="range"] {
+      width: 100%;
+      margin: 5px 0;
+    }
+
+    .text-overlay-options output {
+      display: inline-block;
+      background: #ff0000;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .text-overlay-options input[type="color"] {
+      width: 50px;
+      height: 40px;
+      border: 2px solid #e9ecef;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .text-overlay-options input[type="color"]:hover {
+      border-color: #ff0000;
+      transform: scale(1.05);
+    }
+
+    .text-overlay-options .help-text {
+      color: #6c757d;
+      font-size: 12px;
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -763,6 +878,93 @@
         </div>
         <div class="help-text">Optimize for YouTube by removing metadata and applying lossless compression</div>
       </div>
+
+      <!-- Text Overlay Feature -->
+      <div class="form-group">
+        <label for="enableTextOverlay">Text Behind Image</label>
+        <div class="toggle-switch">
+          <input type="checkbox" id="enableTextOverlay">
+          <label for="enableTextOverlay"></label>
+        </div>
+        <div class="help-text">Add beautiful text overlay behind or over your images</div>
+      </div>
+
+      <div class="text-overlay-options" id="textOverlayOptions" style="display: none;">
+        <div class="form-group">
+          <label for="overlayText">Text Content:</label>
+          <input type="text" id="overlayText" placeholder="Enter your text here..." maxlength="100">
+          <div class="help-text">Text to display (max 100 characters)</div>
+        </div>
+
+        <div class="form-group">
+          <label for="textFont">Font Style:</label>
+          <select id="textFont">
+            <option value="Arial Black">Arial Black (Bold & Clean)</option>
+            <option value="Impact">Impact (Strong & Bold)</option>
+            <option value="Helvetica Neue">Helvetica Neue (Modern)</option>
+            <option value="Montserrat">Montserrat (Trendy)</option>
+            <option value="Bebas Neue">Bebas Neue (Condensed)</option>
+            <option value="Oswald">Oswald (Display)</option>
+            <option value="Roboto Condensed">Roboto Condensed</option>
+            <option value="Anton">Anton (Heavy)</option>
+          </select>
+        </div>
+
+        <div class="options-grid text-options-grid">
+          <div class="form-group">
+            <label for="textSize">Text Size:</label>
+            <input type="range" id="textSize" min="20" max="200" value="60" step="5">
+            <output for="textSize" id="textSizeValue">60px</output>
+          </div>
+
+          <div class="form-group">
+            <label for="textColor">Text Color:</label>
+            <input type="color" id="textColor" value="#ffffff">
+          </div>
+
+          <div class="form-group">
+            <label for="textOpacity">Text Opacity:</label>
+            <input type="range" id="textOpacity" min="0" max="1" value="0.9" step="0.1">
+            <output for="textOpacity" id="textOpacityValue">90%</output>
+          </div>
+
+          <div class="form-group">
+            <label for="textPosition">Position:</label>
+            <select id="textPosition">
+              <option value="center">Center</option>
+              <option value="top">Top</option>
+              <option value="bottom">Bottom</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+              <option value="top-left">Top Left</option>
+              <option value="top-right">Top Right</option>
+              <option value="bottom-left">Bottom Left</option>
+              <option value="bottom-right">Bottom Right</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="textEffect">Text Effect:</label>
+          <select id="textEffect">
+            <option value="none">None</option>
+            <option value="shadow">Drop Shadow</option>
+            <option value="outline">Outline</option>
+            <option value="glow">Glow Effect</option>
+            <option value="background">Background Box</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="textLayer">Text Layer:</label>
+          <select id="textLayer">
+            <option value="behind">Behind Images</option>
+            <option value="overlay">Over Images</option>
+            <option value="between">Between Layers</option>
+          </select>
+          <div class="help-text">Choose whether text appears behind, over, or between images</div>
+        </div>
+      </div>
     </div>
 
     <div class="form-group">
@@ -845,7 +1047,19 @@
       imagesContainer: document.getElementById('imagesContainer'),
       saveFavoriteBtn: document.getElementById('saveFavoriteBtn'),
       loadFavoriteBtn: document.getElementById('loadFavoriteBtn'),
-      resetOptionsBtn: document.getElementById('resetOptionsBtn')
+      resetOptionsBtn: document.getElementById('resetOptionsBtn'),
+      enableTextOverlay: document.getElementById('enableTextOverlay'),
+      textOverlayOptions: document.getElementById('textOverlayOptions'),
+      overlayText: document.getElementById('overlayText'),
+      textFont: document.getElementById('textFont'),
+      textSize: document.getElementById('textSize'),
+      textColor: document.getElementById('textColor'),
+      textOpacity: document.getElementById('textOpacity'),
+      textPosition: document.getElementById('textPosition'),
+      textEffect: document.getElementById('textEffect'),
+      textLayer: document.getElementById('textLayer'),
+      textSizeValue: document.getElementById('textSizeValue'),
+      textOpacityValue: document.getElementById('textOpacityValue')
     };
 
     // State
@@ -1231,6 +1445,20 @@
       elements.youtubeOptimize.checked = true;
       elements.layoutMode.value = 'auto';
 
+      // Reset text overlay to defaults
+      elements.enableTextOverlay.checked = false;
+      elements.overlayText.value = '';
+      elements.textFont.value = 'Arial Black';
+      elements.textSize.value = 60;
+      elements.textColor.value = '#ffffff';
+      elements.textOpacity.value = 0.9;
+      elements.textPosition.value = 'center';
+      elements.textEffect.value = 'shadow';
+      elements.textLayer.value = 'overlay';
+      elements.textSizeValue.textContent = '60px';
+      elements.textOpacityValue.textContent = '90%';
+      elements.textOverlayOptions.style.display = 'none';
+
       updateDelimiterPreviewWithAnimation();
       updateEnhancePreviewSelection(DEFAULT_VALUES.ENHANCE_LEVEL);
     }
@@ -1470,6 +1698,7 @@
         }
 
         const youtubeOptimize = elements.youtubeOptimize.checked;
+        const textOverlaySettings = getTextOverlaySettings();
 
         const result = await ipcRenderer.invoke('create-thumbnail', {
           imagePaths: validImagePaths,
@@ -1480,7 +1709,8 @@
           enhanceOptions,
           applyEnhance: enhanceLevel !== 'none',
           layoutMode: currentLayoutMode,
-          youtubeOptimize
+          youtubeOptimize,
+          textOverlay: textOverlaySettings
         });
 
         elements.progressBarFill.style.width = '100%';
@@ -1640,6 +1870,111 @@
         }
       }
     }
+
+    // Toggle text overlay options visibility
+    elements.enableTextOverlay.addEventListener('change', () => {
+      const isChecked = elements.enableTextOverlay.checked;
+      const textOverlayOptions = elements.textOverlayOptions;
+
+      if (isChecked) {
+        textOverlayOptions.style.display = 'block';
+        textOverlayOptions.classList.add('show');
+      } else {
+        textOverlayOptions.style.display = 'none';
+        textOverlayOptions.classList.remove('show');
+      }
+    });
+
+    // Update text size value display
+    elements.textSize.addEventListener('input', () => {
+      const size = elements.textSize.value;
+      elements.textSizeValue.textContent = `${size}px`;
+    });
+
+    // Update text opacity value display
+    elements.textOpacity.addEventListener('input', () => {
+      const opacity = (elements.textOpacity.value * 100).toFixed(0);
+      elements.textOpacityValue.textContent = `${opacity}%`;
+    });
+
+    // Function to get current text overlay settings
+    function getTextOverlaySettings() {
+      return {
+        enabled: elements.enableTextOverlay.checked,
+        text: elements.overlayText.value,
+        font: elements.textFont.value,
+        size: parseInt(elements.textSize.value) || 60,
+        color: elements.textColor.value,
+        opacity: parseFloat(elements.textOpacity.value) || 0.9,
+        position: elements.textPosition.value,
+        effect: elements.textEffect.value,
+        layer: elements.textLayer.value
+      };
+    }
+
+    // Function to apply text overlay settings to the form
+    function applyTextOverlaySettings(settings) {
+      if (!settings) return;
+
+      elements.enableTextOverlay.checked = settings.enabled;
+      elements.overlayText.value = settings.text;
+      elements.textFont.value = settings.font;
+      elements.textSize.value = settings.size;
+      elements.textColor.value = settings.color;
+      elements.textOpacity.value = settings.opacity;
+      elements.textPosition.value = settings.position;
+      elements.textEffect.value = settings.effect;
+      elements.textLayer.value = settings.layer;
+
+      // Update displayed values
+      elements.textSizeValue.textContent = `${settings.size}px`;
+      elements.textOpacityValue.textContent = `${(settings.opacity * 100).toFixed(0)}%`;
+    }
+
+    // Save current settings including text overlay as favorite
+    elements.saveFavoriteBtn.addEventListener('click', () => {
+      try {
+        const preferences = getCurrentPreferences();
+        const textOverlaySettings = getTextOverlaySettings();
+
+        // Combine preferences and text overlay settings
+        const favoriteSettings = {
+          ...preferences,
+          textOverlay: textOverlaySettings,
+          savedAt: new Date().toISOString()
+        };
+
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteSettings));
+        console.log('Favorite settings saved:', favoriteSettings);
+
+        elements.statusEl.textContent = '⭐ Favorite settings saved!';
+
+        // Update button states
+        updateFavoriteButtonStates();
+      } catch (error) {
+        console.error('Error saving favorite settings:', error);
+        elements.errorEl.textContent = 'Failed to save favorite settings. Please try again.';
+      }
+    });
+
+    // Load favorite settings including text overlay
+    elements.loadFavoriteBtn.addEventListener('click', () => {
+      const favorites = loadFavoritePreferences();
+      if (favorites) {
+        applyPreferences(favorites);
+
+        // Apply text overlay settings
+        if (favorites.textOverlay) {
+          applyTextOverlaySettings(favorites.textOverlay);
+        }
+
+        const savedDate = new Date(favorites.savedAt).toLocaleDateString();
+        elements.statusEl.textContent = `⭐ Favorite settings loaded! (Saved on ${savedDate})`;
+      } else {
+        elements.statusEl.textContent = 'No favorite settings found. Save your current settings first!';
+      }
+      updateFavoriteButtonStates();
+    });
   </script>
 </body>
 

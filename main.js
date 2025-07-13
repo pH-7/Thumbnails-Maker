@@ -1043,6 +1043,54 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
     }));
 }
 
+// Function to create text overlay
+async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay) {
+    const { text, font = 'Arial Black', size = 60, color = '#ffffff', opacity = 0.9, position = 'center', effect = 'shadow', layer = 'overlay' } = textOverlay;
+
+    try {
+        const fontSize = Math.max(20, Math.min(200, size));
+        const textLength = text.length;
+        const estimatedWidth = textLength * fontSize * 0.6;
+        const estimatedHeight = fontSize * 1.2;
+
+        let x, y;
+        switch (position) {
+            case 'top': x = Math.floor(canvasWidth / 2 - estimatedWidth / 2); y = Math.floor(estimatedHeight + 20); break;
+            case 'bottom': x = Math.floor(canvasWidth / 2 - estimatedWidth / 2); y = Math.floor(canvasHeight - 20); break;
+            case 'left': x = 20; y = Math.floor(canvasHeight / 2); break;
+            case 'right': x = Math.floor(canvasWidth - estimatedWidth - 20); y = Math.floor(canvasHeight / 2); break;
+            case 'top-left': x = 20; y = Math.floor(estimatedHeight + 20); break;
+            case 'top-right': x = Math.floor(canvasWidth - estimatedWidth - 20); y = Math.floor(estimatedHeight + 20); break;
+            case 'bottom-left': x = 20; y = Math.floor(canvasHeight - 20); break;
+            case 'bottom-right': x = Math.floor(canvasWidth - estimatedWidth - 20); y = Math.floor(canvasHeight - 20); break;
+            default: x = Math.floor(canvasWidth / 2 - estimatedWidth / 2); y = Math.floor(canvasHeight / 2);
+        }
+
+        x = Math.max(10, Math.min(x, canvasWidth - 10));
+        y = Math.max(estimatedHeight, Math.min(y, canvasHeight - 10));
+
+        const safeText = text.replace(/[<>&"']/g, (match) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[match]));
+        const fillColor = color;
+
+        let textElement = `<text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" fill="${fillColor}" opacity="${opacity}" font-weight="bold">${safeText}</text>`;
+
+        if (effect === 'shadow') {
+            textElement = `<text x="${x + 3}" y="${y + 3}" font-family="${font}" font-size="${fontSize}" fill="rgba(0,0,0,0.7)" font-weight="bold">${safeText}</text>` + textElement;
+        }
+
+        const textSVG = `<svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">${textElement}</svg>`;
+        const textComposite = { input: Buffer.from(textSVG), left: 0, top: 0, blend: layer === 'behind' ? 'multiply' : 'over' };
+
+        if (layer === 'behind') composites.unshift(textComposite);
+        else if (layer === 'between') composites.splice(Math.floor(composites.length / 2), 0, textComposite);
+        else composites.push(textComposite);
+
+        console.log(`Text overlay added: "${text}" at ${position}`);
+    } catch (error) {
+        console.error('Error creating text overlay:', error);
+    }
+}
+
 // Handle thumbnail creation with tilted delimiters and auto-enhance
 ipcMain.handle('create-thumbnail', async (event, data) => {
     // Performance monitoring - define startTime early for error handling
@@ -1063,7 +1111,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
         applyEnhance = false,
         layoutMode = 'auto', // Can be 'auto', '2-split', or '3-split'
-        youtubeOptimize = true // Set to true by default
+        youtubeOptimize = true, // Set to true by default
+        textOverlay = null // Text overlay settings
     } = data;
 
     // Validate and sanitize delimiterWidth to prevent NaN
@@ -1406,6 +1455,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             }
         }
 
+        // Create text overlay if enabled
+        if (textOverlay && textOverlay.enabled && textOverlay.text) {
+            await addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay);
+        }
+
         // Create final image with optimizations for YouTube
         const finalImage = canvas
             .composite(composites)
@@ -1608,3 +1662,350 @@ function formatBytes(bytes, decimals = 2) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
+
+// Function to create text overlay
+async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay) {
+    const {
+        text,
+        font = 'Arial Black',
+        size = 60,
+        color = '#ffffff',
+        opacity = 0.9,
+        position = 'center',
+        effect = 'shadow',
+        layer = 'overlay'
+    } = textOverlay;
+
+    try {
+        // Calculate text position
+        const fontSize = Math.max(20, Math.min(200, size));
+        const textColor = color.replace('#', '');
+
+        // Create text dimensions estimate (rough calculation)
+        const textLength = text.length;
+        const estimatedWidth = textLength * fontSize * 0.6;
+        const estimatedHeight = fontSize * 1.2;
+
+        let x, y;
+
+        // Calculate position based on settings
+        switch (position) {
+            case 'top':
+                x = Math.floor(canvasWidth / 2 - estimatedWidth / 2);
+                y = Math.floor(estimatedHeight + 20);
+                break;
+            case 'bottom':
+                x = Math.floor(canvasWidth / 2 - estimatedWidth / 2);
+                y = Math.floor(canvasHeight - 20);
+                break;
+            case 'left':
+                x = 20;
+                y = Math.floor(canvasHeight / 2);
+                break;
+            case 'right':
+                x = Math.floor(canvasWidth - estimatedWidth - 20);
+                y = Math.floor(canvasHeight / 2);
+                break;
+            case 'top-left':
+                x = 20;
+                y = Math.floor(estimatedHeight + 20);
+                break;
+            case 'top-right':
+                x = Math.floor(canvasWidth - estimatedWidth - 20);
+                y = Math.floor(estimatedHeight + 20);
+                break;
+            case 'bottom-left':
+                x = 20;
+                y = Math.floor(canvasHeight - 20);
+                break;
+            case 'bottom-right':
+                x = Math.floor(canvasWidth - estimatedWidth - 20);
+                y = Math.floor(canvasHeight - 20);
+                break;
+            default: // center
+                x = Math.floor(canvasWidth / 2 - estimatedWidth / 2);
+                y = Math.floor(canvasHeight / 2);
+        }
+
+        // Ensure text stays within bounds
+        x = Math.max(10, Math.min(x, canvasWidth - 10));
+        y = Math.max(estimatedHeight, Math.min(y, canvasHeight - 10));
+
+        // Create SVG for text with effects
+        let textSVG = '';
+        const textOpacity = Math.max(0, Math.min(1, opacity));
+        const safeText = text.replace(/[<>&"']/g, (match) => {
+            const escape = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' };
+            return escape[match];
+        });
+
+        // Apply text effects
+        let textElement = '';
+        const fillColor = `#${textColor}`;
+
+        switch (effect) {
+            case 'shadow':
+                textElement = `
+                    <text x="${x + 3}" y="${y + 3}" font-family="${font}" font-size="${fontSize}" 
+                          fill="rgba(0,0,0,0.7)" font-weight="bold" text-anchor="start">${safeText}</text>
+                    <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" 
+                          fill="${fillColor}" opacity="${textOpacity}" font-weight="bold" text-anchor="start">${safeText}</text>
+                `;
+                break;
+            case 'outline':
+                textElement = `
+                    <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" 
+                          fill="none" stroke="rgba(0,0,0,0.8)" stroke-width="3" font-weight="bold" text-anchor="start">${safeText}</text>
+                    <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" 
+                          fill="${fillColor}" opacity="${textOpacity}" font-weight="bold" text-anchor="start">${safeText}</text>
+                `;
+                break;
+            case 'glow':
+                textElement = `
+                    <defs>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                            <feMerge> 
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" 
+                          fill="${fillColor}" opacity="${textOpacity}" font-weight="bold" text-anchor="start" filter="url(#glow)">${safeText}</text>
+                `;
+                break;
+            case 'background':
+                const bgPadding = 20;
+                const bgWidth = estimatedWidth + bgPadding * 2;
+                const bgHeight = estimatedHeight + bgPadding;
+                const bgX = x - bgPadding;
+                const bgY = y - estimatedHeight;
+                textElement = `
+                    <rect x="${bgX}" y="${bgY}" width="${bgWidth}" height="${bgHeight}" 
+                          fill="rgba(0,0,0,0.7)" rx="8" ry="8"/>
+                    <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" 
+                          fill="${fillColor}" opacity="${textOpacity}" font-weight="bold" text-anchor="start">${safeText}</text>
+                `;
+                break;
+            default: // none
+                textElement = `
+                    <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" 
+                          fill="${fillColor}" opacity="${textOpacity}" font-weight="bold" text-anchor="start">${safeText}</text>
+                `;
+        }
+
+        textSVG = `
+            <svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">
+                ${textElement}
+            </svg>
+        `;
+
+        // Convert SVG to buffer
+        const textBuffer = Buffer.from(textSVG);
+
+        // Add text to composites based on layer setting
+        const textComposite = {
+            input: textBuffer,
+            left: 0,
+            top: 0,
+            blend: layer === 'behind' ? 'multiply' : 'over'
+        };
+
+        if (layer === 'behind') {
+            // Add at the beginning for behind effect
+            composites.unshift(textComposite);
+        } else if (layer === 'between') {
+            // Add in the middle
+            const middleIndex = Math.floor(composites.length / 2);
+            composites.splice(middleIndex, 0, textComposite);
+        } else {
+            // Add at the end for overlay effect (default)
+            composites.push(textComposite);
+        }
+
+        console.log(`Text overlay added: "${text}" at position ${position} with ${effect} effect`);
+    } catch (error) {
+        console.error('Error creating text overlay:', error);
+        // Don't throw - allow thumbnail creation to continue without text
+    }
+}
+
+// Thumbnail creation handler
+ipcMain.handle('create-thumbnail', async (event, data) => {
+    // Performance monitoring - define startTime early for error handling
+    const startTime = Date.now();
+
+    if (!sharp) {
+        return {
+            success: false,
+            error: 'Image processing module is not available. Please restart the application.'
+        };
+    }
+
+    const {
+        imagePaths,
+        delimiterWidth: rawDelimiterWidth,
+        delimiterTilt,
+        outputName,
+        enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
+        applyEnhance = false,
+        layoutMode = 'auto', // Can be 'auto', '2-split', or '3-split'
+        youtubeOptimize = true, // Set to true by default
+        textOverlay = null // Text overlay settings
+    } = data;
+
+    // Validate and sanitize delimiterWidth to prevent NaN
+    const delimiterWidth = Math.max(0, Math.floor(Number(rawDelimiterWidth) || 18));
+
+    // Extract color information from delimiterColor
+    const delimiterColor = data.delimiterColor || '#ffffff';
+    const fillColor = delimiterColor;
+
+    // Convert hex color to RGB for Sharp.js background
+    const hexToRgb = (hex) => {
+        // Remove # if present
+        hex = hex.replace('#', '');
+        // Ensure it's 6 characters
+        if (hex.length === 3) {
+            hex = hex.split('').map(char => char + char).join('');
+        }
+        const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16),
+            alpha: 1
+        } : { r: 255, g: 255, b: 255, alpha: 1 }; // fallback to white
+    };
+
+    const backgroundColor = hexToRgb(delimiterColor);
+    console.log(`Using delimiter color: ${delimiterColor}, RGB: ${JSON.stringify(backgroundColor)}`);
+
+    try {
+        console.log(`Starting thumbnail creation with ${imagePaths.length} images using ${layoutMode} mode`);
+
+        if (imagePaths.length < 1) {
+            throw new Error('At least 1 image is required for the thumbnail');
+        }
+
+        // Determine layout based on mode
+        let gridLayout = '1x3'; // Default layout
+        let selectedImages = imagePaths;
+
+        if (layoutMode === 'auto') {
+            const layoutStart = Date.now();
+            const layoutAnalysis = await determineOptimalLayout(imagePaths);
+            gridLayout = layoutAnalysis.recommendedLayout;
+            console.log(`Smart layout analysis completed in ${Date.now() - layoutStart}ms, recommended: ${gridLayout} (confidence: ${layoutAnalysis.confidence.toFixed(2)})`);
+
+        } else if (layoutMode.includes('x')) {
+            // Direct grid layout specification (e.g., '2x2', '3x1', etc.)
+            gridLayout = layoutMode;
+        } else {
+            // Handle innovative custom layouts
+            gridLayout = layoutMode;
+        }
+
+        // Get layout configuration
+        const layout = GRID_LAYOUTS[gridLayout];
+        if (!layout) {
+            throw new Error(`Invalid grid layout: ${gridLayout}`);
+        }
+
+        // Use only the required number of images for the layout
+        selectedImages = imagePaths.slice(0, layout.maxImages);
+
+        // Allow thumbnail creation with any number of images (minimum 1)
+        if (selectedImages.length < 1) {
+            throw new Error(`At least 1 image is required to create a thumbnail`);
+        }
+
+        // If we have fewer images than the layout requires, fill empty slots by repeating images
+        // or adjust to a smaller layout that fits the available images
+        if (selectedImages.length < layout.maxImages) {
+            console.log(`Layout ${gridLayout} requires ${layout.maxImages} images but only ${selectedImages.length} provided. Adjusting...`);
+
+            if (selectedImages.length === 1) {
+                // Use single image layout for 1 image
+                gridLayout = '1x1';
+            } else if (selectedImages.length === 2) {
+                // Use 2-image layout for 2 images
+                gridLayout = '1x2';
+            } else if (selectedImages.length === 3) {
+                // Use 3-image layout for 3 images
+                gridLayout = '1x3';
+            }
+            // For 4+ images, keep the original layout and fill missing slots by repeating images
+            else {
+                // Fill missing slots by cycling through available images
+                const originalLength = selectedImages.length;
+                while (selectedImages.length < layout.maxImages) {
+                    const nextImageIndex = selectedImages.length % originalLength;
+                    selectedImages.push(selectedImages[nextImageIndex]);
+                }
+                console.log(`Filled ${layout.maxImages - originalLength} empty slots by repeating images`);
+            }
+
+            // Update layout configuration after potential layout change
+            const updatedLayout = GRID_LAYOUTS[gridLayout];
+            if (updatedLayout) {
+                selectedImages = selectedImages.slice(0, updatedLayout.maxImages);
+            }
+        }
+
+        // YouTube thumbnail dimensions
+        const THUMBNAIL_WIDTH = 1280;
+        const THUMBNAIL_HEIGHT = 720;
+
+        // Create blank canvas with user-selected delimiter color
+        const canvas = sharp({
+            create: {
+                width: THUMBNAIL_WIDTH,
+                height: THUMBNAIL_HEIGHT,
+                channels: 4,
+                background: backgroundColor
+            }
+        });
+
+        // Calculate grid cell dimensions with optimization for large grids
+        // For custom layouts, use default values since they don't use grid cells
+        const cellWidth = layout.cols ? Math.floor(THUMBNAIL_WIDTH / layout.cols) : THUMBNAIL_WIDTH;
+        const cellHeight = layout.rows ? Math.floor(THUMBNAIL_HEIGHT / layout.rows) : THUMBNAIL_HEIGHT;
+        const padding = Math.max(0, Math.floor((delimiterWidth || 0) / 2)); // Padding between cells
+
+        // Performance optimization: use progressive loading for large grids
+        const isLargeGrid = layout.maxImages > 4;
+        const processingQuality = isLargeGrid ? 90 : 95; // Slightly lower quality for large grids
+
+        // Process images for grid layout
+        const processedImages = await Promise.all(
+            selectedImages.map(async (imagePath, index) => {
+                try {
+                    let imageBuffer = await fs.promises.readFile(imagePath);
+                    let processedImage = sharp(imageBuffer);
+
+                    if (applyEnhance) {
+                        processedImage = await enhanceImage(imageBuffer, enhanceOptions);
+                    }
+
+                    // Calculate actual cell dimensions with padding and validate
+                    const actualCellWidth = Math.max(100, Math.floor(Number(cellWidth - padding * 2) || 100));
+                    const actualCellHeight = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
+
+                    // Add visual enhancements for thumbnails
+                    processedImage = processedImage
+                        // Apply subtle vignette
+                        .composite([{
+                            input: Buffer.from(`
+                                <svg width="${actualCellWidth}" height="${actualCellHeight}">
+                                    <defs>
+                                        <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+                                            <stop offset="0%" stop-color="black" stop-opacity="0" />
+                                            <stop offset="100%" stop-color="black" stop-opacity="0.15" />
+                                        </radialGradient>
+                                    </defs>
+                                    <rect width="100%" height="100%" fill="url(#vignette)" />
+                                </svg>
+                            `),
+                            blend: 'overlay'
