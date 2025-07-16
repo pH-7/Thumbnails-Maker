@@ -1043,54 +1043,6 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
     }));
 }
 
-// Function to create text overlay
-async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay) {
-    const { text, font = 'Arial Black', size = 60, color = '#ffffff', opacity = 0.9, position = 'center', effect = 'shadow', layer = 'overlay' } = textOverlay;
-
-    try {
-        const fontSize = Math.max(20, Math.min(200, size));
-        const textLength = text.length;
-        const estimatedWidth = textLength * fontSize * 0.6;
-        const estimatedHeight = fontSize * 1.2;
-
-        let x, y;
-        switch (position) {
-            case 'top': x = Math.floor(canvasWidth / 2 - estimatedWidth / 2); y = Math.floor(estimatedHeight + 20); break;
-            case 'bottom': x = Math.floor(canvasWidth / 2 - estimatedWidth / 2); y = Math.floor(canvasHeight - 20); break;
-            case 'left': x = 20; y = Math.floor(canvasHeight / 2); break;
-            case 'right': x = Math.floor(canvasWidth - estimatedWidth - 20); y = Math.floor(canvasHeight / 2); break;
-            case 'top-left': x = 20; y = Math.floor(estimatedHeight + 20); break;
-            case 'top-right': x = Math.floor(canvasWidth - estimatedWidth - 20); y = Math.floor(estimatedHeight + 20); break;
-            case 'bottom-left': x = 20; y = Math.floor(canvasHeight - 20); break;
-            case 'bottom-right': x = Math.floor(canvasWidth - estimatedWidth - 20); y = Math.floor(canvasHeight - 20); break;
-            default: x = Math.floor(canvasWidth / 2 - estimatedWidth / 2); y = Math.floor(canvasHeight / 2);
-        }
-
-        x = Math.max(10, Math.min(x, canvasWidth - 10));
-        y = Math.max(estimatedHeight, Math.min(y, canvasHeight - 10));
-
-        const safeText = text.replace(/[<>&"']/g, (match) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[match]));
-        const fillColor = color;
-
-        let textElement = `<text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}" fill="${fillColor}" opacity="${opacity}" font-weight="bold">${safeText}</text>`;
-
-        if (effect === 'shadow') {
-            textElement = `<text x="${x + 3}" y="${y + 3}" font-family="${font}" font-size="${fontSize}" fill="rgba(0,0,0,0.7)" font-weight="bold">${safeText}</text>` + textElement;
-        }
-
-        const textSVG = `<svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">${textElement}</svg>`;
-        const textComposite = { input: Buffer.from(textSVG), left: 0, top: 0, blend: layer === 'behind' ? 'multiply' : 'over' };
-
-        if (layer === 'behind') composites.unshift(textComposite);
-        else if (layer === 'between') composites.splice(Math.floor(composites.length / 2), 0, textComposite);
-        else composites.push(textComposite);
-
-        console.log(`Text overlay added: "${text}" at ${position}`);
-    } catch (error) {
-        console.error('Error creating text overlay:', error);
-    }
-}
-
 // Handle thumbnail creation with tilted delimiters and auto-enhance
 ipcMain.handle('create-thumbnail', async (event, data) => {
     // Performance monitoring - define startTime early for error handling
@@ -1663,7 +1615,7 @@ function formatBytes(bytes, decimals = 2) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-// Function to create text overlay
+// Create text overlay
 async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay) {
     const {
         text,
