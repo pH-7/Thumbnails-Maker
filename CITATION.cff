@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: "YouTube Thumbnail Creator"
+authors:
+  - family-names: Soria
+    given-names: Pierre-Henry
+    orcid: https://orcid.org/0000-0002-9555-9474
+version: "3.1.0"
+date-released: 2025-07-17
+url: https://github.com/pH-7/Thumbnails-Maker
+repository-code: https://github.com/pH-7/Thumbnails-Maker
+license: MIT
+message: "If you use this software, please cite it as below."
