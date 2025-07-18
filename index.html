@@ -1607,7 +1607,7 @@
 
     // Event Listeners
     elements.delimiterTiltInput.addEventListener('input', () => {
-      const tiltAngle = elements.delimiterTiltInput.value;
+      const tiltAngle = parseInt(elements.delimiterTiltInput.value) || 0;
       elements.tiltValueOutput.textContent = `${tiltAngle}°`;
       updateDelimiterPreview();
     });
@@ -2132,83 +2132,55 @@
       elements.textOpacityValue.textContent = `${opacity}%`;
     });
 
-    // Function to get current text overlay settings
-    function getTextOverlaySettings() {
-      return {
-        enabled: elements.enableTextOverlay.checked,
-        text: elements.overlayText.value,
-        font: elements.textFont.value,
-        size: parseInt(elements.textSize.value) || 60,
-        color: elements.textColor.value,
-        opacity: parseFloat(elements.textOpacity.value) || 0.9,
-        position: elements.textPosition.value,
-        effect: elements.textEffect.value,
-        layer: elements.textLayer.value
-      };
-    }
-
-    // Function to apply text overlay settings to the form
-    function applyTextOverlaySettings(settings) {
-      if (!settings) return;
-
-      elements.enableTextOverlay.checked = settings.enabled;
-      elements.overlayText.value = settings.text;
-      elements.textFont.value = settings.font;
-      elements.textSize.value = settings.size;
-      elements.textColor.value = settings.color;
-      elements.textOpacity.value = settings.opacity;
-      elements.textPosition.value = settings.position;
-      elements.textEffect.value = settings.effect;
-      elements.textLayer.value = settings.layer;
-
-      // Update displayed values
-      elements.textSizeValue.textContent = `${settings.size}px`;
-      elements.textOpacityValue.textContent = `${(settings.opacity * 100).toFixed(0)}%`;
-    }
-
-    // Save current settings including text overlay as favorite
-    elements.saveFavoriteBtn.addEventListener('click', () => {
-      try {
-        const preferences = getCurrentPreferences();
-        const textOverlaySettings = getTextOverlaySettings();
-
-        // Combine preferences and text overlay settings
-        const favoriteSettings = {
-          ...preferences,
-          textOverlay: textOverlaySettings,
-          savedAt: new Date().toISOString()
-        };
-
-        localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteSettings));
-        console.log('Favorite settings saved:', favoriteSettings);
-
-        elements.statusEl.textContent = '⭐ Favorite settings saved!';
-
-        // Update button states
-        updateFavoriteButtonStates();
-      } catch (error) {
-        console.error('Error saving favorite settings:', error);
-        elements.errorEl.textContent = 'Failed to save favorite settings. Please try again.';
+    // --- Advanced Text Options Toggle ---
+    elements.advancedTextOptions.addEventListener('change', () => {
+      const panel = elements.advancedTextOptionsPanel;
+      if (elements.advancedTextOptions.checked) {
+        panel.style.display = 'block';
+        panel.classList.add('show');
+      } else {
+        panel.style.display = 'none';
+        panel.classList.remove('show');
       }
     });
 
-    // Load favorite settings including text overlay
-    elements.loadFavoriteBtn.addEventListener('click', () => {
-      const favorites = loadFavoritePreferences();
-      if (favorites) {
-        applyPreferences(favorites);
+    // --- Delimiter Tilt Angle: Always parse as number and update preview ---
+    elements.delimiterTiltInput.addEventListener('input', () => {
+      const tiltAngle = parseInt(elements.delimiterTiltInput.value) || 0;
+      elements.tiltValueOutput.textContent = `${tiltAngle}°`;
+      updateDelimiterPreview();
+    });
 
-        // Apply text overlay settings
-        if (favorites.textOverlay) {
-          applyTextOverlaySettings(favorites.textOverlay);
-        }
+    // --- Quick Style Presets: Retain selection and update UI ---
+    let selectedPreset = null;
+    const presetButtons = document.querySelectorAll('.preset-btn');
+    presetButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        presetButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedPreset = btn.dataset.preset;
+        // Optionally, apply preset styles here
+      });
+    });
 
-        const savedDate = new Date(favorites.savedAt).toLocaleDateString();
-        elements.statusEl.textContent = `⭐ Favorite settings loaded! (Saved on ${savedDate})`;
-      } else {
-        elements.statusEl.textContent = 'No favorite settings found. Save your current settings first!';
+    // --- Auto Color: Update color input and use value ---
+    elements.autoColorBtn.addEventListener('click', () => {
+      // Example: set to a contrasting color for demo
+      const autoColor = getContrastingColor(elements.delimiterColorInput.value);
+      elements.textColor.value = autoColor;
+      elements.textColor.dispatchEvent(new Event('input'));
+    });
+
+    // --- Text Layer: Warn if 'behind' is selected ---
+    elements.textLayer.addEventListener('change', () => {
+      if (elements.textLayer.value === 'behind') {
+        elements.statusEl.textContent = 'Warning: Text may not be visible behind images. Try "Between" or "Smart Blend" for better results.';
+        elements.statusEl.style.color = '#cc0000';
+        setTimeout(() => {
+          elements.statusEl.textContent = '';
+          elements.statusEl.style.color = '';
+        }, 4000);
       }
-      updateFavoriteButtonStates();
     });
   </script>
 </body>
