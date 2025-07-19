@@ -2151,37 +2151,107 @@
       updateDelimiterPreview();
     });
 
-    // --- Quick Style Presets: Retain selection and update UI ---
+    // --- Quick Style Presets: Retain selection, apply styles, and update UI ---
     let selectedPreset = null;
+    const presetStyles = {
+      'bold-impact': {
+        font: 'Impact',
+        size: 80,
+        color: '#ffffff',
+        effect: 'shadow',
+        layer: 'overlay'
+      },
+      'elegant-clean': {
+        font: 'Helvetica Neue',
+        size: 60,
+        color: '#222222',
+        effect: 'none',
+        layer: 'overlay'
+      },
+      'modern-tech': {
+        font: 'Montserrat',
+        size: 70,
+        color: '#00eaff',
+        effect: 'glow',
+        layer: 'overlay'
+      },
+      'creative-fun': {
+        font: 'Bangers',
+        size: 75,
+        color: '#ffb300',
+        effect: 'outline',
+        layer: 'overlay'
+      },
+      'professional': {
+        font: 'Roboto Condensed',
+        size: 65,
+        color: '#333333',
+        effect: 'background',
+        layer: 'overlay'
+      },
+      'cinematic': {
+        font: 'Bebas Neue',
+        size: 90,
+        color: '#e50914',
+        effect: 'shadow',
+        layer: 'overlay'
+      }
+    };
     const presetButtons = document.querySelectorAll('.preset-btn');
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         presetButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedPreset = btn.dataset.preset;
-        // Optionally, apply preset styles here
+        // Apply preset styles to text overlay controls
+        const style = presetStyles[selectedPreset];
+        if (style) {
+          if (elements.textFont) elements.textFont.value = style.font;
+          if (elements.textSize) {
+            elements.textSize.value = style.size;
+            elements.textSize.dispatchEvent(new Event('input'));
+          }
+          if (elements.textColor) {
+            elements.textColor.value = style.color;
+            elements.textColor.dispatchEvent(new Event('input'));
+          }
+          if (elements.textEffect) elements.textEffect.value = style.effect;
+          if (elements.textLayer) elements.textLayer.value = style.layer;
+        }
       });
     });
 
     // --- Auto Color: Update color input and use value ---
     elements.autoColorBtn.addEventListener('click', () => {
-      // Example: set to a contrasting color for demo
-      const autoColor = getContrastingColor(elements.delimiterColorInput.value);
+      // Use a contrasting color based on delimiter or background
+      let autoColor = getContrastingColor(elements.delimiterColorInput.value);
+      // Optionally, you could analyze the image for a dominant color here
       elements.textColor.value = autoColor;
       elements.textColor.dispatchEvent(new Event('input'));
+      // Optionally, visually indicate auto color was applied
+      elements.autoColorBtn.textContent = '✔️ Auto Color';
+      setTimeout(() => {
+        elements.autoColorBtn.textContent = '🎨 Auto Color';
+      }, 1200);
     });
 
-    // --- Text Layer: Warn if 'behind' is selected ---
-    elements.textLayer.addEventListener('change', () => {
-      if (elements.textLayer.value === 'behind') {
-        elements.statusEl.textContent = 'Warning: Text may not be visible behind images. Try "Between" or "Smart Blend" for better results.';
-        elements.statusEl.style.color = '#cc0000';
-        setTimeout(() => {
-          elements.statusEl.textContent = '';
-          elements.statusEl.style.color = '';
-        }, 4000);
-      }
-    });
+    // Ensure selected preset is included in text overlay settings
+    function getTextOverlaySettings() {
+      if (!elements.enableTextOverlay.checked) return null;
+      const preset = selectedPreset;
+      return {
+        enabled: true,
+        text: elements.overlayText.value,
+        font: elements.textFont.value,
+        size: parseInt(elements.textSize.value) || 60,
+        color: elements.textColor.value,
+        opacity: parseFloat(elements.textOpacity.value) || 0.9,
+        position: elements.textPosition.value,
+        effect: elements.textEffect.value,
+        layer: elements.textLayer.value,
+        preset: preset // for future use or analytics
+      };
+    }
   </script>
 </body>
 
