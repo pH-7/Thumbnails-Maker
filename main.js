@@ -1757,18 +1757,54 @@ async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay
         const textBuffer = Buffer.from(textSVG);
 
         // Add text to composites based on layer setting
-        const textComposite = {
-            input: textBuffer,
-            left: 0,
-            top: 0,
-            blend: layer === 'behind' ? 'multiply' : 'over'
-        };
-
-        if (layer === 'behind') {
-            // Add at the beginning for behind effect
-            composites.unshift(textComposite);
+        let blendMode = 'over';
+        let smartBlend = false;
+        if (layer === 'behind' || layer === 'smart-blend') {
+            // Smart Blend: place text between image layers with strong shadow, outline, and background
+            smartBlend = true;
+            blendMode = 'over';
         } else if (layer === 'between') {
-            // Add in the middle
+            blendMode = 'over';
+        } else {
+            blendMode = 'over';
+        }
+        // If Smart Blend, enhance text SVG for visibility
+        let textCompositeObj = textComposite;
+        if (smartBlend) {
+            // Add a semi-transparent background box, strong shadow, and outline
+            const bgPadding = 30;
+            const bgWidth = estimatedWidth + bgPadding * 2;
+            const bgHeight = estimatedHeight + bgPadding;
+            const bgX = x - bgPadding;
+            const bgY = y - estimatedHeight;
+            textElement = `
+                <rect x="${bgX}" y="${bgY}" width="${bgWidth}" height="${bgHeight}"
+                      fill="rgba(0,0,0,0.55)" rx="12" ry="12"/>
+                <text x="${x + 4}" y="${y + 4}" font-family="${font}" font-size="${fontSize}"
+                      fill="rgba(0,0,0,0.85)" font-weight="bold" text-anchor="start">${safeText}</text>
+                <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}"
+                      fill="none" stroke="#fff" stroke-width="4" font-weight="bold" text-anchor="start">${safeText}</text>
+                <text x="${x}" y="${y}" font-family="${font}" font-size="${fontSize}"
+                      fill="${fillColor}" opacity="${textOpacity}" font-weight="bold" text-anchor="start">${safeText}</text>
+            `;
+            textSVG = `
+                <svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">
+                    ${textElement}
+                </svg>
+            `;
+            const smartTextBuffer = Buffer.from(textSVG);
+            textCompositeObj = {
+                input: smartTextBuffer,
+                left: 0,
+                top: 0,
+                blend: blendMode
+            };
+        }
+        if (smartBlend) {
+            // Place text between image layers for best visibility
+            const middleIndex = Math.floor(composites.length / 2);
+            composites.splice(middleIndex, 0, textCompositeObj);
+        } else if (layer === 'between') {
             const middleIndex = Math.floor(composites.length / 2);
             composites.splice(middleIndex, 0, textComposite);
         } else {
