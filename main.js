@@ -1101,6 +1101,14 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             throw new Error('At least 1 image is required for the thumbnail');
         }
 
+        // Ensure delimiterTilt is always a number
+        let delimiterTilt = 0;
+        if (typeof data.delimiterTilt === 'string') {
+            delimiterTilt = parseInt(data.delimiterTilt) || 0;
+        } else {
+            delimiterTilt = Number(data.delimiterTilt) || 0;
+        }
+
         // Determine layout based on mode
         let gridLayout = '1x3'; // Default layout
         let selectedImages = imagePaths;
