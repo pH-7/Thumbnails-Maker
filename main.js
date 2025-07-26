@@ -1102,11 +1102,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         }
 
         // Ensure delimiterTilt is always a number
-        let delimiterTilt = 0;
+        let parsedDelimiterTilt = 0;
         if (typeof data.delimiterTilt === 'string') {
-            delimiterTilt = parseInt(data.delimiterTilt) || 0;
+            parsedDelimiterTilt = parseInt(data.delimiterTilt) || 0;
         } else {
-            delimiterTilt = Number(data.delimiterTilt) || 0;
+            parsedDelimiterTilt = Number(data.delimiterTilt) || 0;
         }
 
         // Determine layout based on mode
@@ -1386,10 +1386,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 const delimiterSVG = Buffer.from(`
                     <svg width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}">
                         <rect x="0" y="0" width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}" 
-                              fill="${fillColor}" transform="skewX(${-delimiterTilt})"/>
+                              fill="${fillColor}" transform="skewX(${-parsedDelimiterTilt})"/>
                     </svg>
                 `);
-
                 composites.push({
                     input: delimiterSVG,
                     left: Math.floor(x - delimiterWidth / 2),
