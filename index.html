@@ -1142,7 +1142,7 @@
         <div class="form-group">
           <label for="textLayer">Text Layer:</label>
           <select id="textLayer">
-            <option value="behind">Behind Images</option>
+            <option value="behind">Watermark</option>
             <option value="overlay">Over Images</option>
             <option value="between">Between Layers</option>
             <option value="smart-blend">🎨 Smart Blend</option>
@@ -1212,7 +1212,7 @@
   </div>
 
   <div class="result-container" id="resultContainer">
-    <h2>Generated Thumbnail:</h2>
+    <h2>Generated Thumbnail</h2>
     <img id="resultThumbnail" class="result-thumbnail">
     <div class="button-container">
       <button id="openFolderBtn">Open Output Folder</button>
@@ -2151,6 +2151,72 @@
       updateDelimiterPreview();
     });
 
+    // --- Auto Color: Update color input and use value ---
+    let autoColorActive = false;
+    elements.autoColorBtn.addEventListener('click', () => {
+      autoColorActive = true;
+      elements.autoColorBtn.classList.add('active');
+      let autoColor = getContrastingColor(elements.delimiterColorInput.value);
+      elements.textColor.value = autoColor;
+      elements.textColor.dispatchEvent(new Event('input'));
+      elements.autoColorBtn.textContent = '✔️ Auto Color';
+      setTimeout(() => {
+        elements.autoColorBtn.textContent = '🎨 Auto Color';
+      }, 1200);
+    });
+    // Update auto color if delimiter color changes and autoColorActive
+    elements.delimiterColorInput.addEventListener('input', () => {
+      if (autoColorActive) {
+        let autoColor = getContrastingColor(elements.delimiterColorInput.value);
+        elements.textColor.value = autoColor;
+        elements.textColor.dispatchEvent(new Event('input'));
+      }
+    });
+    // If user changes textColor manually, disable auto color
+    elements.textColor.addEventListener('input', () => {
+      if (!elements.autoColorBtn.classList.contains('active')) return;
+      autoColorActive = false;
+      elements.autoColorBtn.classList.remove('active');
+    });
+
+    // --- Replace "Behind Image" with Watermark/Smart Blend ---
+    // Update textLayer select options
+    if (elements.textLayer) {
+      Array.from(elements.textLayer.options).forEach(opt => {
+        if (opt.value === 'behind') opt.text = 'Watermark';
+      });
+    }
+
+    // Ensure selected preset is included in text overlay settings
+    function getTextOverlaySettings() {
+      if (!elements.enableTextOverlay.checked) return null;
+      const preset = selectedPreset;
+      // Advanced options
+      const rotation = parseInt(elements.textRotation.value) || 0;
+      const stroke = parseFloat(elements.textStroke.value) || 0;
+      const letterSpacing = parseFloat(elements.textLetterSpacing.value) || 0;
+      const strokeColor = elements.textStrokeColor.value || '#000000';
+      // Auto color sticky
+      const autoColorActive = elements.autoColorBtn.classList.contains('active');
+      return {
+        enabled: true,
+        text: elements.overlayText.value,
+        font: elements.textFont.value,
+        size: parseInt(elements.textSize.value) || 60,
+        color: elements.textColor.value,
+        opacity: parseFloat(elements.textOpacity.value) || 0.9,
+        position: elements.textPosition.value,
+        effect: elements.textEffect.value,
+        layer: elements.textLayer.value === 'behind' ? 'watermark' : elements.textLayer.value,
+        preset: preset,
+        rotation,
+        stroke,
+        letterSpacing,
+        strokeColor,
+        autoColorActive
+      };
+    }
+
     // --- Quick Style Presets: Retain selection, apply styles, and update UI ---
     let selectedPreset = null;
     const presetStyles = {
@@ -2220,25 +2286,27 @@
         }
       });
     });
-
-    // --- Auto Color: Update color input and use value ---
-    elements.autoColorBtn.addEventListener('click', () => {
-      // Use a contrasting color based on delimiter or background
-      let autoColor = getContrastingColor(elements.delimiterColorInput.value);
-      // Optionally, you could analyze the image for a dominant color here
-      elements.textColor.value = autoColor;
-      elements.textColor.dispatchEvent(new Event('input'));
-      // Optionally, visually indicate auto color was applied
-      elements.autoColorBtn.textContent = '✔️ Auto Color';
-      setTimeout(() => {
-        elements.autoColorBtn.textContent = '🎨 Auto Color';
-      }, 1200);
+    // When manual controls change, clear preset highlight
+    [elements.textFont, elements.textSize, elements.textColor, elements.textEffect, elements.textLayer].forEach(ctrl => {
+      if (ctrl) {
+        ctrl.addEventListener('input', () => {
+          presetButtons.forEach(b => b.classList.remove('active'));
+          selectedPreset = null;
+        });
+      }
     });
 
-    // Ensure selected preset is included in text overlay settings
+    // --- Advanced Text Options: Include in overlay settings ---
     function getTextOverlaySettings() {
       if (!elements.enableTextOverlay.checked) return null;
       const preset = selectedPreset;
+      // Advanced options
+      const rotation = parseInt(elements.textRotation.value) || 0;
+      const stroke = parseFloat(elements.textStroke.value) || 0;
+      const letterSpacing = parseFloat(elements.textLetterSpacing.value) || 0;
+      const strokeColor = elements.textStrokeColor.value || '#000000';
+      // Auto color sticky
+      const autoColorActive = elements.autoColorBtn.classList.contains('active');
       return {
         enabled: true,
         text: elements.overlayText.value,
@@ -2248,8 +2316,13 @@
         opacity: parseFloat(elements.textOpacity.value) || 0.9,
         position: elements.textPosition.value,
         effect: elements.textEffect.value,
-        layer: elements.textLayer.value,
-        preset: preset // for future use or analytics
+        layer: elements.textLayer.value === 'behind' ? 'watermark' : elements.textLayer.value,
+        preset: preset,
+        rotation,
+        stroke,
+        letterSpacing,
+        strokeColor,
+        autoColorActive
       };
     }
   </script>

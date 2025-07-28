@@ -1383,16 +1383,24 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             // Add vertical delimiters
             for (let col = 1; col < layout.cols; col++) {
                 const x = col * cellWidth;
+                // Make the SVG much taller to allow for rotation
+                const svgW = delimiterWidth * 3;
+                const svgH = THUMBNAIL_HEIGHT * 2;
+                const cx = Math.floor(svgW / 2);
+                const cy = Math.floor(svgH / 2);
+                const rectX = Math.floor((svgW - delimiterWidth) / 2);
+                const rectY = 0;
                 const delimiterSVG = Buffer.from(`
-                    <svg width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}">
-                        <rect x="0" y="0" width="${delimiterWidth}" height="${THUMBNAIL_HEIGHT}" 
-                              fill="${fillColor}" transform="skewX(${-parsedDelimiterTilt})"/>
+                    <svg width="${svgW}" height="${svgH}">
+                        <rect x="${rectX}" y="${rectY}" width="${delimiterWidth}" height="${svgH}"
+                              fill="${fillColor}" transform="rotate(${-parsedDelimiterTilt},${cx},${cy})"/>
                     </svg>
                 `);
+                // Adjust left/top so the center of the SVG aligns with the delimiter position
                 composites.push({
                     input: delimiterSVG,
-                    left: Math.floor(x - delimiterWidth / 2),
-                    top: 0
+                    left: Math.floor(x - svgW / 2),
+                    top: Math.floor((THUMBNAIL_HEIGHT - svgH) / 2)
                 });
             }
 
@@ -1414,9 +1422,77 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             }
         }
 
-        // Create text overlay if enabled
+        // --- Text Overlay (if enabled) ---
         if (textOverlay && textOverlay.enabled && textOverlay.text) {
-            await addTextOverlay(composites, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, textOverlay);
+            // SVG text overlay generation
+            const svgW = THUMBNAIL_WIDTH;
+            const svgH = THUMBNAIL_HEIGHT;
+            const fontSize = textOverlay.size || 60;
+            const fontFamily = textOverlay.font || 'Arial Black';
+            const fillColor = textOverlay.color || '#ffffff';
+            const opacity = typeof textOverlay.opacity === 'number' ? textOverlay.opacity : 0.9;
+            const rotation = textOverlay.rotation || 0;
+            const stroke = textOverlay.stroke || 0;
+            const strokeColor = textOverlay.strokeColor || '#000000';
+            const letterSpacing = textOverlay.letterSpacing || 0;
+            const effect = textOverlay.effect || 'shadow';
+            // Watermark logic
+            let effectiveOpacity = opacity;
+            let filter = '';
+            let textY = svgH / 2 + fontSize / 2;
+            let textX = svgW / 2;
+            let anchor = 'middle';
+            if (textOverlay.layer === 'watermark') {
+                effectiveOpacity = Math.min(opacity, 0.25); // Watermark is always faint
+                filter = 'opacity(0.7)';
+            }
+            // SVG filter for shadow/outline/glow
+            let svgFilter = '';
+            if (effect === 'shadow') {
+                svgFilter = `<filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.5"/>
+                </filter>`;
+            } else if (effect === 'glow') {
+                svgFilter = `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>`;
+            } else if (effect === 'outline') {
+                svgFilter = `<filter id="outline" x="-50%" y="-50%" width="200%" height="200%">
+                    <feMorphology in="SourceAlpha" result="DILATED" operator="dilate" radius="2"/>
+                    <feFlood flood-color="${strokeColor}" result="OUTLINE_COLOR"/>
+                    <feComposite in="OUTLINE_COLOR" in2="DILATED" operator="in" result="OUTLINE"/>
+                    <feMerge>
+                        <feMergeNode in="OUTLINE"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>`;
+            }
+            // Compose SVG text (always 1280x720)
+            const svgText = `
+                <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        ${svgFilter}
+                    </defs>
+                    <g transform="translate(${textX},${textY}) rotate(${rotation})">
+                        <text x="0" y="0" text-anchor="${anchor}"
+                            font-family="${fontFamily}" font-size="${fontSize}" fill="${fillColor}"
+                            fill-opacity="${effectiveOpacity}"
+                            ${stroke > 0 ? `stroke="${strokeColor}" stroke-width="${stroke}"` : ''}
+                            letter-spacing="${letterSpacing}"
+                            ${effect === 'shadow' ? 'filter="url(#shadow)"' : effect === 'glow' ? 'filter="url(#glow)"' : effect === 'outline' ? 'filter="url(#outline)"' : ''}
+                        >${textOverlay.text}</text>
+                    </g>
+                </svg>
+            `;
+            composites.push({
+                input: Buffer.from(svgText),
+                left: 0,
+                top: 0
+            });
         }
 
         // Create final image with optimizations for YouTube
