@@ -1439,9 +1439,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             // Watermark logic
             let effectiveOpacity = opacity;
             let filter = '';
-            let textY = svgH / 2 + fontSize / 2;
-            let textX = svgW / 2;
-            let anchor = 'middle';
+
             if (textOverlay.layer === 'watermark') {
                 effectiveOpacity = Math.min(opacity, 0.25); // Watermark is always faint
                 filter = 'opacity(0.7)';
@@ -1471,25 +1469,78 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     </feMerge>
                 </filter>`;
             }
-            // Compose SVG text (always 1280x720)
+            // Compose SVG text (always 1280x720) with correct position
+            // Calculate text position based on 'position' option
+            let posX = svgW / 2;
+            let posY = svgH / 2 + fontSize / 2;
+            let anchor;
+
+            switch (textOverlay.position) {
+                case 'top':
+                    posX = svgW / 2;
+                    posY = fontSize + 40;
+                    anchor = 'middle';
+                    break;
+                case 'bottom':
+                    posX = svgW / 2;
+                    posY = svgH - 40;
+                    anchor = 'middle';
+                    break;
+                case 'left':
+                    posX = 60;
+                    posY = svgH / 2 + fontSize / 2;
+                    anchor = 'start';
+                    break;
+                case 'right':
+                    posX = svgW - 60;
+                    posY = svgH / 2 + fontSize / 2;
+                    anchor = 'end';
+                    break;
+                case 'top-left':
+                    posX = 60;
+                    posY = fontSize + 40;
+                    anchor = 'start';
+                    break;
+                case 'top-right':
+                    posX = svgW - 60;
+                    posY = fontSize + 40;
+                    anchor = 'end';
+                    break;
+                case 'bottom-left':
+                    posX = 60;
+                    posY = svgH - 40;
+                    anchor = 'start';
+                    break;
+                case 'bottom-right':
+                    posX = svgW - 60;
+                    posY = svgH - 40;
+                    anchor = 'end';
+                    break;
+                default:
+                    // center or unknown
+                    posX = svgW / 2;
+                    posY = svgH / 2 + fontSize / 2;
+                    anchor = 'middle';
+            }
+
             const svgText = `
                 <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         ${svgFilter}
                     </defs>
-                    <g transform="translate(${textX},${textY}) rotate(${rotation})">
-                        <text x="0" y="0" text-anchor="${anchor}"
+                    <g transform="rotate(${rotation},${posX},${posY})">
+                        <text x="${posX}" y="${posY}" text-anchor="${anchor}"
                             font-family="${fontFamily}" font-size="${fontSize}" fill="${fillColor}"
                             fill-opacity="${effectiveOpacity}"
-                            ${stroke > 0 ? `stroke="${strokeColor}" stroke-width="${stroke}"` : ''}
+                            ${stroke > 0 ? `stroke=\"${strokeColor}\" stroke-width=\"${stroke}\"` : ''}
                             letter-spacing="${letterSpacing}"
-                            ${effect === 'shadow' ? 'filter="url(#shadow)"' : effect === 'glow' ? 'filter="url(#glow)"' : effect === 'outline' ? 'filter="url(#outline)"' : ''}
+                            ${effect === 'shadow' ? 'filter=\"url(#shadow)\"' : effect === 'glow' ? 'filter=\"url(#glow)\"' : effect === 'outline' ? 'filter=\"url(#outline)\"' : ''}
                         >${textOverlay.text}</text>
                     </g>
                 </svg>
             `;
             composites.push({
-                input: Buffer.from(svgText),
+                input: Buffer.from(svgText, 'utf8'),
                 left: 0,
                 top: 0
             });
