@@ -1058,8 +1058,6 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     const {
         imagePaths,
         delimiterWidth: rawDelimiterWidth,
-        delimiterTilt,
-        outputName,
         enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
         applyEnhance = false,
         layoutMode = 'auto', // Can be 'auto', '2-split', or '3-split'
@@ -1424,6 +1422,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         // --- Text Overlay (if enabled) ---
         if (textOverlay && textOverlay.enabled && textOverlay.text) {
+            // Watermark logic: replace 'behind' with 'watermark' and apply faint overlay
+            let layer = textOverlay.layer;
+            if (layer === 'behind') {
+                layer = 'watermark';
+            }
             // SVG text overlay generation
             const svgW = THUMBNAIL_WIDTH;
             const svgH = THUMBNAIL_HEIGHT;
@@ -1436,114 +1439,180 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const strokeColor = textOverlay.strokeColor || '#000000';
             const letterSpacing = textOverlay.letterSpacing || 0;
             const effect = textOverlay.effect || 'shadow';
-            // Watermark logic
-            let effectiveOpacity = opacity;
-            let filter = '';
+            // Style preset and auto color
+            const preset = textOverlay.preset || null;
+            const autoColor = textOverlay.autoColor || false;
 
-            if (textOverlay.layer === 'watermark') {
-                effectiveOpacity = Math.min(opacity, 0.25); // Watermark is always faint
-                filter = 'opacity(0.7)';
-            }
-            // SVG filter for shadow/outline/glow
-            let svgFilter = '';
-            if (effect === 'shadow') {
-                svgFilter = `<filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+            // Properly escape text content for XML/SVG
+            const escapeXML = (text) => {
+                return String(text || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            };
+            const safeText = escapeXML(textOverlay.text);
+
+            // Validate and sanitize all SVG attributes
+            const safeFontFamily = String(fontFamily || 'Arial Black').replace(/[<>&"']/g, '');
+            const safeFillColor = String(fillColor || '#ffffff').replace(/[^#a-fA-F0-9]/g, '') || '#ffffff';
+            const safeStrokeColor = String(strokeColor || '#000000').replace(/[^#a-fA-F0-9]/g, '') || '#000000';
+            const safeRotation = Math.max(-360, Math.min(360, Number(rotation) || 0));
+            const safeFontSize = Math.max(8, Math.min(500, Number(fontSize) || 60));
+            const safeOpacity = Math.max(0, Math.min(1, Number(opacity) || 0.9));
+            const safeStroke = Math.max(0, Math.min(20, Number(stroke) || 0));
+            const safeLetterSpacing = Math.max(-10, Math.min(50, Number(letterSpacing) || 0));
+
+            // Additional validation to prevent empty or invalid text
+            if (!safeText.trim()) {
+                console.log('Text overlay skipped: empty text content');
+            } else {
+                try {
+                    // Watermark logic
+                    let effectiveOpacity = safeOpacity;
+                    let filter = '';
+                    if (layer === 'watermark') {
+                        effectiveOpacity = Math.min(opacity, 0.25); // Watermark is always faint
+                        filter = 'opacity(0.7)';
+                    }
+                    // SVG filter for shadow/outline/glow
+                    let svgFilter = '';
+                    if (effect === 'shadow') {
+                        svgFilter = `<filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.5"/>
                 </filter>`;
-            } else if (effect === 'glow') {
-                svgFilter = `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    } else if (effect === 'glow') {
+                        svgFilter = `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
                     <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
                     <feMerge>
                         <feMergeNode in="coloredBlur"/>
                         <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                 </filter>`;
-            } else if (effect === 'outline') {
-                svgFilter = `<filter id="outline" x="-50%" y="-50%" width="200%" height="200%">
+                    } else if (effect === 'outline') {
+                        svgFilter = `<filter id="outline" x="-50%" y="-50%" width="200%" height="200%">
                     <feMorphology in="SourceAlpha" result="DILATED" operator="dilate" radius="2"/>
-                    <feFlood flood-color="${strokeColor}" result="OUTLINE_COLOR"/>
+                    <feFlood flood-color="${safeStrokeColor}" result="OUTLINE_COLOR"/>
                     <feComposite in="OUTLINE_COLOR" in2="DILATED" operator="in" result="OUTLINE"/>
                     <feMerge>
                         <feMergeNode in="OUTLINE"/>
                         <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                 </filter>`;
-            }
-            // Compose SVG text (always 1280x720) with correct position
-            // Calculate text position based on 'position' option
-            let posX = svgW / 2;
-            let posY = svgH / 2 + fontSize / 2;
-            let anchor;
+                    }
+                    // Compose SVG text (always 1280x720) with correct position
+                    // Calculate text position based on 'position' option
+                    let posX = svgW / 2;
+                    let posY = svgH / 2 + safeFontSize / 2;
+                    let anchor;
+                    switch (textOverlay.position) {
+                        case 'top':
+                            posX = svgW / 2;
+                            posY = safeFontSize + 40;
+                            anchor = 'middle';
+                            break;
+                        case 'bottom':
+                            posX = svgW / 2;
+                            posY = svgH - 40;
+                            anchor = 'middle';
+                            break;
+                        case 'left':
+                            posX = 60;
+                            posY = svgH / 2 + safeFontSize / 2;
+                            anchor = 'start';
+                            break;
+                        case 'right':
+                            posX = svgW - 60;
+                            posY = svgH / 2 + safeFontSize / 2;
+                            anchor = 'end';
+                            break;
+                        case 'top-left':
+                            posX = 60;
+                            posY = safeFontSize + 40;
+                            anchor = 'start';
+                            break;
+                        case 'top-right':
+                            posX = svgW - 60;
+                            posY = safeFontSize + 40;
+                            anchor = 'end';
+                            break;
+                        case 'bottom-left':
+                            posX = 60;
+                            posY = svgH - 40;
+                            anchor = 'start';
+                            break;
+                        case 'bottom-right':
+                            posX = svgW - 60;
+                            posY = svgH - 40;
+                            anchor = 'end';
+                            break;
+                        default:
+                            // center or unknown
+                            posX = svgW / 2;
+                            posY = svgH / 2 + safeFontSize / 2;
+                            anchor = 'middle';
+                    }
 
-            switch (textOverlay.position) {
-                case 'top':
-                    posX = svgW / 2;
-                    posY = fontSize + 40;
-                    anchor = 'middle';
-                    break;
-                case 'bottom':
-                    posX = svgW / 2;
-                    posY = svgH - 40;
-                    anchor = 'middle';
-                    break;
-                case 'left':
-                    posX = 60;
-                    posY = svgH / 2 + fontSize / 2;
-                    anchor = 'start';
-                    break;
-                case 'right':
-                    posX = svgW - 60;
-                    posY = svgH / 2 + fontSize / 2;
-                    anchor = 'end';
-                    break;
-                case 'top-left':
-                    posX = 60;
-                    posY = fontSize + 40;
-                    anchor = 'start';
-                    break;
-                case 'top-right':
-                    posX = svgW - 60;
-                    posY = fontSize + 40;
-                    anchor = 'end';
-                    break;
-                case 'bottom-left':
-                    posX = 60;
-                    posY = svgH - 40;
-                    anchor = 'start';
-                    break;
-                case 'bottom-right':
-                    posX = svgW - 60;
-                    posY = svgH - 40;
-                    anchor = 'end';
-                    break;
-                default:
-                    // center or unknown
-                    posX = svgW / 2;
-                    posY = svgH / 2 + fontSize / 2;
-                    anchor = 'middle';
-            }
+                    // Ensure position values are safe integers
+                    posX = Math.floor(Math.max(0, Math.min(svgW, Number(posX) || svgW / 2)));
+                    posY = Math.floor(Math.max(0, Math.min(svgH, Number(posY) || svgH / 2)));
+                    let svgText;
+                    if (effect === 'background') {
+                        // Better text width estimation with improved padding
+                        const textLength = safeText.length;
+                        const horizontalPadding = 40; // Increased horizontal padding
+                        const verticalPadding = 20;   // Separate vertical padding
+                        const estimatedWidth = textLength * safeFontSize * 0.65; // Slightly better width estimation
 
-            const svgText = `
-                <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        ${svgFilter}
-                    </defs>
-                    <g transform="rotate(${rotation},${posX},${posY})">
-                        <text x="${posX}" y="${posY}" text-anchor="${anchor}"
-                            font-family="${fontFamily}" font-size="${fontSize}" fill="${fillColor}"
-                            fill-opacity="${effectiveOpacity}"
-                            ${stroke > 0 ? `stroke=\"${strokeColor}\" stroke-width=\"${stroke}\"` : ''}
-                            letter-spacing="${letterSpacing}"
-                            ${effect === 'shadow' ? 'filter=\"url(#shadow)\"' : effect === 'glow' ? 'filter=\"url(#glow)\"' : effect === 'outline' ? 'filter=\"url(#outline)\"' : ''}
-                        >${textOverlay.text}</text>
-                    </g>
-                </svg>
-            `;
-            composites.push({
-                input: Buffer.from(svgText, 'utf8'),
-                left: 0,
-                top: 0
-            });
+                        // Center the rect and text properly with better alignment
+                        let rectX = posX - estimatedWidth / 2 - horizontalPadding;
+                        let rectY = posY - safeFontSize / 2 - verticalPadding; // Use safeFontSize instead of fontSize
+                        let rectWidth = estimatedWidth + horizontalPadding * 2;
+                        let rectHeight = safeFontSize + verticalPadding * 2;
+                        svgText = `
+                    <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
+                        <g transform="rotate(${safeRotation},${posX},${posY})">
+                            <rect x="${rectX}" y="${rectY}" width="${rectWidth}" height="${rectHeight}" fill="rgba(0,0,0,0.7)" rx="12" ry="12"/>
+                            <text x="${posX}" y="${posY}"
+                                text-anchor="${anchor}"
+                                dominant-baseline="middle"
+                                font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="${safeFillColor}"
+                                fill-opacity="${safeOpacity}"
+                                ${safeStroke > 0 ? `stroke='${safeStrokeColor}' stroke-width='${safeStroke}'` : ''}
+                                letter-spacing="${safeLetterSpacing}"
+                            >${safeText}</text>
+                        </g>
+                    </svg>
+                `;
+                    } else {
+                        svgText = `
+                    <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            ${svgFilter}
+                        </defs>
+                        <g transform="rotate(${safeRotation},${posX},${posY})">
+                            <text x="${posX}" y="${posY}" text-anchor="${anchor}"
+                                font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="${safeFillColor}"
+                                fill-opacity="${safeOpacity}"
+                                ${safeStroke > 0 ? `stroke='${safeStrokeColor}' stroke-width='${safeStroke}'` : ''}
+                                letter-spacing="${safeLetterSpacing}"
+                                ${effect === 'shadow' ? "filter='url(#shadow)'" : effect === 'glow' ? "filter='url(#glow)'" : effect === 'outline' ? "filter='url(#outline)'" : ''}
+                            >${safeText}</text>
+                        </g>
+                    </svg>
+                `;
+                    }
+                    composites.push({
+                        input: Buffer.from(svgText, 'utf8'),
+                        left: 0,
+                        top: 0
+                    });
+                } catch (svgError) {
+                    console.error('Error creating text overlay SVG:', svgError);
+                    console.log('Skipping text overlay due to SVG error');
+                }
+            } // Close the validation block
         }
 
         // Create final image with optimizations for YouTube
@@ -1903,6 +1972,7 @@ async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay
             blendMode = 'over';
         }
         // If Smart Blend, enhance text SVG for visibility
+
         let textCompositeObj = textComposite;
         if (smartBlend) {
             // Add a semi-transparent background box, strong shadow, and outline
