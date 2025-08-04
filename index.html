@@ -773,6 +773,17 @@
     .preset-btn.active {
       background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
       transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+      border: 2px solid #fff;
+    }
+
+    /* Auto Color Button Active State */
+    .auto-btn.active {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      transform: scale(1.02);
+      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+      border: 2px solid #fff;
     }
 
     .preset-btn[data-preset="bold-impact"] {
@@ -832,6 +843,7 @@
 
     /* Improved range sliders */
     input[type="range"] {
+      appearance: none;
       -webkit-appearance: none;
       height: 6px;
       border-radius: 3px;
@@ -1357,6 +1369,24 @@
         enhanceLevel: elements.enhanceLevel.value || DEFAULT_VALUES.ENHANCE_LEVEL,
         layoutMode: elements.layoutMode.value || 'auto',
         youtubeOptimize: elements.youtubeOptimize.checked,
+        // Text overlay preferences
+        textOverlay: {
+          enabled: elements.enableTextOverlay.checked,
+          autoDesign: elements.autoDesignText.checked,
+          text: elements.overlayText.value,
+          font: elements.textFont.value,
+          size: parseInt(elements.textSize.value) || 60,
+          color: elements.textColor.value,
+          opacity: parseFloat(elements.textOpacity.value) || 0.9,
+          position: elements.textPosition.value,
+          effect: elements.textEffect.value,
+          layer: elements.textLayer.value,
+          rotation: parseInt(elements.textRotation.value) || 0,
+          stroke: parseFloat(elements.textStroke.value) || 0,
+          letterSpacing: parseFloat(elements.textLetterSpacing.value) || 0,
+          strokeColor: elements.textStrokeColor.value,
+          advancedEnabled: elements.advancedTextOptions.checked
+        },
         // Add timestamp for reference
         savedAt: new Date().toISOString()
       };
@@ -1439,6 +1469,50 @@
 
         // Apply YouTube optimization
         elements.youtubeOptimize.checked = preferences.youtubeOptimize !== undefined ? preferences.youtubeOptimize : true;
+
+        // Apply text overlay preferences if available
+        if (preferences.textOverlay) {
+          const textOverlay = preferences.textOverlay;
+          elements.enableTextOverlay.checked = textOverlay.enabled || false;
+          elements.autoDesignText.checked = textOverlay.autoDesign !== undefined ? textOverlay.autoDesign : true;
+          elements.overlayText.value = textOverlay.text || '';
+          elements.textFont.value = textOverlay.font || 'Arial Black';
+          elements.textSize.value = textOverlay.size || 60;
+          elements.textColor.value = textOverlay.color || '#ffffff';
+          elements.textOpacity.value = textOverlay.opacity || 0.9;
+          elements.textPosition.value = textOverlay.position || 'center';
+          elements.textEffect.value = textOverlay.effect || 'shadow';
+          elements.textLayer.value = textOverlay.layer || 'overlay';
+          elements.textRotation.value = textOverlay.rotation || 0;
+          elements.textStroke.value = textOverlay.stroke || 0;
+          elements.textLetterSpacing.value = textOverlay.letterSpacing || 0;
+          elements.textStrokeColor.value = textOverlay.strokeColor || '#000000';
+          elements.advancedTextOptions.checked = textOverlay.advancedEnabled || false;
+
+          // Update display values
+          elements.textSizeValue.textContent = `${textOverlay.size || 60}px`;
+          elements.textOpacityValue.textContent = `${((textOverlay.opacity || 0.9) * 100).toFixed(0)}%`;
+          elements.textRotationValue.textContent = `${textOverlay.rotation || 0}°`;
+          elements.textStrokeValue.textContent = `${textOverlay.stroke || 0}px`;
+          elements.textLetterSpacingValue.textContent = `${textOverlay.letterSpacing || 0}px`;
+
+          // Show/hide panels
+          if (textOverlay.enabled) {
+            elements.textOverlayOptions.style.display = 'block';
+            elements.textOverlayOptions.classList.add('show');
+          } else {
+            elements.textOverlayOptions.style.display = 'none';
+            elements.textOverlayOptions.classList.remove('show');
+          }
+
+          if (textOverlay.advancedEnabled) {
+            elements.advancedTextOptionsPanel.style.display = 'block';
+            elements.advancedTextOptionsPanel.classList.add('show');
+          } else {
+            elements.advancedTextOptionsPanel.style.display = 'none';
+            elements.advancedTextOptionsPanel.classList.remove('show');
+          }
+        }
 
         // Update delimiter preview
         updateDelimiterPreview();
@@ -1682,6 +1756,7 @@
 
       // Reset text overlay to defaults
       elements.enableTextOverlay.checked = false;
+      elements.autoDesignText.checked = true;
       elements.overlayText.value = '';
       elements.textFont.value = 'Arial Black';
       elements.textSize.value = 60;
@@ -1693,6 +1768,17 @@
       elements.textSizeValue.textContent = '60px';
       elements.textOpacityValue.textContent = '90%';
       elements.textOverlayOptions.style.display = 'none';
+
+      // Reset advanced text options to defaults
+      elements.advancedTextOptions.checked = false;
+      elements.textRotation.value = 0;
+      elements.textStroke.value = 0;
+      elements.textLetterSpacing.value = 0;
+      elements.textStrokeColor.value = '#000000';
+      elements.textRotationValue.textContent = '0°';
+      elements.textStrokeValue.textContent = '0px';
+      elements.textLetterSpacingValue.textContent = '0px';
+      elements.advancedTextOptionsPanel.style.display = 'none';
 
       updateDelimiterPreviewWithAnimation();
       updateEnhancePreviewSelection(DEFAULT_VALUES.ENHANCE_LEVEL);
@@ -2056,6 +2142,52 @@
     updateDelimiterPreview();
     handleFooterLinks(); // Initialize footer link handlers
 
+    // Initialize text overlay controls
+    function initializeTextOverlayControls() {
+      // Initialize delimiter tilt display value
+      const initialTilt = parseInt(elements.delimiterTiltInput.value) || 0;
+      elements.tiltValueOutput.textContent = `${initialTilt}°`;
+
+      // Initialize text size display value
+      const initialSize = elements.textSize.value;
+      elements.textSizeValue.textContent = `${initialSize}px`;
+
+      // Initialize text opacity display value
+      const initialOpacity = (elements.textOpacity.value * 100).toFixed(0);
+      elements.textOpacityValue.textContent = `${initialOpacity}%`;
+
+      // Initialize advanced text options display values
+      const initialRotation = elements.textRotation.value;
+      elements.textRotationValue.textContent = `${initialRotation}°`;
+
+      const initialStroke = elements.textStroke.value;
+      elements.textStrokeValue.textContent = `${initialStroke}px`;
+
+      const initialLetterSpacing = elements.textLetterSpacing.value;
+      elements.textLetterSpacingValue.textContent = `${initialLetterSpacing}px`;
+
+      // Initialize advanced text options panel state
+      const advancedPanel = elements.advancedTextOptionsPanel;
+      if (elements.advancedTextOptions.checked) {
+        advancedPanel.style.display = 'block';
+        advancedPanel.classList.add('show');
+      } else {
+        advancedPanel.style.display = 'none';
+        advancedPanel.classList.remove('show');
+      }
+
+      // Initialize text overlay options panel state
+      const textOverlayOptions = elements.textOverlayOptions;
+      if (elements.enableTextOverlay.checked) {
+        textOverlayOptions.style.display = 'block';
+        textOverlayOptions.classList.add('show');
+      } else {
+        textOverlayOptions.style.display = 'none';
+        textOverlayOptions.classList.remove('show');
+      }
+    }    // Initialize all controls
+    initializeTextOverlayControls();
+
     // Auto-load favorite preferences on app startup
     function initializeAppWithFavorites() {
       const savedFavorites = loadFavoritePreferences();
@@ -2126,10 +2258,39 @@
       elements.textSizeValue.textContent = `${size}px`;
     });
 
+    // Auto design when text content changes
+    elements.overlayText.addEventListener('input', () => {
+      if (elements.autoDesignText.checked && elements.overlayText.value.trim()) {
+        // Debounce auto design to avoid too many updates
+        clearTimeout(elements.overlayText._autoDesignTimeout);
+        elements.overlayText._autoDesignTimeout = setTimeout(() => {
+          autoApplyDesignText();
+        }, 1000);
+      }
+    });
+
     // Update text opacity value display
     elements.textOpacity.addEventListener('input', () => {
       const opacity = (elements.textOpacity.value * 100).toFixed(0);
       elements.textOpacityValue.textContent = `${opacity}%`;
+    });
+
+    // Update text rotation value display
+    elements.textRotation.addEventListener('input', () => {
+      const rotation = elements.textRotation.value;
+      elements.textRotationValue.textContent = `${rotation}°`;
+    });
+
+    // Update text stroke value display
+    elements.textStroke.addEventListener('input', () => {
+      const stroke = elements.textStroke.value;
+      elements.textStrokeValue.textContent = `${stroke}px`;
+    });
+
+    // Update text letter spacing value display
+    elements.textLetterSpacing.addEventListener('input', () => {
+      const spacing = elements.textLetterSpacing.value;
+      elements.textLetterSpacingValue.textContent = `${spacing}px`;
     });
 
     // --- Advanced Text Options Toggle ---
@@ -2151,7 +2312,65 @@
       updateDelimiterPreview();
     });
 
-    // --- Auto Color: Update color input and use value ---
+    // --- Auto Design Text Feature ---
+    elements.autoDesignText.addEventListener('change', () => {
+      if (elements.autoDesignText.checked) {
+        // Apply auto design - choose good defaults based on content and current settings
+        autoApplyDesignText();
+      }
+    });
+
+    function autoApplyDesignText() {
+      const text = elements.overlayText.value.toLowerCase();
+      const delimiterColor = elements.delimiterColorInput.value;
+
+      // Auto select font based on text content
+      if (text.includes('gaming') || text.includes('play') || text.includes('epic')) {
+        elements.textFont.value = 'Bangers';
+        elements.textEffect.value = 'glow';
+        elements.textSize.value = 80;
+      } else if (text.includes('tutorial') || text.includes('how') || text.includes('guide')) {
+        elements.textFont.value = 'Roboto Condensed';
+        elements.textEffect.value = 'background';
+        elements.textSize.value = 65;
+      } else if (text.includes('news') || text.includes('update') || text.includes('breaking')) {
+        elements.textFont.value = 'Impact';
+        elements.textEffect.value = 'shadow';
+        elements.textSize.value = 75;
+      } else if (text.includes('review') || text.includes('test') || text.includes('vs')) {
+        elements.textFont.value = 'Helvetica Neue';
+        elements.textEffect.value = 'outline';
+        elements.textSize.value = 70;
+      } else {
+        // Default to bold impact style
+        elements.textFont.value = 'Arial Black';
+        elements.textEffect.value = 'shadow';
+        elements.textSize.value = 75;
+      }
+
+      // Auto color based on delimiter color
+      const autoColor = getContrastingColor(delimiterColor);
+      elements.textColor.value = autoColor;
+
+      // Auto position - avoid center if we have multiple images
+      const layoutMode = elements.layoutMode.value;
+      if (layoutMode === '1x1') {
+        elements.textPosition.value = 'center';
+      } else {
+        elements.textPosition.value = 'top';
+      }
+
+      // Update display values
+      elements.textSize.dispatchEvent(new Event('input'));
+      elements.textColor.dispatchEvent(new Event('input'));
+
+      // Show feedback
+      elements.statusEl.textContent = '✨ Auto design applied! Font, color, and effects optimized for your content.';
+      elements.statusEl.style.color = '#007acc';
+      setTimeout(() => {
+        elements.statusEl.style.color = '';
+      }, 3000);
+    }
     let autoColorActive = false;
     elements.autoColorBtn.addEventListener('click', () => {
       autoColorActive = true;
@@ -2159,24 +2378,33 @@
       let autoColor = getContrastingColor(elements.delimiterColorInput.value);
       elements.textColor.value = autoColor;
       elements.textColor.dispatchEvent(new Event('input'));
-      elements.autoColorBtn.textContent = '✔️ Auto Color';
+      elements.autoColorBtn.textContent = '✔️ Auto Color (Active)';
+
+      // Show success feedback briefly
       setTimeout(() => {
-        elements.autoColorBtn.textContent = '🎨 Auto Color';
+        if (autoColorActive) {
+          elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
+        }
       }, 1200);
     });
+
     // Update auto color if delimiter color changes and autoColorActive
     elements.delimiterColorInput.addEventListener('input', () => {
+      updateDelimiterPreview();
       if (autoColorActive) {
         let autoColor = getContrastingColor(elements.delimiterColorInput.value);
         elements.textColor.value = autoColor;
         elements.textColor.dispatchEvent(new Event('input'));
       }
     });
+
     // If user changes textColor manually, disable auto color
     elements.textColor.addEventListener('input', () => {
-      if (!elements.autoColorBtn.classList.contains('active')) return;
-      autoColorActive = false;
-      elements.autoColorBtn.classList.remove('active');
+      if (autoColorActive) {
+        autoColorActive = false;
+        elements.autoColorBtn.classList.remove('active');
+        elements.autoColorBtn.textContent = '🎨 Auto Color';
+      }
     });
 
     // --- Replace "Behind Image" with Watermark/Smart Blend ---
@@ -2189,8 +2417,11 @@
 
     // Ensure selected preset is included in text overlay settings
     function getTextOverlaySettings() {
-      if (!elements.enableTextOverlay.checked) return null;
+      if (!elements.enableTextOverlay.checked) {
+        return null;
+      }
       const preset = selectedPreset;
+
       // Advanced options
       const rotation = parseInt(elements.textRotation.value) || 0;
       const stroke = parseFloat(elements.textStroke.value) || 0;
@@ -2266,9 +2497,13 @@
     const presetButtons = document.querySelectorAll('.preset-btn');
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
+        // Clear previous selection
         presetButtons.forEach(b => b.classList.remove('active'));
+
+        // Mark new selection
         btn.classList.add('active');
         selectedPreset = btn.dataset.preset;
+
         // Apply preset styles to text overlay controls
         const style = presetStyles[selectedPreset];
         if (style) {
@@ -2280,50 +2515,67 @@
           if (elements.textColor) {
             elements.textColor.value = style.color;
             elements.textColor.dispatchEvent(new Event('input'));
+            // Disable auto color when preset is applied
+            if (autoColorActive) {
+              autoColorActive = false;
+              elements.autoColorBtn.classList.remove('active');
+              elements.autoColorBtn.textContent = '🎨 Auto Color';
+            }
           }
           if (elements.textEffect) elements.textEffect.value = style.effect;
           if (elements.textLayer) elements.textLayer.value = style.layer;
+
+          // Provide visual feedback
+          btn.style.transform = 'scale(0.95)';
+          setTimeout(() => {
+            btn.style.transform = 'scale(1)';
+          }, 150);
         }
       });
     });
-    // When manual controls change, clear preset highlight
-    [elements.textFont, elements.textSize, elements.textColor, elements.textEffect, elements.textLayer].forEach(ctrl => {
+
+    // When manual controls change, clear preset highlight (but allow some changes)
+    const sensitiveControls = [elements.textFont, elements.textEffect, elements.textLayer];
+    sensitiveControls.forEach(ctrl => {
       if (ctrl) {
-        ctrl.addEventListener('input', () => {
+        ctrl.addEventListener('change', () => {
           presetButtons.forEach(b => b.classList.remove('active'));
           selectedPreset = null;
         });
       }
     });
 
-    // --- Advanced Text Options: Include in overlay settings ---
-    function getTextOverlaySettings() {
-      if (!elements.enableTextOverlay.checked) return null;
-      const preset = selectedPreset;
-      // Advanced options
-      const rotation = parseInt(elements.textRotation.value) || 0;
-      const stroke = parseFloat(elements.textStroke.value) || 0;
-      const letterSpacing = parseFloat(elements.textLetterSpacing.value) || 0;
-      const strokeColor = elements.textStrokeColor.value || '#000000';
-      // Auto color sticky
-      const autoColorActive = elements.autoColorBtn.classList.contains('active');
-      return {
-        enabled: true,
-        text: elements.overlayText.value,
-        font: elements.textFont.value,
-        size: parseInt(elements.textSize.value) || 60,
-        color: elements.textColor.value,
-        opacity: parseFloat(elements.textOpacity.value) || 0.9,
-        position: elements.textPosition.value,
-        effect: elements.textEffect.value,
-        layer: elements.textLayer.value === 'behind' ? 'watermark' : elements.textLayer.value,
-        preset: preset,
-        rotation,
-        stroke,
-        letterSpacing,
-        strokeColor,
-        autoColorActive
-      };
+    // For size and color, only clear if the change is significant
+    if (elements.textSize) {
+      elements.textSize.addEventListener('input', () => {
+        if (selectedPreset) {
+          const currentStyle = presetStyles[selectedPreset];
+          const currentSize = parseInt(elements.textSize.value);
+          const presetSize = currentStyle.size;
+
+          // Only clear preset if size differs by more than 10px
+          if (Math.abs(currentSize - presetSize) > 10) {
+            presetButtons.forEach(b => b.classList.remove('active'));
+            selectedPreset = null;
+          }
+        }
+      });
+    }
+
+    if (elements.textColor) {
+      elements.textColor.addEventListener('input', () => {
+        if (selectedPreset && !autoColorActive) {
+          const currentStyle = presetStyles[selectedPreset];
+          const currentColor = elements.textColor.value.toLowerCase();
+          const presetColor = currentStyle.color.toLowerCase();
+
+          // Only clear preset if color is significantly different
+          if (currentColor !== presetColor) {
+            presetButtons.forEach(b => b.classList.remove('active'));
+            selectedPreset = null;
+          }
+        }
+      });
     }
   </script>
 </body>
