@@ -1559,23 +1559,57 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     posY = Math.floor(Math.max(0, Math.min(svgH, Number(posY) || svgH / 2)));
                     let svgText;
                     if (effect === 'background') {
-                        // Better text width estimation with improved padding
+                        // Better text width estimation with font-aware calculation
                         const textLength = safeText.length;
-                        const horizontalPadding = 40; // Increased horizontal padding
-                        const verticalPadding = 20;   // Separate vertical padding
-                        const estimatedWidth = textLength * safeFontSize * 0.65; // Slightly better width estimation
+                        const horizontalPadding = 45;
+                        const verticalPadding = 25;
 
-                        // Center the rect and text properly with better alignment
-                        let rectX = posX - estimatedWidth / 2 - horizontalPadding;
-                        let rectY = posY - safeFontSize / 2 - verticalPadding; // Use safeFontSize instead of fontSize
+                        // More accurate width estimation based on font characteristics
+                        let widthMultiplier = 0.7; // Default for most fonts
+                        if (safeFontFamily.toLowerCase().includes('arial')) {
+                            widthMultiplier = 0.65; // Arial is more compact
+                        } else if (safeFontFamily.toLowerCase().includes('times')) {
+                            widthMultiplier = 0.68; // Times is slightly wider
+                        } else if (safeFontFamily.toLowerCase().includes('impact')) {
+                            widthMultiplier = 0.75; // Impact is wider
+                        }
+
+                        const estimatedWidth = textLength * safeFontSize * widthMultiplier;
+
+                        // For background effect, we need to adjust both X and Y positions to be truly centered
+                        // This ensures the text is centered within the background box regardless of position setting
+                        let adjustedPosX = posX;
+                        let adjustedPosY = posY;
+
+                        if (textOverlay.position === 'center' || !textOverlay.position) {
+                            adjustedPosX = svgW / 2; // True horizontal center
+                            adjustedPosY = svgH / 2; // True vertical center without font offset
+                        } else {
+                            // For other positions, still remove the font size offset from Y
+                            adjustedPosY = posY - (safeFontSize / 2);
+                        }
+
+                        // Calculate background box dimensions
                         let rectWidth = estimatedWidth + horizontalPadding * 2;
                         let rectHeight = safeFontSize + verticalPadding * 2;
+
+                        // Center the rect around the text position
+                        let rectX = adjustedPosX - rectWidth / 2;
+                        let rectY = adjustedPosY - rectHeight / 2;
+
                         svgText = `
                     <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
-                        <g transform="rotate(${safeRotation},${posX},${posY})">
-                            <rect x="${rectX}" y="${rectY}" width="${rectWidth}" height="${rectHeight}" fill="rgba(0,0,0,0.7)" rx="12" ry="12"/>
-                            <text x="${posX}" y="${posY}"
-                                text-anchor="${anchor}"
+                        <defs>
+                            <filter id="backgroundShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="black" flood-opacity="0.3"/>
+                            </filter>
+                        </defs>
+                        <g transform="rotate(${safeRotation},${adjustedPosX},${adjustedPosY})">
+                            <rect x="${rectX}" y="${rectY}" width="${rectWidth}" height="${rectHeight}"
+                                  fill="rgba(0,0,0,0.75)" rx="12" ry="12"
+                                  filter="url(#backgroundShadow)"/>
+                            <text x="${adjustedPosX}" y="${adjustedPosY}"
+                                text-anchor="middle"
                                 dominant-baseline="middle"
                                 font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="${safeFillColor}"
                                 fill-opacity="${safeOpacity}"
