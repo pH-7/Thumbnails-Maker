@@ -1597,6 +1597,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         let rectX = adjustedPosX - rectWidth / 2;
                         let rectY = adjustedPosY - rectHeight / 2;
 
+                        // Calculate proper text Y position for true vertical centering
+                        // Use font size offset to account for baseline differences
+                        let textY = adjustedPosY + (safeFontSize * 0.35); // Empirical offset for better centering
+
                         svgText = `
                     <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
                         <defs>
@@ -1608,9 +1612,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             <rect x="${rectX}" y="${rectY}" width="${rectWidth}" height="${rectHeight}"
                                   fill="rgba(0,0,0,0.75)" rx="12" ry="12"
                                   filter="url(#backgroundShadow)"/>
-                            <text x="${adjustedPosX}" y="${adjustedPosY}"
+                            <text x="${adjustedPosX}" y="${textY}"
                                 text-anchor="middle"
-                                dominant-baseline="middle"
+                                dominant-baseline="auto"
                                 font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="${safeFillColor}"
                                 fill-opacity="${safeOpacity}"
                                 ${safeStroke > 0 ? `stroke='${safeStrokeColor}' stroke-width='${safeStroke}'` : ''}
