@@ -1053,7 +1053,7 @@
             <span>✨ Auto Design Text</span>
           </label>
           <div class="toggle-switch">
-            <input type="checkbox" id="autoDesignText" checked>
+            <input type="checkbox" id="autoDesignText">
             <label for="autoDesignText"></label>
           </div>
           <div class="help-text">Automatically choose perfect fonts, colors, and effects</div>
@@ -2208,6 +2208,8 @@
         }, 3000);
       } else {
         console.log('No saved favorites found, using default settings');
+        // Initialize Auto Design Text to default checked state when no preferences exist
+        elements.autoDesignText.checked = true;
       }
     }
 
