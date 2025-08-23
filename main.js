@@ -255,10 +255,10 @@ function calculateEnhancementParams(analysis, baseOptions) {
 
     // Construct parameters with intelligent, adaptive adjustments
     return {
-        // Enhance normalization to improve dynamic range
+        // Enhance normalization to improve dynamic range (convert to percentile 1-100)
         normalise: {
-            lower: isUnderexposed ? 0.01 : 0.03,
-            upper: isOverexposed ? 0.98 : 0.97
+            lower: isUnderexposed ? 1 : 3,
+            upper: isOverexposed ? 98 : 97
         },
 
         // Boost brightness for underexposed images
@@ -1653,6 +1653,23 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             } // Close the validation block
         }
 
+        // Validate all composites to ensure they're within canvas bounds
+        composites = composites.filter(comp => {
+            if (!comp || !comp.input) {
+                console.warn('Skipping invalid composite element');
+                return false;
+            }
+
+            // Ensure positioning is within bounds
+            if (comp.left < 0 || comp.top < 0) {
+                console.warn(`Adjusting composite position from (${comp.left}, ${comp.top}) to fit canvas`);
+                comp.left = Math.max(0, comp.left);
+                comp.top = Math.max(0, comp.top);
+            }
+
+            return true;
+        });
+
         // Create final image with optimizations for YouTube
         const finalImage = canvas
             .composite(composites)
@@ -1920,9 +1937,10 @@ async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay
                 y = Math.floor(canvasHeight / 2);
         }
 
-        // Ensure text stays within bounds
-        x = Math.max(10, Math.min(x, canvasWidth - 10));
-        y = Math.max(estimatedHeight, Math.min(y, canvasHeight - 10));
+        // Ensure text stays within bounds with additional safety margin
+        const safeMargin = 20;
+        x = Math.max(safeMargin, Math.min(x, canvasWidth - estimatedWidth - safeMargin));
+        y = Math.max(estimatedHeight + safeMargin, Math.min(y, canvasHeight - safeMargin));
 
         // Create SVG for text with effects
         let textSVG = '';
@@ -2015,10 +2033,17 @@ async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay
         if (smartBlend) {
             // Add a semi-transparent background box, strong shadow, and outline
             const bgPadding = 30;
-            const bgWidth = estimatedWidth + bgPadding * 2;
-            const bgHeight = estimatedHeight + bgPadding;
-            const bgX = x - bgPadding;
-            const bgY = y - estimatedHeight;
+            let bgWidth = estimatedWidth + bgPadding * 2;
+            let bgHeight = estimatedHeight + bgPadding;
+            let bgX = x - bgPadding;
+            let bgY = y - estimatedHeight;
+
+            // Ensure background box stays within canvas bounds
+            bgX = Math.max(0, Math.min(bgX, canvasWidth - bgWidth));
+            bgY = Math.max(0, Math.min(bgY, canvasHeight - bgHeight));
+            bgWidth = Math.min(bgWidth, canvasWidth - bgX);
+            bgHeight = Math.min(bgHeight, canvasHeight - bgY);
+
             textElement = `
                 <rect x="${bgX}" y="${bgY}" width="${bgWidth}" height="${bgHeight}"
                       fill="rgba(0,0,0,0.55)" rx="12" ry="12"/>
