@@ -8,6 +8,7 @@ This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, trave
 
 **🆕 Latest Updates (v3.0.0)**:
 - ✨ **Universal image support**: Create thumbnails with ANY layout mode regardless of image count - smart adaptation included!
+- 🖼️ **Text Behind Image** : Texts that automatically fits the thumbnail with beautiful fonts, colors, etc.
 - ⚡ **ENTER key shortcut**: Instant thumbnail creation from anywhere in the app
 - 🧠 **Enhanced AI analysis**: Improved image analysis for better automatic layout selection
 - 🔧 **Mac App Store ready**: Pre-built packages available for App Store submission
