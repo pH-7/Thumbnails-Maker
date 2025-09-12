@@ -255,10 +255,10 @@ function calculateEnhancementParams(analysis, baseOptions) {
 
     // Construct parameters with intelligent, adaptive adjustments
     return {
-        // Enhance normalization to improve dynamic range (convert to percentile 1-100)
+        // Enhance normalization to improve dynamic range
         normalise: {
-            lower: isUnderexposed ? 1 : 3,
-            upper: isOverexposed ? 98 : 97
+            lower: isUnderexposed ? 0.01 : 0.03,
+            upper: isOverexposed ? 0.98 : 0.97
         },
 
         // Boost brightness for underexposed images
