@@ -60,7 +60,7 @@ npm start
 - **No workflow interruptions**: "Create Thumbnail" button always available when you have at least 1 image
 - **Standard YouTube dimensions**: All thumbnails output at 1280×720 pixels
 
-### 🎨 **8 Different Grid Layouts**
+### 🎨 **Custom Grid Layouts**
 - **Linear layouts**: 1×2, 1×3, 2×1, 3×1 for side-by-side and stacked arrangements
 - **Grid layouts**: 2×2, 2×3, 3×2 for complex compositions with multiple subjects
 - **Single layout**: 1×1 for spotlight focus on one powerful image
