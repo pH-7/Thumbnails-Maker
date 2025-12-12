@@ -1211,12 +1211,26 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     const actualCellWidth = Math.max(100, Math.floor(Number(cellWidth - padding * 2) || 100));
                     const actualCellHeight = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
 
+                    // Resize first to ensure we have the correct base dimensions
+                    processedImage = processedImage
+                        .resize({
+                            width: Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
+                            height: Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
+                            fit: 'cover',
+                            position: 'center'
+                        });
+
+                    // Get actual dimensions after resize to ensure overlays match exactly
+                    const metadata = await processedImage.metadata();
+                    const safeWidth = metadata.width || actualCellWidth;
+                    const safeHeight = metadata.height || actualCellHeight;
+
                     // Add visual enhancements for thumbnails
                     processedImage = processedImage
                         // Apply subtle vignette
                         .composite([{
                             input: Buffer.from(`
-                                <svg width="${actualCellWidth}" height="${actualCellHeight}">
+                                <svg width="${safeWidth}" height="${safeHeight}">
                                     <defs>
                                         <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
                                             <stop offset="0%" stop-color="black" stop-opacity="0" />
@@ -1243,14 +1257,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             saturation: 1.1
                         });
 
-                    return await processedImage
-                        .resize({
-                            width: Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
-                            height: Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
-                            fit: 'cover',
-                            position: 'center'
-                        })
-                        .toBuffer();
+                    return await processedImage.toBuffer();
                 } catch (error) {
                     console.error(`Error processing image ${index}:`, error);
                     throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
@@ -1298,12 +1305,26 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
                             console.log(`Processing image ${index} with dimensions: ${pos.width}x${pos.height}`);
 
+                            // Resize first to ensure correct base dimensions
+                            processedImage = processedImage
+                                .resize({
+                                    width: Math.floor(pos.width),
+                                    height: Math.floor(pos.height),
+                                    fit: 'cover',
+                                    position: 'center'
+                                });
+
+                            // Get actual dimensions after resize to ensure overlays match exactly
+                            const metadata = await processedImage.metadata();
+                            const safeWidth = metadata.width || Math.floor(pos.width);
+                            const safeHeight = metadata.height || Math.floor(pos.height);
+
                             // Add visual enhancements for thumbnails
                             processedImage = processedImage
                                 // Apply subtle vignette
                                 .composite([{
                                     input: Buffer.from(`
-                                        <svg width="${pos.width}" height="${pos.height}">
+                                        <svg width="${safeWidth}" height="${safeHeight}">
                                             <defs>
                                                 <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
                                                     <stop offset="0%" stop-color="black" stop-opacity="0" />
@@ -1330,14 +1351,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                                     saturation: 1.1
                                 });
 
-                            return await processedImage
-                                .resize({
-                                    width: Math.max(100, Math.floor(Number(pos.width) || 100)),
-                                    height: Math.max(100, Math.floor(Number(pos.height) || 100)),
-                                    fit: 'cover',
-                                    position: 'center'
-                                })
-                                .toBuffer();
+                            return await processedImage.toBuffer();
                         }
                         return null;
                     } catch (error) {
@@ -1653,11 +1667,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             } // Close the validation block
         }
 
-        // Validate all composites to ensure they're within canvas bounds
-        composites = composites.filter(comp => {
+        // Validate all composites to ensure they're within canvas bounds and properly sized
+        composites = await Promise.all(composites.map(async (comp) => {
             if (!comp || !comp.input) {
                 console.warn('Skipping invalid composite element');
-                return false;
+                return null;
             }
 
             // Ensure positioning is within bounds
@@ -1667,8 +1681,41 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 comp.top = Math.max(0, comp.top);
             }
 
-            return true;
-        });
+            try {
+                // Check if input is a buffer and validate its dimensions
+                if (Buffer.isBuffer(comp.input)) {
+                    const metadata = await sharp(comp.input).metadata();
+
+                    // Calculate maximum allowed dimensions based on position
+                    const maxWidth = THUMBNAIL_WIDTH - comp.left;
+                    const maxHeight = THUMBNAIL_HEIGHT - comp.top;
+
+                    // If the composite element is larger than allowed, resize it
+                    if (metadata.width > maxWidth || metadata.height > maxHeight) {
+                        console.warn(`Composite element exceeds canvas bounds (${metadata.width}x${metadata.height} at ${comp.left},${comp.top}). Resizing to fit.`);
+
+                        const resizedBuffer = await sharp(comp.input)
+                            .resize({
+                                width: Math.min(metadata.width, maxWidth),
+                                height: Math.min(metadata.height, maxHeight),
+                                fit: 'inside',
+                                withoutEnlargement: true
+                            })
+                            .toBuffer();
+
+                        comp.input = resizedBuffer;
+                    }
+                }
+            } catch (error) {
+                console.error('Error validating composite element:', error);
+                // If we can't validate, keep the original but log the error
+            }
+
+            return comp;
+        }));
+
+        // Filter out any null elements
+        composites = composites.filter(comp => comp !== null);
 
         // Create final image with optimizations for YouTube
         const finalImage = canvas
