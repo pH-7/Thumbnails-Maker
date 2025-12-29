@@ -1201,10 +1201,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             selectedImages.map(async (imagePath, index) => {
                 try {
                     let imageBuffer = await fs.promises.readFile(imagePath);
-                    let processedImage = sharp(imageBuffer);
 
+                    // Apply enhancement if requested and convert to buffer
                     if (applyEnhance) {
-                        processedImage = await enhanceImage(imageBuffer, enhanceOptions);
+                        const enhancedSharp = await enhanceImage(imageBuffer, enhanceOptions);
+                        imageBuffer = await enhancedSharp.toBuffer();
                     }
 
                     // Calculate actual cell dimensions with padding and validate
@@ -1212,21 +1213,22 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     const actualCellHeight = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
 
                     // Resize first to ensure we have the correct base dimensions
-                    processedImage = processedImage
+                    const resizedBuffer = await sharp(imageBuffer)
                         .resize({
                             width: Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
                             height: Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
                             fit: 'cover',
                             position: 'center'
-                        });
+                        })
+                        .toBuffer();
 
-                    // Get actual dimensions after resize to ensure overlays match exactly
-                    const metadata = await processedImage.metadata();
-                    const safeWidth = metadata.width || actualCellWidth;
-                    const safeHeight = metadata.height || actualCellHeight;
+                    // Get actual dimensions from the resized buffer
+                    const metadata = await sharp(resizedBuffer).metadata();
+                    const safeWidth = metadata.width;
+                    const safeHeight = metadata.height;
 
                     // Add visual enhancements for thumbnails
-                    processedImage = processedImage
+                    const processedImage = sharp(resizedBuffer)
                         // Apply subtle vignette
                         .composite([{
                             input: Buffer.from(`
@@ -1288,10 +1290,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 selectedImages.map(async (imagePath, index) => {
                     try {
                         let imageBuffer = await fs.promises.readFile(imagePath);
-                        let processedImage = sharp(imageBuffer);
 
+                        // Apply enhancement if requested and convert to buffer
                         if (applyEnhance) {
-                            processedImage = await enhanceImage(imageBuffer, enhanceOptions);
+                            const enhancedSharp = await enhanceImage(imageBuffer, enhanceOptions);
+                            imageBuffer = await enhancedSharp.toBuffer();
                         }
 
                         const pos = positions[index];
@@ -1306,21 +1309,22 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             console.log(`Processing image ${index} with dimensions: ${pos.width}x${pos.height}`);
 
                             // Resize first to ensure correct base dimensions
-                            processedImage = processedImage
+                            const resizedBuffer = await sharp(imageBuffer)
                                 .resize({
                                     width: Math.floor(pos.width),
                                     height: Math.floor(pos.height),
                                     fit: 'cover',
                                     position: 'center'
-                                });
+                                })
+                                .toBuffer();
 
-                            // Get actual dimensions after resize to ensure overlays match exactly
-                            const metadata = await processedImage.metadata();
-                            const safeWidth = metadata.width || Math.floor(pos.width);
-                            const safeHeight = metadata.height || Math.floor(pos.height);
+                            // Get actual dimensions from the resized buffer
+                            const metadata = await sharp(resizedBuffer).metadata();
+                            const safeWidth = metadata.width;
+                            const safeHeight = metadata.height;
 
                             // Add visual enhancements for thumbnails
-                            processedImage = processedImage
+                            const processedImage = sharp(resizedBuffer)
                                 // Apply subtle vignette
                                 .composite([{
                                     input: Buffer.from(`
