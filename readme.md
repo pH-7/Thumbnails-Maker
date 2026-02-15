@@ -36,8 +36,8 @@ This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, trave
 ### Quick Start
 ```bash
 # Clone the repository
-git clone https://github.com/pH-7/youtube-thumbnail-creator.git
-cd youtube-thumbnail-creator
+git clone https://github.com/pH-7/Thumbnails-Maker.git
+cd Thumbnails-Maker
 
 # Install dependencies (includes Sharp.js image processing)
 npm install
@@ -184,8 +184,8 @@ Time: ~0.2s, estimated ~0.1s per test
 ### Getting Started
 ```bash
 # Clone and setup
-git clone https://github.com/pH-7/youtube-thumbnail-creator.git
-cd youtube-thumbnail-creator
+git clone https://github.com/pH-7/Thumbnails-Maker.git
+cd Thumbnails-Maker
 npm install
 
 # Start development
