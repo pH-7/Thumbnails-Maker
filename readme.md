@@ -186,10 +186,10 @@ Time: ~0.2s, estimated ~0.1s per test
 # Clone and setup
 git clone https://github.com/pH-7/Thumbnails-Maker.git
 cd Thumbnails-Maker
-npm install
+npm install # yarn install
 
 # Start development
-npm start
+npm start # yarn start
 
 # Run tests
 npm test
