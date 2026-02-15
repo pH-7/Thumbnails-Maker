@@ -1816,11 +1816,21 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     </svg>
                 `;
                     }
-                    composites.push({
+
+                    // Insert text at correct layer position
+                    const textComposite = {
                         input: Buffer.from(svgText, 'utf8'),
                         left: 0,
                         top: 0
-                    });
+                    };
+
+                    if (layer === 'watermark' || layer === 'behind') {
+                        // Insert at the beginning so text appears BEHIND images
+                        composites.unshift(textComposite);
+                    } else {
+                        // Add at the end so text appears OVER images
+                        composites.push(textComposite);
+                    }
                 } catch (svgError) {
                     console.error('Error creating text overlay SVG:', svgError);
                     console.log('Skipping text overlay due to SVG error');
