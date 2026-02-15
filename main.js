@@ -1440,11 +1440,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         // --- Text Overlay (if enabled) ---
         if (textOverlay && textOverlay.enabled && textOverlay.text) {
-            // Watermark logic: replace 'behind' with 'watermark' and apply faint overlay
-            let layer = textOverlay.layer;
-            if (layer === 'behind') {
-                layer = 'watermark';
-            }
+            // Preserve original layer so we know whether to truly place text behind images
+            const originalLayer = textOverlay.layer || 'overlay';
+            // Watermark logic: treat legacy 'behind' as watermark styling, but remember intent
+            let layer = originalLayer === 'behind' ? 'watermark' : originalLayer;
             // SVG text overlay generation
             const svgW = THUMBNAIL_WIDTH;
             const svgH = THUMBNAIL_HEIGHT;
@@ -1824,11 +1823,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         top: 0
                     };
 
-                    if (layer === 'watermark' || layer === 'behind') {
-                        // Insert at the beginning so text appears BEHIND images
+                    if (originalLayer === 'behind') {
+                        // Legacy "behind" option: place text underneath images
                         composites.unshift(textComposite);
                     } else {
-                        // Add at the end so text appears OVER images
+                        // Watermark + overlay + smart blend handled as regular overlays (with faint opacity for watermark)
                         composites.push(textComposite);
                     }
                 } catch (svgError) {
