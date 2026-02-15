@@ -1385,7 +1385,8 @@
           stroke: parseFloat(elements.textStroke.value) || 0,
           letterSpacing: parseFloat(elements.textLetterSpacing.value) || 0,
           strokeColor: elements.textStrokeColor.value,
-          advancedEnabled: elements.advancedTextOptions.checked
+          advancedEnabled: elements.advancedTextOptions.checked,
+          autoColorActive: autoColorActive
         },
         // Add timestamp for reference
         savedAt: new Date().toISOString()
@@ -1481,13 +1482,24 @@
           elements.textColor.value = textOverlay.color || '#ffffff';
           elements.textOpacity.value = textOverlay.opacity || 0.9;
           elements.textPosition.value = textOverlay.position || 'center';
-          elements.textEffect.value = textOverlay.effect || 'shadow';
+          elements.textEffect.value = textOverlay.effect || 'auto';
           elements.textLayer.value = textOverlay.layer || 'overlay';
           elements.textRotation.value = textOverlay.rotation || 0;
           elements.textStroke.value = textOverlay.stroke || 0;
           elements.textLetterSpacing.value = textOverlay.letterSpacing || 0;
           elements.textStrokeColor.value = textOverlay.strokeColor || '#000000';
           elements.advancedTextOptions.checked = textOverlay.advancedEnabled || false;
+
+          // Restore auto color state (default to true if not saved)
+          if (textOverlay.autoColorActive !== undefined ? textOverlay.autoColorActive : true) {
+            autoColorActive = true;
+            elements.autoColorBtn.classList.add('active');
+            elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
+          } else {
+            autoColorActive = false;
+            elements.autoColorBtn.classList.remove('active');
+            elements.autoColorBtn.textContent = '🎨 Auto Color';
+          }
 
           // Update display values
           elements.textSizeValue.textContent = `${textOverlay.size || 60}px`;
@@ -1662,21 +1674,288 @@
       updateDelimiterPreview();
     }
 
-    // Get contrasting color for text based on background
+    // Get contrasting color for text based on background color
     function getContrastingColor(hexColor) {
-      // Remove the # if it exists
-      hexColor = hexColor.replace('#', '');
-
-      // Convert to RGB
-      const r = parseInt(hexColor.substring(0, 2), 16);
-      const g = parseInt(hexColor.substring(2, 4), 16);
-      const b = parseInt(hexColor.substring(4, 6), 16);
-
-      // Calculate luminance - simple formula
+      hexColor = (hexColor || '#000000').replace('#', '');
+      const r = parseInt(hexColor.substring(0, 2), 16) || 0;
+      const g = parseInt(hexColor.substring(2, 4), 16) || 0;
+      const b = parseInt(hexColor.substring(4, 6), 16) || 0;
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-      // Return black or white based on luminance
       return luminance > 0.5 ? '#000000' : '#ffffff';
+    }
+
+    // Smart color picker: choose from a curated palette for maximum readability & style
+    function getSmartTextColor(avgR, avgG, avgB, dominantHue) {
+      const luminance = (0.299 * avgR + 0.587 * avgG + 0.114 * avgB) / 255;
+
+      // Curated palette: [color, minLum, maxLum, label]
+      // Colors chosen for YouTube thumbnail readability
+      const palette = [
+        { color: '#FFFFFF', minLum: 0, maxLum: 0.45, label: 'white' },
+        { color: '#F5F5F5', minLum: 0.35, maxLum: 0.50, label: 'off-white' },
+        { color: '#FFD700', minLum: 0.10, maxLum: 0.40, label: 'gold' },
+        { color: '#00E5FF', minLum: 0.05, maxLum: 0.35, label: 'cyan' },
+        { color: '#FFEB3B', minLum: 0.0, maxLum: 0.30, label: 'yellow' },
+        { color: '#1A1A1A', minLum: 0.55, maxLum: 1.0, label: 'near-black' },
+        { color: '#000000', minLum: 0.60, maxLum: 1.0, label: 'black' },
+        { color: '#212121', minLum: 0.50, maxLum: 0.70, label: 'dark-gray' },
+        { color: '#FF1744', minLum: 0.55, maxLum: 0.85, label: 'red' },
+        { color: '#1B5E20', minLum: 0.65, maxLum: 1.0, label: 'dark-green' },
+      ];
+
+      // Calculate WCAG contrast ratio for each palette color against the background
+      function sRGBtoLinear(c) {
+        c = c / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      }
+      function relativeLuminance(r, g, b) {
+        return 0.2126 * sRGBtoLinear(r) + 0.7152 * sRGBtoLinear(g) + 0.0722 * sRGBtoLinear(b);
+      }
+      function contrastRatio(l1, l2) {
+        const lighter = Math.max(l1, l2);
+        const darker = Math.min(l1, l2);
+        return (lighter + 0.05) / (darker + 0.05);
+      }
+
+      const bgLum = relativeLuminance(avgR, avgG, avgB);
+
+      let bestColor = '#FFFFFF';
+      let bestScore = 0;
+
+      palette.forEach(entry => {
+        // Check luminance range suitability
+        if (luminance < entry.minLum || luminance > entry.maxLum) return;
+
+        const hex = entry.color.replace('#', '');
+        const cr = parseInt(hex.substring(0, 2), 16);
+        const cg = parseInt(hex.substring(2, 4), 16);
+        const cb = parseInt(hex.substring(4, 6), 16);
+        const cLum = relativeLuminance(cr, cg, cb);
+        const ratio = contrastRatio(bgLum, cLum);
+
+        // Score: prioritize contrast ratio, with bonus for white/black (classic YouTube style)
+        let score = ratio;
+        if (entry.label === 'white' || entry.label === 'near-black' || entry.label === 'black') {
+          score *= 1.3; // Prefer classic high-contrast choices
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestColor = entry.color;
+        }
+      });
+
+      // Fallback: if no palette color achieves good contrast, use pure white or black
+      if (bestScore < 3.0) {
+        bestColor = luminance > 0.5 ? '#000000' : '#FFFFFF';
+      }
+
+      return bestColor;
+    }
+
+    // Analyze image brightness in a specific region using canvas
+    // Returns { avgR, avgG, avgB, luminance } or null if no images loaded
+    function analyzeImageRegion(position) {
+      const loadedImages = [];
+      elements.imagePreviews.forEach((preview, index) => {
+        if (selectedImagePaths[index]) {
+          const img = preview.querySelector('img');
+          if (img && img.naturalWidth > 0) {
+            loadedImages.push(img);
+          }
+        }
+      });
+
+      if (loadedImages.length === 0) return null;
+
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Use a small sample size for performance
+        const sampleW = 320;
+        const sampleH = 180;
+        canvas.width = sampleW;
+        canvas.height = sampleH;
+
+        // Draw all images side by side (approximating the thumbnail layout)
+        const imgWidth = Math.floor(sampleW / loadedImages.length);
+        loadedImages.forEach((img, i) => {
+          try {
+            ctx.drawImage(img, i * imgWidth, 0, imgWidth, sampleH);
+          } catch (e) { /* cross-origin or broken image */ }
+        });
+
+        // Determine the sample region based on text position
+        let regionX = 0, regionY = 0, regionW = sampleW, regionH = sampleH;
+        const margin = 10;
+        const bandH = Math.floor(sampleH * 0.35);
+        const bandW = Math.floor(sampleW * 0.35);
+
+        switch (position) {
+          case 'top':
+            regionY = margin; regionH = bandH; break;
+          case 'bottom':
+            regionY = sampleH - bandH - margin; regionH = bandH; break;
+          case 'left':
+            regionX = margin; regionW = bandW; break;
+          case 'right':
+            regionX = sampleW - bandW - margin; regionW = bandW; break;
+          case 'top-left':
+            regionX = margin; regionY = margin; regionW = bandW; regionH = bandH; break;
+          case 'top-right':
+            regionX = sampleW - bandW - margin; regionY = margin; regionW = bandW; regionH = bandH; break;
+          case 'bottom-left':
+            regionX = margin; regionY = sampleH - bandH - margin; regionW = bandW; regionH = bandH; break;
+          case 'bottom-right':
+            regionX = sampleW - bandW - margin; regionY = sampleH - bandH - margin; regionW = bandW; regionH = bandH; break;
+          default: // center
+            regionX = Math.floor(sampleW * 0.2);
+            regionY = Math.floor(sampleH * 0.2);
+            regionW = Math.floor(sampleW * 0.6);
+            regionH = Math.floor(sampleH * 0.6);
+        }
+
+        // Clamp to canvas bounds
+        regionX = Math.max(0, Math.min(regionX, sampleW - 1));
+        regionY = Math.max(0, Math.min(regionY, sampleH - 1));
+        regionW = Math.max(1, Math.min(regionW, sampleW - regionX));
+        regionH = Math.max(1, Math.min(regionH, sampleH - regionY));
+
+        const imageData = ctx.getImageData(regionX, regionY, regionW, regionH);
+        const data = imageData.data;
+        let totalR = 0, totalG = 0, totalB = 0;
+        const pixelCount = data.length / 4;
+
+        for (let i = 0; i < data.length; i += 4) {
+          totalR += data[i];
+          totalG += data[i + 1];
+          totalB += data[i + 2];
+        }
+
+        const avgR = Math.round(totalR / pixelCount);
+        const avgG = Math.round(totalG / pixelCount);
+        const avgB = Math.round(totalB / pixelCount);
+        const luminance = (0.299 * avgR + 0.587 * avgG + 0.114 * avgB) / 255;
+
+        return { avgR, avgG, avgB, luminance };
+      } catch (e) {
+        console.warn('Image analysis failed:', e);
+        return null;
+      }
+    }
+
+    // Smart text effect picker: analyze image region to choose the best effect for readability
+    // Considers luminance, contrast (stddev), and text color to pick the ideal effect
+    function getSmartTextEffect(analysis, textColor) {
+      if (!analysis) return 'shadow'; // safe default
+
+      const { avgR, avgG, avgB, luminance } = analysis;
+
+      // Calculate contrast variance (how "busy" the region is)
+      // Re-sample from the canvas to get standard deviation
+      let stdDev = 0;
+      try {
+        const position = elements.textPosition ? elements.textPosition.value : 'center';
+        const loadedImages = [];
+        elements.imagePreviews.forEach((preview, index) => {
+          if (selectedImagePaths[index]) {
+            const img = preview.querySelector('img');
+            if (img && img.naturalWidth > 0) loadedImages.push(img);
+          }
+        });
+
+        if (loadedImages.length > 0) {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const sW = 320, sH = 180;
+          canvas.width = sW; canvas.height = sH;
+          const imgW = Math.floor(sW / loadedImages.length);
+          loadedImages.forEach((img, i) => {
+            try { ctx.drawImage(img, i * imgW, 0, imgW, sH); } catch (e) {}
+          });
+
+          // Sample the text region
+          let rX = 0, rY = 0, rW = sW, rH = sH;
+          const m = 10, bH = Math.floor(sH * 0.35), bW = Math.floor(sW * 0.35);
+          switch (position) {
+            case 'top': rY = m; rH = bH; break;
+            case 'bottom': rY = sH - bH - m; rH = bH; break;
+            case 'left': rX = m; rW = bW; break;
+            case 'right': rX = sW - bW - m; rW = bW; break;
+            case 'top-left': rX = m; rY = m; rW = bW; rH = bH; break;
+            case 'top-right': rX = sW - bW - m; rY = m; rW = bW; rH = bH; break;
+            case 'bottom-left': rX = m; rY = sH - bH - m; rW = bW; rH = bH; break;
+            case 'bottom-right': rX = sW - bW - m; rY = sH - bH - m; rW = bW; rH = bH; break;
+            default: rX = Math.floor(sW * 0.2); rY = Math.floor(sH * 0.2); rW = Math.floor(sW * 0.6); rH = Math.floor(sH * 0.6);
+          }
+          rX = Math.max(0, rX); rY = Math.max(0, rY);
+          rW = Math.max(1, Math.min(rW, sW - rX));
+          rH = Math.max(1, Math.min(rH, sH - rY));
+
+          const data = ctx.getImageData(rX, rY, rW, rH).data;
+          const count = data.length / 4;
+          let sumSq = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const pixLum = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+            const diff = pixLum - luminance;
+            sumSq += diff * diff;
+          }
+          stdDev = Math.sqrt(sumSq / count);
+        }
+      } catch (e) {
+        stdDev = 0.15; // moderate default
+      }
+
+      // Determine if text is light or dark
+      const tc = (textColor || '#ffffff').replace('#', '');
+      const tR = parseInt(tc.substring(0, 2), 16) || 255;
+      const tG = parseInt(tc.substring(2, 4), 16) || 255;
+      const tB = parseInt(tc.substring(4, 6), 16) || 255;
+      const textLum = (0.299 * tR + 0.587 * tG + 0.114 * tB) / 255;
+      const isLightText = textLum > 0.5;
+
+      // Decision logic:
+      // High contrast/busy background → background box (text needs isolation)
+      // Dark image + light text → glow or shadow
+      // Bright image + dark text → outline or shadow
+      // Medium complexity → shadow (universally safe)
+      // Very uniform background → none or shadow
+
+      const isBusy = stdDev > 0.22;       // high variance = complex/busy image
+      const isModerate = stdDev > 0.12;    // moderate variance
+      const isDark = luminance < 0.35;
+      const isBright = luminance > 0.65;
+      const isMid = !isDark && !isBright;
+
+      let chosenEffect;
+
+      if (isBusy) {
+        // Busy backgrounds need strong text isolation
+        if (isDark && isLightText) {
+          chosenEffect = 'glow'; // glow pops on dark busy backgrounds
+        } else {
+          chosenEffect = 'background'; // background box for maximum readability on busy images
+        }
+      } else if (isDark) {
+        if (isLightText) {
+          chosenEffect = isModerate ? 'glow' : 'shadow'; // glow for moderate, shadow for uniform dark
+        } else {
+          chosenEffect = 'outline'; // dark text on dark bg needs outline
+        }
+      } else if (isBright) {
+        if (!isLightText) {
+          chosenEffect = isModerate ? 'shadow' : 'outline'; // dark text on bright bg
+        } else {
+          chosenEffect = 'background'; // light text on bright bg needs background box
+        }
+      } else {
+        // Mid-range luminance
+        chosenEffect = isModerate ? 'shadow' : 'shadow'; // shadow is the safe universal choice
+      }
+
+      console.log(`Smart Effect: lum=${luminance.toFixed(2)} stdDev=${stdDev.toFixed(3)} textLum=${textLum.toFixed(2)} busy=${isBusy} → ${chosenEffect}`);
+      return chosenEffect;
     }
 
     // Event Listeners
@@ -1763,7 +2042,7 @@
       elements.textColor.value = '#ffffff';
       elements.textOpacity.value = 0.9;
       elements.textPosition.value = 'center';
-      elements.textEffect.value = 'shadow';
+      elements.textEffect.value = 'auto';
       elements.textLayer.value = 'overlay';
       elements.textSizeValue.textContent = '60px';
       elements.textOpacityValue.textContent = '90%';
@@ -1779,6 +2058,9 @@
       elements.textStrokeValue.textContent = '0px';
       elements.textLetterSpacingValue.textContent = '0px';
       elements.advancedTextOptionsPanel.style.display = 'none';
+
+      // Reset auto color to default ON state
+      activateAutoColor();
 
       updateDelimiterPreviewWithAnimation();
       updateEnhancePreviewSelection(DEFAULT_VALUES.ENHANCE_LEVEL);
@@ -1885,6 +2167,12 @@
           const img = document.createElement('img');
           img.src = `file://${selectedImagePaths[index]}`;
           img.draggable = false;
+          img.onload = () => {
+            // Re-trigger auto color once image pixels are available for analysis
+            if (autoColorActive) {
+              applyAutoColor();
+            }
+          };
           preview.appendChild(img);
 
           const removeBtn = document.createElement('button');
@@ -2219,6 +2507,8 @@
       setTimeout(() => {
         initializeAppWithFavorites();
         updateFavoriteButtonStates();
+        // Activate auto color by default on page load
+        activateAutoColor();
       }, 100);
     });
 
@@ -2322,37 +2612,34 @@
       }
     });
 
+    let autoColorActive = true;
+    let settingAutoColor = false; // flag to prevent input handler from disabling auto color on programmatic changes
+
     function autoApplyDesignText() {
       const text = elements.overlayText.value.toLowerCase();
       const delimiterColor = elements.delimiterColorInput.value;
 
-      // Auto select font based on text content
+      // Auto select font and size based on text content
       if (text.includes('gaming') || text.includes('play') || text.includes('epic')) {
         elements.textFont.value = 'Bangers';
-        elements.textEffect.value = 'glow';
         elements.textSize.value = 80;
       } else if (text.includes('tutorial') || text.includes('how') || text.includes('guide')) {
         elements.textFont.value = 'Roboto Condensed';
-        elements.textEffect.value = 'background';
         elements.textSize.value = 65;
       } else if (text.includes('news') || text.includes('update') || text.includes('breaking')) {
         elements.textFont.value = 'Impact';
-        elements.textEffect.value = 'shadow';
         elements.textSize.value = 75;
       } else if (text.includes('review') || text.includes('test') || text.includes('vs')) {
         elements.textFont.value = 'Helvetica Neue';
-        elements.textEffect.value = 'outline';
         elements.textSize.value = 70;
       } else {
         // Default to bold impact style
         elements.textFont.value = 'Arial Black';
-        elements.textEffect.value = 'shadow';
         elements.textSize.value = 75;
       }
 
-      // Auto color based on delimiter color
-      const autoColor = getContrastingColor(delimiterColor);
-      elements.textColor.value = autoColor;
+      // Set effect to Auto Perfect Effect — the smart analysis will resolve it at generation time
+      elements.textEffect.value = 'auto';
 
       // Auto position - avoid center if we have multiple images
       const layoutMode = elements.layoutMode.value;
@@ -2362,9 +2649,27 @@
         elements.textPosition.value = 'top';
       }
 
+      // Auto color: use smart image analysis if images are loaded, else fallback to delimiter
+      settingAutoColor = true;
+      const position = elements.textPosition.value;
+      const imgAnalysis = analyzeImageRegion(position);
+      let autoColor;
+      if (imgAnalysis) {
+        autoColor = getSmartTextColor(imgAnalysis.avgR, imgAnalysis.avgG, imgAnalysis.avgB);
+      } else {
+        autoColor = getContrastingColor(delimiterColor);
+      }
+      elements.textColor.value = autoColor;
+
       // Update display values
       elements.textSize.dispatchEvent(new Event('input'));
       elements.textColor.dispatchEvent(new Event('input'));
+      settingAutoColor = false;
+
+      // Ensure auto color stays active after auto design
+      autoColorActive = true;
+      elements.autoColorBtn.classList.add('active');
+      elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
 
       // Show feedback
       elements.statusEl.textContent = '✨ Auto design applied! Font, color, and effects optimized for your content.';
@@ -2373,41 +2678,78 @@
         elements.statusEl.style.color = '';
       }, 3000);
     }
-    let autoColorActive = false;
-    elements.autoColorBtn.addEventListener('click', () => {
+    // Helper to programmatically apply auto color without disabling it
+    // Uses actual image analysis when images are loaded, falls back to delimiter color
+    function applyAutoColor() {
+      settingAutoColor = true;
+      const position = elements.textPosition ? elements.textPosition.value : 'center';
+      const analysis = analyzeImageRegion(position);
+
+      let bestColor;
+      if (analysis) {
+        // Use smart color picker based on actual image pixel data at the text region
+        bestColor = getSmartTextColor(analysis.avgR, analysis.avgG, analysis.avgB);
+        console.log(`Auto Color: image region analysis (pos=${position}) → avg(${analysis.avgR},${analysis.avgG},${analysis.avgB}) lum=${analysis.luminance.toFixed(2)} → ${bestColor}`);
+      } else {
+        // Fallback: use delimiter color when no images are loaded yet
+        bestColor = getContrastingColor(elements.delimiterColorInput.value);
+        console.log(`Auto Color: no images loaded, using delimiter fallback → ${bestColor}`);
+      }
+
+      elements.textColor.value = bestColor;
+      elements.textColor.dispatchEvent(new Event('input'));
+      settingAutoColor = false;
+    }
+
+    // Helper to activate auto color mode (set state + UI)
+    function activateAutoColor() {
       autoColorActive = true;
       elements.autoColorBtn.classList.add('active');
-      let autoColor = getContrastingColor(elements.delimiterColorInput.value);
-      elements.textColor.value = autoColor;
-      elements.textColor.dispatchEvent(new Event('input'));
-      elements.autoColorBtn.textContent = '✔️ Auto Color (Active)';
+      elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
+      applyAutoColor();
+    }
 
-      // Show success feedback briefly
-      setTimeout(() => {
-        if (autoColorActive) {
-          elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
-        }
-      }, 1200);
+    // Set initial button state
+    elements.autoColorBtn.classList.add('active');
+    elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
+
+    elements.autoColorBtn.addEventListener('click', () => {
+      if (autoColorActive) {
+        // Toggle off
+        autoColorActive = false;
+        elements.autoColorBtn.classList.remove('active');
+        elements.autoColorBtn.textContent = '🎨 Auto Color';
+      } else {
+        // Toggle on
+        activateAutoColor();
+      }
     });
 
     // Update auto color if delimiter color changes and autoColorActive
     elements.delimiterColorInput.addEventListener('input', () => {
       updateDelimiterPreview();
       if (autoColorActive) {
-        let autoColor = getContrastingColor(elements.delimiterColorInput.value);
-        elements.textColor.value = autoColor;
-        elements.textColor.dispatchEvent(new Event('input'));
+        applyAutoColor();
       }
     });
 
     // If user changes textColor manually, disable auto color
     elements.textColor.addEventListener('input', () => {
-      if (autoColorActive) {
+      if (autoColorActive && !settingAutoColor) {
         autoColorActive = false;
         elements.autoColorBtn.classList.remove('active');
         elements.autoColorBtn.textContent = '🎨 Auto Color';
       }
     });
+
+    // Re-trigger auto color when text position changes (different image regions have different brightness)
+    if (elements.textPosition) {
+      elements.textPosition.addEventListener('change', () => {
+        if (autoColorActive) {
+          applyAutoColor();
+        }
+      });
+    }
 
     // --- Replace "Behind Image" with Watermark/Smart Blend ---
     // Update textLayer select options
@@ -2431,6 +2773,16 @@
       const strokeColor = elements.textStrokeColor.value || '#000000';
       // Auto color sticky
       const autoColorActive = elements.autoColorBtn.classList.contains('active');
+      // Resolve 'auto' effect using image analysis
+      let effectValue = elements.textEffect.value;
+      const isAutoEffect = effectValue === 'auto';
+      if (isAutoEffect) {
+        const position = elements.textPosition.value;
+        const imgAnalysis = analyzeImageRegion(position);
+        const textColorVal = elements.textColor.value;
+        effectValue = getSmartTextEffect(imgAnalysis, textColorVal);
+      }
+
       return {
         enabled: true,
         text: elements.overlayText.value,
@@ -2439,7 +2791,8 @@
         color: elements.textColor.value,
         opacity: parseFloat(elements.textOpacity.value) || 0.9,
         position: elements.textPosition.value,
-        effect: elements.textEffect.value,
+        effect: effectValue,
+        isAutoEffect: isAutoEffect,
         layer: elements.textLayer.value === 'behind' ? 'watermark' : elements.textLayer.value,
         preset: preset,
         rotation,

@@ -1450,16 +1450,173 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const svgH = THUMBNAIL_HEIGHT;
             const fontSize = textOverlay.size || 60;
             const fontFamily = textOverlay.font || 'Arial Black';
-            const fillColor = textOverlay.color || '#ffffff';
+            let fillColor = textOverlay.color || '#ffffff';
             const opacity = typeof textOverlay.opacity === 'number' ? textOverlay.opacity : 0.9;
             const rotation = textOverlay.rotation || 0;
             const stroke = textOverlay.stroke || 0;
             const strokeColor = textOverlay.strokeColor || '#000000';
             const letterSpacing = textOverlay.letterSpacing || 0;
-            const effect = textOverlay.effect || 'shadow';
-            // Style preset and auto color
+            let effect = textOverlay.effect || 'shadow';
+            // Style preset and auto flags
             const preset = textOverlay.preset || null;
-            const autoColor = textOverlay.autoColor || false;
+            const isAutoColor = textOverlay.autoColorActive || textOverlay.autoColor || false;
+            const isAutoEffect = textOverlay.isAutoEffect || effect === 'auto';
+
+            // --- Backend Auto Analysis: analyze composed image at text region ---
+            // Shared analysis for both auto-color and auto-effect
+            if (isAutoColor || isAutoEffect) {
+                try {
+                    const preTextComposites = composites.filter(c => c !== null);
+                    const tempBuffer = await sharp({
+                        create: {
+                            width: THUMBNAIL_WIDTH,
+                            height: THUMBNAIL_HEIGHT,
+                            channels: 4,
+                            background: backgroundColor
+                        }
+                    }).composite(preTextComposites).raw().toBuffer();
+
+                    // Determine sample region based on text position
+                    const pos = textOverlay.position || 'center';
+                    const W = THUMBNAIL_WIDTH, H = THUMBNAIL_HEIGHT;
+                    let rx = 0, ry = 0, rw = W, rh = H;
+                    const margin = Math.floor(W * 0.03);
+                    const bandH = Math.floor(H * 0.35);
+                    const bandW = Math.floor(W * 0.35);
+
+                    switch (pos) {
+                        case 'top': ry = margin; rh = bandH; break;
+                        case 'bottom': ry = H - bandH - margin; rh = bandH; break;
+                        case 'left': rx = margin; rw = bandW; break;
+                        case 'right': rx = W - bandW - margin; rw = bandW; break;
+                        case 'top-left': rx = margin; ry = margin; rw = bandW; rh = bandH; break;
+                        case 'top-right': rx = W - bandW - margin; ry = margin; rw = bandW; rh = bandH; break;
+                        case 'bottom-left': rx = margin; ry = H - bandH - margin; rw = bandW; rh = bandH; break;
+                        case 'bottom-right': rx = W - bandW - margin; ry = H - bandH - margin; rw = bandW; rh = bandH; break;
+                        default:
+                            rx = Math.floor(W * 0.2); ry = Math.floor(H * 0.2);
+                            rw = Math.floor(W * 0.6); rh = Math.floor(H * 0.6);
+                    }
+
+                    rx = Math.max(0, Math.min(rx, W - 1));
+                    ry = Math.max(0, Math.min(ry, H - 1));
+                    rw = Math.max(1, Math.min(rw, W - rx));
+                    rh = Math.max(1, Math.min(rh, H - ry));
+
+                    // Sample average color + stddev from the region (raw RGBA buffer)
+                    let totalR = 0, totalG = 0, totalB = 0, count = 0;
+                    const lumSamples = [];
+                    for (let row = ry; row < ry + rh; row += 4) {
+                        for (let col = rx; col < rx + rw; col += 4) {
+                            const idx = (row * W + col) * 4;
+                            totalR += tempBuffer[idx];
+                            totalG += tempBuffer[idx + 1];
+                            totalB += tempBuffer[idx + 2];
+                            lumSamples.push((0.299 * tempBuffer[idx] + 0.587 * tempBuffer[idx + 1] + 0.114 * tempBuffer[idx + 2]) / 255);
+                            count++;
+                        }
+                    }
+
+                    if (count > 0) {
+                        const avgR = Math.round(totalR / count);
+                        const avgG = Math.round(totalG / count);
+                        const avgB = Math.round(totalB / count);
+                        const luminance = (0.299 * avgR + 0.587 * avgG + 0.114 * avgB) / 255;
+
+                        // --- Auto Color ---
+                        if (isAutoColor) {
+                            const sRGBtoLinear = (c) => {
+                                c = c / 255;
+                                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+                            };
+                            const relLum = (r, g, b) => 0.2126 * sRGBtoLinear(r) + 0.7152 * sRGBtoLinear(g) + 0.0722 * sRGBtoLinear(b);
+                            const cRatio = (l1, l2) => (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+
+                            const bgLum = relLum(avgR, avgG, avgB);
+                            const palette = [
+                                { color: '#FFFFFF', minL: 0, maxL: 0.45 },
+                                { color: '#F5F5F5', minL: 0.35, maxL: 0.50 },
+                                { color: '#FFD700', minL: 0.10, maxL: 0.40 },
+                                { color: '#00E5FF', minL: 0.05, maxL: 0.35 },
+                                { color: '#FFEB3B', minL: 0.0, maxL: 0.30 },
+                                { color: '#1A1A1A', minL: 0.55, maxL: 1.0 },
+                                { color: '#000000', minL: 0.60, maxL: 1.0 },
+                                { color: '#212121', minL: 0.50, maxL: 0.70 },
+                                { color: '#FF1744', minL: 0.55, maxL: 0.85 },
+                                { color: '#1B5E20', minL: 0.65, maxL: 1.0 },
+                            ];
+
+                            let bestColor = '#FFFFFF', bestScore = 0;
+                            palette.forEach(entry => {
+                                if (luminance < entry.minL || luminance > entry.maxL) return;
+                                const hex = entry.color.replace('#', '');
+                                const cr = parseInt(hex.substring(0, 2), 16);
+                                const cg = parseInt(hex.substring(2, 4), 16);
+                                const cb = parseInt(hex.substring(4, 6), 16);
+                                const cLum = relLum(cr, cg, cb);
+                                let score = cRatio(bgLum, cLum);
+                                if (entry.color === '#FFFFFF' || entry.color === '#1A1A1A' || entry.color === '#000000') {
+                                    score *= 1.3;
+                                }
+                                if (score > bestScore) { bestScore = score; bestColor = entry.color; }
+                            });
+
+                            if (bestScore < 3.0) {
+                                bestColor = luminance > 0.5 ? '#000000' : '#FFFFFF';
+                            }
+
+                            fillColor = bestColor;
+                            console.log(`Backend Auto Color: region avg(${avgR},${avgG},${avgB}) lum=${luminance.toFixed(2)} → ${fillColor} (contrast=${bestScore.toFixed(1)})`);
+                        }
+
+                        // --- Auto Effect ---
+                        if (isAutoEffect) {
+                            // Calculate stddev of luminance samples (measures how "busy" the region is)
+                            let sumSq = 0;
+                            for (let i = 0; i < lumSamples.length; i++) {
+                                const diff = lumSamples[i] - luminance;
+                                sumSq += diff * diff;
+                            }
+                            const stdDev = Math.sqrt(sumSq / lumSamples.length);
+
+                            // Determine text luminance
+                            const tc = (fillColor || '#ffffff').replace('#', '');
+                            const tR = parseInt(tc.substring(0, 2), 16) || 255;
+                            const tG = parseInt(tc.substring(2, 4), 16) || 255;
+                            const tB = parseInt(tc.substring(4, 6), 16) || 255;
+                            const textLum = (0.299 * tR + 0.587 * tG + 0.114 * tB) / 255;
+                            const isLightText = textLum > 0.5;
+
+                            const isBusy = stdDev > 0.22;
+                            const isModerate = stdDev > 0.12;
+                            const isDark = luminance < 0.35;
+                            const isBright = luminance > 0.65;
+
+                            if (isBusy) {
+                                effect = (isDark && isLightText) ? 'glow' : 'background';
+                            } else if (isDark) {
+                                if (isLightText) {
+                                    effect = isModerate ? 'glow' : 'shadow';
+                                } else {
+                                    effect = 'outline';
+                                }
+                            } else if (isBright) {
+                                if (!isLightText) {
+                                    effect = isModerate ? 'shadow' : 'outline';
+                                } else {
+                                    effect = 'background';
+                                }
+                            } else {
+                                effect = 'shadow';
+                            }
+
+                            console.log(`Backend Auto Effect: lum=${luminance.toFixed(2)} stdDev=${stdDev.toFixed(3)} textLum=${textLum.toFixed(2)} busy=${isBusy} → ${effect}`);
+                        }
+                    }
+                } catch (analysisError) {
+                    console.warn('Backend auto analysis failed, using frontend values:', analysisError.message);
+                }
+            }
 
             // Properly escape text content for XML/SVG
             const escapeXML = (text) => {
