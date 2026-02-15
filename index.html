@@ -2449,7 +2449,9 @@
     }
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', bootWithFavorites);
+      document.addEventListener('DOMContentLoaded', () => {
+        bootWithFavorites();
+      }, { once: true });
     } else {
       bootWithFavorites();
     }
