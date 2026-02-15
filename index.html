@@ -2441,13 +2441,18 @@
     }
 
     // Initialize app with saved preferences when page loads
-    document.addEventListener('DOMContentLoaded', () => {
-      // Small delay to ensure all elements are properly initialized
+    function bootWithFavorites() {
       setTimeout(() => {
         initializeAppWithFavorites();
         updateFavoriteButtonStates();
       }, 100);
-    });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootWithFavorites);
+    } else {
+      bootWithFavorites();
+    }
 
     // Function to update UI button states based on saved favorites
     function updateFavoriteButtonStates() {
