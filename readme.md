@@ -198,7 +198,7 @@ npm test
 npm run dist
 ```
 
-### Available Scripts
+### Available Script Commands
 - `npm start` - Launch the Electron app in development mode
 - `npm test` - Run the comprehensive Jest test suite
 - `npm run pack` - Package the app without distribution
@@ -206,7 +206,7 @@ npm run dist
 - `npm run mas-dev` - Build Mac App Store development version
 - `npm run rebuild-sharp` - Rebuild native Sharp.js dependencies
 
-### Architecture
+### Architecture Details
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript with modern ES6+ features
 - **Backend**: Electron main process with Node.js APIs
 - **Image Processing**: Sharp.js for high-performance image manipulation
