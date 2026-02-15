@@ -1138,7 +1138,7 @@
         <div class="form-group">
           <label for="textEffect">Text Effect:</label>
           <select id="textEffect">
-            <option value="auto">🎯 Auto Perfect Effect</option>
+            <option value="auto">🎯 Auto Effect</option>
             <option value="none">None</option>
             <option value="shadow">Drop Shadow</option>
             <option value="outline">Outline</option>
@@ -1490,8 +1490,8 @@
           elements.textStrokeColor.value = textOverlay.strokeColor || '#000000';
           elements.advancedTextOptions.checked = textOverlay.advancedEnabled || false;
 
-          // Restore auto color state (default to true if not saved)
-          if (textOverlay.autoColorActive !== undefined ? textOverlay.autoColorActive : true) {
+          // Restore auto color state (default to false if not saved)
+          if (textOverlay.autoColorActive !== undefined ? textOverlay.autoColorActive : false) {
             autoColorActive = true;
             elements.autoColorBtn.classList.add('active');
             elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
@@ -1685,7 +1685,7 @@
     }
 
     // Smart color picker: choose from a curated palette for maximum readability & style
-    function getSmartTextColor(avgR, avgG, avgB, dominantHue) {
+    function getSmartTextColor(avgR, avgG, avgB) {
       const luminance = (0.299 * avgR + 0.587 * avgG + 0.114 * avgB) / 255;
 
       // Curated palette: [color, minLum, maxLum, label]
@@ -1754,7 +1754,7 @@
     }
 
     // Analyze image brightness in a specific region using canvas
-    // Returns { avgR, avgG, avgB, luminance } or null if no images loaded
+    // Returns { avgR, avgG, avgB, luminance, stdDev } or null if no images loaded
     function analyzeImageRegion(position) {
       const loadedImages = [];
       elements.imagePreviews.forEach((preview, index) => {
@@ -1824,88 +1824,36 @@
 
         const imageData = ctx.getImageData(regionX, regionY, regionW, regionH);
         const data = imageData.data;
-        let totalR = 0, totalG = 0, totalB = 0;
         const pixelCount = data.length / 4;
+        let totalR = 0, totalG = 0, totalB = 0, totalLum = 0, totalLumSq = 0;
 
         for (let i = 0; i < data.length; i += 4) {
           totalR += data[i];
           totalG += data[i + 1];
           totalB += data[i + 2];
+          const pixLum = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+          totalLum += pixLum;
+          totalLumSq += pixLum * pixLum;
         }
 
         const avgR = Math.round(totalR / pixelCount);
         const avgG = Math.round(totalG / pixelCount);
         const avgB = Math.round(totalB / pixelCount);
-        const luminance = (0.299 * avgR + 0.587 * avgG + 0.114 * avgB) / 255;
+        const luminance = totalLum / pixelCount;
+        const stdDev = Math.sqrt(totalLumSq / pixelCount - luminance * luminance);
 
-        return { avgR, avgG, avgB, luminance };
+        return { avgR, avgG, avgB, luminance, stdDev };
       } catch (e) {
         console.warn('Image analysis failed:', e);
         return null;
       }
     }
 
-    // Smart text effect picker: analyze image region to choose the best effect for readability
-    // Considers luminance, contrast (stddev), and text color to pick the ideal effect
+    // Smart text effect picker: uses analysis data (including stdDev) to choose the best effect
     function getSmartTextEffect(analysis, textColor) {
-      if (!analysis) return 'shadow'; // safe default
+      if (!analysis) return 'shadow';
 
-      const { avgR, avgG, avgB, luminance } = analysis;
-
-      // Calculate contrast variance (how "busy" the region is)
-      // Re-sample from the canvas to get standard deviation
-      let stdDev = 0;
-      try {
-        const position = elements.textPosition ? elements.textPosition.value : 'center';
-        const loadedImages = [];
-        elements.imagePreviews.forEach((preview, index) => {
-          if (selectedImagePaths[index]) {
-            const img = preview.querySelector('img');
-            if (img && img.naturalWidth > 0) loadedImages.push(img);
-          }
-        });
-
-        if (loadedImages.length > 0) {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const sW = 320, sH = 180;
-          canvas.width = sW; canvas.height = sH;
-          const imgW = Math.floor(sW / loadedImages.length);
-          loadedImages.forEach((img, i) => {
-            try { ctx.drawImage(img, i * imgW, 0, imgW, sH); } catch (e) {}
-          });
-
-          // Sample the text region
-          let rX = 0, rY = 0, rW = sW, rH = sH;
-          const m = 10, bH = Math.floor(sH * 0.35), bW = Math.floor(sW * 0.35);
-          switch (position) {
-            case 'top': rY = m; rH = bH; break;
-            case 'bottom': rY = sH - bH - m; rH = bH; break;
-            case 'left': rX = m; rW = bW; break;
-            case 'right': rX = sW - bW - m; rW = bW; break;
-            case 'top-left': rX = m; rY = m; rW = bW; rH = bH; break;
-            case 'top-right': rX = sW - bW - m; rY = m; rW = bW; rH = bH; break;
-            case 'bottom-left': rX = m; rY = sH - bH - m; rW = bW; rH = bH; break;
-            case 'bottom-right': rX = sW - bW - m; rY = sH - bH - m; rW = bW; rH = bH; break;
-            default: rX = Math.floor(sW * 0.2); rY = Math.floor(sH * 0.2); rW = Math.floor(sW * 0.6); rH = Math.floor(sH * 0.6);
-          }
-          rX = Math.max(0, rX); rY = Math.max(0, rY);
-          rW = Math.max(1, Math.min(rW, sW - rX));
-          rH = Math.max(1, Math.min(rH, sH - rY));
-
-          const data = ctx.getImageData(rX, rY, rW, rH).data;
-          const count = data.length / 4;
-          let sumSq = 0;
-          for (let i = 0; i < data.length; i += 4) {
-            const pixLum = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
-            const diff = pixLum - luminance;
-            sumSq += diff * diff;
-          }
-          stdDev = Math.sqrt(sumSq / count);
-        }
-      } catch (e) {
-        stdDev = 0.15; // moderate default
-      }
+      const { luminance, stdDev = 0.15 } = analysis;
 
       // Determine if text is light or dark
       const tc = (textColor || '#ffffff').replace('#', '');
@@ -1915,43 +1863,29 @@
       const textLum = (0.299 * tR + 0.587 * tG + 0.114 * tB) / 255;
       const isLightText = textLum > 0.5;
 
-      // Decision logic:
-      // High contrast/busy background → background box (text needs isolation)
-      // Dark image + light text → glow or shadow
-      // Bright image + dark text → outline or shadow
-      // Medium complexity → shadow (universally safe)
-      // Very uniform background → none or shadow
-
-      const isBusy = stdDev > 0.22;       // high variance = complex/busy image
-      const isModerate = stdDev > 0.12;    // moderate variance
+      const isBusy = stdDev > 0.22;
+      const isModerate = stdDev > 0.12;
       const isDark = luminance < 0.35;
       const isBright = luminance > 0.65;
-      const isMid = !isDark && !isBright;
 
       let chosenEffect;
 
       if (isBusy) {
-        // Busy backgrounds need strong text isolation
-        if (isDark && isLightText) {
-          chosenEffect = 'glow'; // glow pops on dark busy backgrounds
-        } else {
-          chosenEffect = 'background'; // background box for maximum readability on busy images
-        }
+        chosenEffect = (isDark && isLightText) ? 'glow' : 'background';
       } else if (isDark) {
         if (isLightText) {
-          chosenEffect = isModerate ? 'glow' : 'shadow'; // glow for moderate, shadow for uniform dark
+          chosenEffect = isModerate ? 'glow' : 'shadow';
         } else {
-          chosenEffect = 'outline'; // dark text on dark bg needs outline
+          chosenEffect = 'outline';
         }
       } else if (isBright) {
         if (!isLightText) {
-          chosenEffect = isModerate ? 'shadow' : 'outline'; // dark text on bright bg
+          chosenEffect = isModerate ? 'shadow' : 'outline';
         } else {
-          chosenEffect = 'background'; // light text on bright bg needs background box
+          chosenEffect = 'background';
         }
       } else {
-        // Mid-range luminance
-        chosenEffect = isModerate ? 'shadow' : 'shadow'; // shadow is the safe universal choice
+        chosenEffect = 'shadow';
       }
 
       console.log(`Smart Effect: lum=${luminance.toFixed(2)} stdDev=${stdDev.toFixed(3)} textLum=${textLum.toFixed(2)} busy=${isBusy} → ${chosenEffect}`);
@@ -2059,8 +1993,10 @@
       elements.textLetterSpacingValue.textContent = '0px';
       elements.advancedTextOptionsPanel.style.display = 'none';
 
-      // Reset auto color to default ON state
-      activateAutoColor();
+      // Reset auto color to default OFF state
+      autoColorActive = false;
+      elements.autoColorBtn.classList.remove('active');
+      elements.autoColorBtn.textContent = '🎨 Auto Color';
 
       updateDelimiterPreviewWithAnimation();
       updateEnhancePreviewSelection(DEFAULT_VALUES.ENHANCE_LEVEL);
@@ -2507,8 +2443,6 @@
       setTimeout(() => {
         initializeAppWithFavorites();
         updateFavoriteButtonStates();
-        // Activate auto color by default on page load
-        activateAutoColor();
       }, 100);
     });
 
@@ -2612,7 +2546,7 @@
       }
     });
 
-    let autoColorActive = true;
+    let autoColorActive = false;
     let settingAutoColor = false; // flag to prevent input handler from disabling auto color on programmatic changes
 
     function autoApplyDesignText() {
@@ -2638,7 +2572,7 @@
         elements.textSize.value = 75;
       }
 
-      // Set effect to Auto Perfect Effect — the smart analysis will resolve it at generation time
+      // Set effect to Auto Effect — the smart analysis will resolve it at generation time
       elements.textEffect.value = 'auto';
 
       // Auto position - avoid center if we have multiple images
@@ -2666,10 +2600,6 @@
       elements.textColor.dispatchEvent(new Event('input'));
       settingAutoColor = false;
 
-      // Ensure auto color stays active after auto design
-      autoColorActive = true;
-      elements.autoColorBtn.classList.add('active');
-      elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
 
       // Show feedback
       elements.statusEl.textContent = '✨ Auto design applied! Font, color, and effects optimized for your content.';
@@ -2709,9 +2639,9 @@
       applyAutoColor();
     }
 
-    // Set initial button state
-    elements.autoColorBtn.classList.add('active');
-    elements.autoColorBtn.textContent = '🎨 Auto Color (On)';
+    // Set initial button state (off by default)
+    elements.autoColorBtn.classList.remove('active');
+    elements.autoColorBtn.textContent = '🎨 Auto Color';
 
     elements.autoColorBtn.addEventListener('click', () => {
       if (autoColorActive) {
