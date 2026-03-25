@@ -3,21 +3,21 @@ node_modules/
 vendor/
 .bundle/
 
-# Build directories
+# Build and distribution directories
 build/
 dist/
+out/
 
 # Test coverage
 coverage/
 
 # Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-fastlane/report.xml
-fastlane/README.md
 
-# Environment
+# Secrets & environment
 .env
 .env.local
 .env.development.local
@@ -28,48 +28,31 @@ fastlane/README.md
 .DS_Store
 Thumbs.db
 
-# Fastlane specific
+# Fastlane
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
 
-# User specific files
+# Xcode user specific files
 *.xcuserstate
 xcuserdata/
 
-# Electron build artifacts
-/dist/
-/out/
+# Electron artifacts
 *.asar
+electron-builder.yml
 
 # Compiled files
 *.tsbuildinfo
-*.log
 *.pid
 *.seed
 
 # Certificates and provisioning profiles
+*.p8
 *.p12
 *.cer
+*.key
 *.certSigningRequest
+*.pem
 *.mobileprovision
 *.provisionprofile
-
-# Distribution files
-dist/
-
-# Fastlane files
-fastlane/
-
-# App files
-app/
-
-# Scripts
-scripts/
-
-# Electron builder files
-electron-builder.yml
-
-# Electron files
-electron-builder.yml
