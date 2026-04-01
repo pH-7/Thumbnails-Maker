@@ -3,8 +3,7 @@ node_modules/
 vendor/
 .bundle/
 
-# Build and distribution directories
-build/
+# Build output directories (but NOT build/ config — plists, entitlements, icons are tracked)
 dist/
 out/
 
