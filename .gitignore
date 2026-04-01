@@ -31,6 +31,7 @@ Thumbs.db
 fastlane/Appfile
 fastlane/Matchfile
 fastlane/Deliverfile
+fastlane/Fastfile
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots
