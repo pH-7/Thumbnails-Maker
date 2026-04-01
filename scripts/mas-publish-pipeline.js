@@ -17,6 +17,9 @@ const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
 
+// Load environment variables from .env
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 // ============================================================
 // CONFIGURATION
 // ============================================================
