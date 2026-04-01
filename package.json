@@ -52,8 +52,7 @@
       "type": "distribution",
       "category": "public.app-category.graphics-design",
       "artifactName": "${productName}-${version}.pkg",
-      "identity": "DF441120118B19010DDC6C6C4D51B089AB622AD4",
-      "missingCompliance": false
+      "identity": "DF441120118B19010DDC6C6C4D51B089AB622AD4"
     },
     "afterSign": "scripts/notarize.js"
   },
