@@ -29,6 +29,9 @@ yarn-error.log*
 Thumbs.db
 
 # Fastlane
+fastlane/Appfile
+fastlane/Matchfile
+fastlane/Deliverfile
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots
