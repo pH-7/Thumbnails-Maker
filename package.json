@@ -1,7 +1,7 @@
 {
   "name": "thumbnail-maker",
   "productName": "YouTube Thumbnail Creator",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Create professional YouTube thumbnails with multiple images, custom layouts, and intelligent enhancement features.",
   "main": "main.js",
   "scripts": {

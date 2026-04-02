@@ -27,7 +27,7 @@ const CONFIG = {
   TEAM_ID: process.env.APPLE_TEAM_ID || '',
   APP_BUNDLE_ID: 'ph7.me.youtube-thumbnail-combiner',
   PRODUCT_NAME: 'YouTube Thumbnail Creator',
-  VERSION: '3.1.0',
+  VERSION: require(path.join(__dirname, '..', 'package.json')).version,
   
   // App Store Connect API Key
   API_KEY_ID: process.env.APP_STORE_KEY_ID || '',
