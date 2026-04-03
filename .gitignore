@@ -46,11 +46,8 @@ electron-builder.yml
 *.pid
 *.seed
 
-# Generated build config (contains signing identity)
+# Generated build config
 mas-build-config.json
-
-# Generated screenshot samples
-screenshots/samples/
 
 # Certificate request artifacts
 certs/
