@@ -3,7 +3,10 @@ node_modules/
 vendor/
 .bundle/
 
-# Build output directories (but NOT build/ config — plists, entitlements, icons are tracked)
+# Build configuration (contains Team ID, entitlements, signing config)
+build/
+
+# Build output directories
 dist/
 out/
 
