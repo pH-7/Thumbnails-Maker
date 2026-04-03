@@ -56,9 +56,6 @@ mas-build-config.json
 # Generated screenshot samples
 screenshots/samples/
 
-# Dev-only generator scripts
-scripts/generate-*.js
-
 # Certificate request artifacts
 certs/
 
