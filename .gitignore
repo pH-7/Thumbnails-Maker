@@ -53,8 +53,9 @@ electron-builder.yml
 # Generated build config (contains signing identity)
 mas-build-config.json
 
-# Generated screenshot samples (not needed in repo)
+# Generated screenshot samples and helper script (not needed in repo)
 screenshots/samples/
+scripts/generate-samples.js
 
 # Certificate request artifacts
 certs/
