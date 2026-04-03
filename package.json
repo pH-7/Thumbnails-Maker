@@ -9,10 +9,7 @@
     "test": "jest",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "mas": "electron-builder --mac mas",
-    "mas-dev": "electron-builder --mac mas --publish never",
-    "mas-package": "electron-builder --mac mas --publish never",
-    "mas-upload": "xcrun altool --upload-app --type osx --file dist/mas/*.pkg --username pierre-henry@soria.tel --password @keychain:Application\\ Loader",
+    "mas-publish": "node scripts/mas-publish-pipeline.js",
     "setup": "electron-builder install-app-deps && npm run rebuild-sharp",
     "rebuild-sharp": "npx @electron/rebuild -f -w sharp"
   },
@@ -51,8 +48,7 @@
       "provisioningProfile": "build/embedded.provisionprofile",
       "type": "distribution",
       "category": "public.app-category.graphics-design",
-      "artifactName": "${productName}-${version}.pkg",
-      "identity": "DF441120118B19010DDC6C6C4D51B089AB622AD4"
+      "artifactName": "${productName}-${version}.pkg"
     },
     "afterSign": "scripts/notarize.js"
   },
