@@ -1,17 +1,17 @@
 # YouTube Multi-Layout Thumbnail Creator 📸🎨
 
-![Version](https://img.shields.io/badge/version-3.0.0-blue.svg) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Version](https://img.shields.io/badge/version-3.2.0-blue.svg) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 Create professional **YouTube Thumbnails** with flexible grid layouts supporting 1-6 images! 🎨
 
-This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more! With an intelligent Smart Layout system, 8 different grid configurations, and **NEW flexible image requirements**, you can generate professional-looking thumbnails that help boost engagement on your channel.
+Perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more. With an intelligent Smart Layout system and 8 different grid configurations, you can generate professional-looking thumbnails that help boost engagement on your channel.
 
-**🆕 Latest Updates (v3.0.0)**:
-- ✨ **Universal image support**: Create thumbnails with ANY layout mode regardless of image count - smart adaptation included!
-- 🖼️ **Text Behind Image**: Add meaningful texts that automatically fits ANY thumbnail with beautiful fonts, colors, etc.
+**🆕 What's New in v3.2.0**:
+- ✨ **Universal image support**: Create thumbnails with ANY layout mode regardless of image count
+- 🖼️ **Text Behind Image**: Add text that automatically fits any thumbnail with custom fonts and colors
 - ⚡ **ENTER key shortcut**: Instant thumbnail creation from anywhere in the app
-- 🧠 **Enhanced AI analysis**: Improved image analysis for better automatic layout selection
-- 🔧 **Mac App Store ready**: Pre-built packages available for App Store submission
+- 🧠 **Smart layout analysis**: Improved image analysis for automatic layout selection
+- 🍎 **Mac App Store**: Available on the Mac App Store
 
 ![Universal Multi Image Thumbnail Generator App](media/demo-youyube-thumbnail-maker-studio.gif)
 
@@ -27,30 +27,24 @@ This powerful app is perfect for YouTube vlogs, tutorials, cooking videos, trave
 - [⚖️ License](#%EF%B8%8F-license)
 
 ## ⚙️ Requirements
-* [Node.js](https://nodejs.org/) v18+ (latest LTS version recommended) 🚀
-* [Electron](https://www.electronjs.org/) v22+ for cross-platform desktop support
-* macOS 10.14+ for Mac App Store builds
+- **Node.js**: v18+ (LTS recommended)
+- **Operating System**: macOS 12+, Windows 10+, or Ubuntu 18.04+
+- **Memory**: 4GB RAM minimum (8GB recommended for large image processing)
+- **Storage**: 500MB free space for application and dependencies
 
 ## 📦 Installation
 
-### Quick Start
 ```bash
 # Clone the repository
 git clone https://github.com/pH-7/Thumbnails-Maker.git
 cd Thumbnails-Maker
 
-# Install dependencies (includes Sharp.js image processing)
+# Install dependencies
 npm install
 
 # Launch the application
 npm start
 ```
-
-### System Requirements
-- **Node.js**: v18+ (LTS recommended)
-- **Operating System**: macOS 10.14+, Windows 10+, or Ubuntu 18.04+
-- **Memory**: 4GB RAM minimum (8GB recommended for large image processing)
-- **Storage**: 500MB free space for application and dependencies
 
 ## 🪄 Features
 
@@ -110,15 +104,12 @@ The app supports 8 optimized grid configurations:
 ### Smart Layout Algorithm
 The Auto mode uses advanced analysis to recommend optimal layouts:
 
-```javascript
-// Analysis factors include:
 - Aspect ratio distribution (portrait/landscape/square detection)
-- Visual complexity via entropy calculation  
+- Visual complexity via entropy calculation
 - Color variance and saturation levels
 - Prominent subject detection using edge analysis
 - Visual weight calculation for balanced compositions
-- Confidence scoring (0-1) for layout recommendations
-```
+- Confidence scoring (0–1) for layout recommendations
 
 ### Dynamic Interface
 - **Adaptive UI**: Image slots show/hide automatically based on selected layout
@@ -181,29 +172,13 @@ Time: ~0.2s, estimated ~0.1s per test
 
 ## 🛠️ Development
 
-### Getting Started
-```bash
-# Clone and setup
-git clone https://github.com/pH-7/Thumbnails-Maker.git
-cd Thumbnails-Maker
-npm install # yarn install
-
-# Start development
-npm start # yarn start
-
-# Run tests
-npm test
-
-# Build for production
-npm run dist
-```
-
 ### Available Script Commands
 - `npm start` - Launch the Electron app in development mode
 - `npm test` - Run the comprehensive Jest test suite
 - `npm run pack` - Package the app without distribution
 - `npm run dist` - Build distributable packages for all platforms
-- `npm run mas-dev` - Build Mac App Store development version
+- `npm run mas-publish` - Build, sign, validate, and upload to the Mac App Store
+- `npm run setup` - Install Electron app dependencies and rebuild Sharp.js
 - `npm run rebuild-sharp` - Rebuild native Sharp.js dependencies
 
 ### Architecture Details
