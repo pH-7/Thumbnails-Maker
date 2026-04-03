@@ -50,6 +50,15 @@ electron-builder.yml
 *.pid
 *.seed
 
+# Generated build config (contains signing identity)
+mas-build-config.json
+
+# Generated screenshot samples (not needed in repo)
+screenshots/samples/
+
+# Certificate request artifacts
+certs/
+
 # Certificates and provisioning profiles
 *.p8
 *.p12

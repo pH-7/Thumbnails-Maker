@@ -257,7 +257,8 @@ async function generateCSR(type) {
   const csrPath = path.join(csrDir, `${type}_cert.certSigningRequest`);
   
   // Generate private key and CSR
-  runCmd(`openssl req -new -newkey rsa:2048 -nodes -keyout "${keyPath}" -out "${csrPath}" -subj "/emailAddress=pierre-henry@soria.tel/CN=${type === 'installer' ? 'Mac Installer Distribution' : 'Apple Distribution'}/C=US"`, { silent: true, stdio: 'pipe' });
+  const email = process.env.APPLE_EMAIL || 'developer@example.com';
+  runCmd(`openssl req -new -newkey rsa:2048 -nodes -keyout "${keyPath}" -out "${csrPath}" -subj "/emailAddress=${email}/CN=${type === 'installer' ? 'Mac Installer Distribution' : 'Apple Distribution'}/C=US"`, { silent: true, stdio: 'pipe' });
   
   log('✅', `CSR generated at: ${csrPath}`);
   log('🔑', `Private key saved at: ${keyPath}`);
