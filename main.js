@@ -22,15 +22,7 @@ function createWindow() {
     mainWindow.on('closed', () => mainWindow = null);
 }
 
-// Disable login item features for Mac App Store
 app.whenReady().then(() => {
-    // Disable automatic login items
-    if (process.platform === 'darwin') {
-        app.setLoginItemSettings({
-            openAtLogin: false,
-            openAsHidden: false
-        });
-    }
     createWindow();
 });
 
@@ -1899,19 +1891,22 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 colors: 256
             });
 
-        // Save the final image with enhanced error handling
-        const outputDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
-
-        try {
-            await fs.promises.mkdir(outputDir, { recursive: true });
-        } catch (dirError) {
-            throw new Error(`Cannot create output directory: ${dirError.message}`);
-        }
-
+        // Save the final image — use save dialog for MAS sandbox compatibility
         const finalOutputName = data.outputName ||
             `youtube-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
 
-        const outputPath = path.join(outputDir, `${finalOutputName}.png`);
+        const defaultDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
+        const { filePath: outputPath, canceled } = await dialog.showSaveDialog(mainWindow, {
+            title: 'Save Thumbnail',
+            defaultPath: path.join(defaultDir, `${finalOutputName}.png`),
+            filters: [{ name: 'PNG Image', extensions: ['png'] }]
+        });
+
+        if (canceled || !outputPath) {
+            return { success: false, error: 'Save cancelled by user' };
+        }
+
+        const outputDir = path.dirname(outputPath);
 
         // Validate output path
         if (outputPath.length > 260) { // Windows path limit consideration
