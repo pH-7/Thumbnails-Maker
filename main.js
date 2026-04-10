@@ -1,7 +1,13 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const sharp = require('sharp');
+
+let sharp;
+try {
+    sharp = require('sharp');
+} catch (e) {
+    console.error('Failed to load sharp:', e.message);
+}
 
 let mainWindow;
 
@@ -23,6 +29,17 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    // setLoginItemSettings is not allowed in MAS sandbox
+    if (process.platform === 'darwin' && !process.mas) {
+        try {
+            app.setLoginItemSettings({
+                openAtLogin: false,
+                openAsHidden: false
+            });
+        } catch (e) {
+            console.warn('setLoginItemSettings unavailable:', e.message);
+        }
+    }
     createWindow();
 });
 
@@ -1891,22 +1908,19 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 colors: 256
             });
 
-        // Save the final image — use save dialog for MAS sandbox compatibility
+        // Save the final image with enhanced error handling
+        const outputDir = path.join(app.getPath('userData'), 'YouTube-Thumbnails');
+
+        try {
+            await fs.promises.mkdir(outputDir, { recursive: true });
+        } catch (dirError) {
+            throw new Error(`Cannot create output directory: ${dirError.message}`);
+        }
+
         const finalOutputName = data.outputName ||
             `youtube-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
 
-        const defaultDir = path.join(app.getPath('pictures'), 'YouTube-Thumbnails');
-        const { filePath: outputPath, canceled } = await dialog.showSaveDialog(mainWindow, {
-            title: 'Save Thumbnail',
-            defaultPath: path.join(defaultDir, `${finalOutputName}.png`),
-            filters: [{ name: 'PNG Image', extensions: ['png'] }]
-        });
-
-        if (canceled || !outputPath) {
-            return { success: false, error: 'Save cancelled by user' };
-        }
-
-        const outputDir = path.dirname(outputPath);
+        const outputPath = path.join(outputDir, `${finalOutputName}.png`);
 
         // Validate output path
         if (outputPath.length > 260) { // Windows path limit consideration
