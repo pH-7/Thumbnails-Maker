@@ -445,14 +445,23 @@ function manualBuild(certs, env) {
   execSync(`chmod -R a+r "${appPath}"`, { cwd: CONFIG.PROJECT_ROOT, stdio: 'pipe' });
   execSync(`find "${appPath}" -type d -exec chmod a+rx {} \\;`, { cwd: CONFIG.PROJECT_ROOT, stdio: 'pipe' });
   
-  // Sign the app with @electron/osx-sign (using programmatic API)
-  // Sign the app with @electron/osx-sign (correct CLI binary name)
+  // Sign the app with @electron/osx-sign
   log('✍️', 'Signing app...');
+  
+  // Strip existing signatures first to avoid codesign "internal error"
+  try {
+    execSync(`find "${appPath}" -name "*.dylib" -o -name "*.so" -o -name "*.node" | while read f; do codesign --remove-signature "$f" 2>/dev/null || true; done`, { cwd: CONFIG.PROJECT_ROOT, stdio: 'pipe' });
+    log('🧹', 'Stripped existing signatures from binaries');
+  } catch (e) {
+    // Ignore - some files may not have signatures
+  }
+  
   execSync(
     `npx electron-osx-sign "${appPath}" ` +
     `--identity="${certs.appCert.name}" ` +
     `--type=distribution ` +
     `--platform=mas ` +
+    `--no-hardened-runtime ` +
     `--entitlements="${CONFIG.ENTITLEMENTS}" ` +
     `--entitlements-inherit="${CONFIG.ENTITLEMENTS_INHERIT}" ` +
     `--provisioning-profile="${CONFIG.PROVISIONING_PROFILE}"`,
