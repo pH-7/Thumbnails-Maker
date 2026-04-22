@@ -2,14 +2,73 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-let sharp;
-try {
-    sharp = require('sharp');
-} catch (e) {
-    console.error('Failed to load sharp:', e.message);
+// App Store/TestFlight builds can run without JIT entitlements after Apple re-signing.
+// Force JITless mode there to avoid V8 code range startup traps.
+if (process.mas) {
+    app.commandLine.appendSwitch('js-flags', '--jitless --no-expose-wasm');
+}
+
+let sharp = null;
+let sharpLoadAttempted = false;
+let sharpLoadErrorDetails = '';
+
+function getSharpLoadCandidates() {
+    const candidates = ['sharp'];
+    const resourcesPath = process.resourcesPath;
+
+    if (resourcesPath) {
+        candidates.push(path.join(resourcesPath, 'app.asar.unpacked', 'node_modules', 'sharp'));
+        candidates.push(path.join(resourcesPath, 'app', 'node_modules', 'sharp'));
+        candidates.push(path.join(resourcesPath, 'node_modules', 'sharp'));
+    }
+
+    return candidates;
+}
+
+function getSharpDiagnosticsSummary() {
+    const resourcesPath = process.resourcesPath || 'n/a';
+    const details = sharpLoadErrorDetails ? sharpLoadErrorDetails.slice(0, 500) : 'no loader detail captured';
+    return `platform=${process.platform}, arch=${process.arch}, resourcesPath=${resourcesPath}, detail=${details}`;
+}
+
+function getSharpModule() {
+    if (sharp) {
+        return sharp;
+    }
+
+    if (sharpLoadAttempted) {
+        return null;
+    }
+
+    sharpLoadAttempted = true;
+    const loadErrors = [];
+
+    for (const candidate of getSharpLoadCandidates()) {
+        try {
+            // eslint-disable-next-line import/no-dynamic-require, global-require
+            sharp = require(candidate);
+            console.log(`Loaded sharp module from: ${candidate}`);
+            sharpLoadErrorDetails = '';
+            return sharp;
+        } catch (e) {
+            loadErrors.push(`${candidate}: ${e.message}`);
+        }
+    }
+
+    sharpLoadErrorDetails = loadErrors.join(' | ');
+    console.error('Failed to load sharp from all candidates:\n' + loadErrors.join('\n'));
+    return null;
 }
 
 let mainWindow;
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception in main process:', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection in main process:', reason);
+});
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -41,6 +100,9 @@ app.whenReady().then(() => {
         }
     }
     createWindow();
+}).catch((error) => {
+    console.error('Failed to initialize app:', error);
+    app.quit();
 });
 
 app.on('window-all-closed', () => {
@@ -49,6 +111,14 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
     if (mainWindow === null) createWindow();
+});
+
+app.on('render-process-gone', (event, webContents, details) => {
+    console.error('Renderer process gone:', details);
+});
+
+app.on('child-process-gone', (event, details) => {
+    console.error('Child process gone:', details);
 });
 
 // Handle image selection
@@ -91,13 +161,14 @@ ipcMain.handle('select-single-image', async () => {
 
 // Apply intelligent auto-enhance to image
 async function enhanceImage(buffer, enhanceOptions) {
-    if (!sharp) {
+    const sharpModule = getSharpModule();
+    if (!sharpModule) {
         throw new Error('Image processing module is not available');
     }
 
     try {
         // Create a new Sharp instance
-        let processedImage = sharp(buffer);
+        let processedImage = sharpModule(buffer);
 
         // Get image metadata and statistics
         const metadata = await processedImage.metadata();
@@ -165,8 +236,56 @@ async function enhanceImage(buffer, enhanceOptions) {
     } catch (error) {
         console.error('Error in enhanceImage:', error);
         // If enhancement fails, return original image
-        return sharp(buffer);
+        return sharpModule(buffer);
     }
+}
+
+function createVignetteOverlay(width, height) {
+    return Buffer.from(`
+        <svg width="${width}" height="${height}">
+            <defs>
+                <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="black" stop-opacity="0" />
+                    <stop offset="100%" stop-color="black" stop-opacity="0.15" />
+                </radialGradient>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#vignette)" />
+        </svg>
+    `);
+}
+
+async function processThumbnailTile(imageBuffer, targetWidth, targetHeight, applyEnhance, enhanceOptions) {
+    let sourceBuffer = imageBuffer;
+
+    if (applyEnhance) {
+        const enhancedSharp = await enhanceImage(sourceBuffer, enhanceOptions);
+        sourceBuffer = await enhancedSharp.toBuffer();
+    }
+
+    return sharp(sourceBuffer)
+        .resize({
+            width: targetWidth,
+            height: targetHeight,
+            fit: 'cover',
+            position: 'center'
+        })
+        .composite([{
+            input: createVignetteOverlay(targetWidth, targetHeight),
+            blend: 'overlay'
+        }])
+        .sharpen({
+            sigma: 1.2,
+            m1: 1.0,
+            m2: 2.0,
+            x1: 2.0,
+            y2: 10.0
+        })
+        .linear(1.1, 0)
+        .modulate({
+            brightness: 1.05,
+            saturation: 1.1
+        })
+        .toBuffer();
 }
 
 // Analyze image characteristics
@@ -419,8 +538,13 @@ const THUMBNAIL_HEIGHT = 720;
 // Enhanced image analysis for smart layout detection
 async function analyzeImageForLayout(imagePath) {
     try {
+        const sharpModule = getSharpModule();
+        if (!sharpModule) {
+            throw new Error('Image processing module is not available');
+        }
+
         const imageBuffer = await fs.promises.readFile(imagePath);
-        const image = sharp(imageBuffer);
+        const image = sharpModule(imageBuffer);
         const metadata = await image.metadata();
         const stats = await image.stats();
 
@@ -1057,10 +1181,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     // Performance monitoring - define startTime early for error handling
     const startTime = Date.now();
 
-    if (!sharp) {
+    if (!getSharpModule()) {
         return {
             success: false,
-            error: 'Image processing module is not available. Please restart the application.'
+            error: `Image processing module is not available (${getSharpDiagnosticsSummary()}). Please restart the application.`
         };
     }
 
@@ -1201,74 +1325,22 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const cellHeight = layout.rows ? Math.floor(THUMBNAIL_HEIGHT / layout.rows) : THUMBNAIL_HEIGHT;
         const padding = Math.max(0, Math.floor((delimiterWidth || 0) / 2)); // Padding between cells
 
-        // Performance optimization: use progressive loading for large grids
-        const isLargeGrid = layout.maxImages > 4;
-        const processingQuality = isLargeGrid ? 90 : 95; // Slightly lower quality for large grids
-
         // Process images for grid layout
         const processedImages = await Promise.all(
             selectedImages.map(async (imagePath, index) => {
                 try {
-                    let imageBuffer = await fs.promises.readFile(imagePath);
-
-                    // Apply enhancement if requested and convert to buffer
-                    if (applyEnhance) {
-                        const enhancedSharp = await enhanceImage(imageBuffer, enhanceOptions);
-                        imageBuffer = await enhancedSharp.toBuffer();
-                    }
-
                     // Calculate actual cell dimensions with padding and validate
                     const actualCellWidth = Math.max(100, Math.floor(Number(cellWidth - padding * 2) || 100));
                     const actualCellHeight = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
+                    const imageBuffer = await fs.promises.readFile(imagePath);
 
-                    // Resize first to ensure we have the correct base dimensions
-                    const resizedBuffer = await sharp(imageBuffer)
-                        .resize({
-                            width: Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
-                            height: Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
-                            fit: 'cover',
-                            position: 'center'
-                        })
-                        .toBuffer();
-
-                    // Get actual dimensions from the resized buffer
-                    const metadata = await sharp(resizedBuffer).metadata();
-                    const safeWidth = metadata.width;
-                    const safeHeight = metadata.height;
-
-                    // Add visual enhancements for thumbnails
-                    const processedImage = sharp(resizedBuffer)
-                        // Apply subtle vignette
-                        .composite([{
-                            input: Buffer.from(`
-                                <svg width="${safeWidth}" height="${safeHeight}">
-                                    <defs>
-                                        <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
-                                            <stop offset="0%" stop-color="black" stop-opacity="0" />
-                                            <stop offset="100%" stop-color="black" stop-opacity="0.15" />
-                                        </radialGradient>
-                                    </defs>
-                                    <rect width="100%" height="100%" fill="url(#vignette)" />
-                                </svg>
-                            `),
-                            blend: 'overlay'
-                        }])
-                        // Add subtle sharpening
-                        .sharpen({
-                            sigma: 1.2,
-                            m1: 1.0,
-                            m2: 2.0,
-                            x1: 2.0,
-                            y2: 10.0
-                        })
-                        // Boost contrast and colors
-                        .linear(1.1, 0)
-                        .modulate({
-                            brightness: 1.05,
-                            saturation: 1.1
-                        });
-
-                    return await processedImage.toBuffer();
+                    return await processThumbnailTile(
+                        imageBuffer,
+                        Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
+                        Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
+                        applyEnhance,
+                        enhanceOptions
+                    );
                 } catch (error) {
                     console.error(`Error processing image ${index}:`, error);
                     throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
@@ -1298,14 +1370,6 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const customProcessedImages = await Promise.all(
                 selectedImages.map(async (imagePath, index) => {
                     try {
-                        let imageBuffer = await fs.promises.readFile(imagePath);
-
-                        // Apply enhancement if requested and convert to buffer
-                        if (applyEnhance) {
-                            const enhancedSharp = await enhanceImage(imageBuffer, enhanceOptions);
-                            imageBuffer = await enhancedSharp.toBuffer();
-                        }
-
                         const pos = positions[index];
                         if (pos) {
                             // Validate position dimensions before using them
@@ -1316,55 +1380,14 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             }
 
                             console.log(`Processing image ${index} with dimensions: ${pos.width}x${pos.height}`);
-
-                            // Resize first to ensure correct base dimensions
-                            const resizedBuffer = await sharp(imageBuffer)
-                                .resize({
-                                    width: Math.floor(pos.width),
-                                    height: Math.floor(pos.height),
-                                    fit: 'cover',
-                                    position: 'center'
-                                })
-                                .toBuffer();
-
-                            // Get actual dimensions from the resized buffer
-                            const metadata = await sharp(resizedBuffer).metadata();
-                            const safeWidth = metadata.width;
-                            const safeHeight = metadata.height;
-
-                            // Add visual enhancements for thumbnails
-                            const processedImage = sharp(resizedBuffer)
-                                // Apply subtle vignette
-                                .composite([{
-                                    input: Buffer.from(`
-                                        <svg width="${safeWidth}" height="${safeHeight}">
-                                            <defs>
-                                                <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
-                                                    <stop offset="0%" stop-color="black" stop-opacity="0" />
-                                                    <stop offset="100%" stop-color="black" stop-opacity="0.15" />
-                                                </radialGradient>
-                                            </defs>
-                                            <rect width="100%" height="100%" fill="url(#vignette)" />
-                                        </svg>
-                                    `),
-                                    blend: 'overlay'
-                                }])
-                                // Add subtle sharpening
-                                .sharpen({
-                                    sigma: 1.2,
-                                    m1: 1.0,
-                                    m2: 2.0,
-                                    x1: 2.0,
-                                    y2: 10.0
-                                })
-                                // Boost contrast and colors
-                                .linear(1.1, 0)
-                                .modulate({
-                                    brightness: 1.05,
-                                    saturation: 1.1
-                                });
-
-                            return await processedImage.toBuffer();
+                            const imageBuffer = await fs.promises.readFile(imagePath);
+                            return await processThumbnailTile(
+                                imageBuffer,
+                                Math.floor(pos.width),
+                                Math.floor(pos.height),
+                                applyEnhance,
+                                enhanceOptions
+                            );
                         }
                         return null;
                     } catch (error) {
@@ -1465,8 +1488,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const strokeColor = textOverlay.strokeColor || '#000000';
             const letterSpacing = textOverlay.letterSpacing || 0;
             let effect = textOverlay.effect || 'shadow';
-            // Style preset and auto flags
-            const preset = textOverlay.preset || null;
+            // Style auto flags
             const isAutoColor = textOverlay.autoColorActive || textOverlay.autoColor || false;
             const isAutoEffect = textOverlay.isAutoEffect || effect === 'auto';
 
@@ -1652,13 +1674,6 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 console.log('Text overlay skipped: empty text content');
             } else {
                 try {
-                    // Watermark logic
-                    let effectiveOpacity = safeOpacity;
-                    let filter = '';
-                    if (layer === 'watermark') {
-                        effectiveOpacity = Math.min(opacity, 0.25); // Watermark is always faint
-                        filter = 'opacity(0.7)';
-                    }
                     // SVG filter for shadow/outline/glow
                     let svgFilter = '';
                     if (effect === 'shadow') {
@@ -1846,55 +1861,14 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             } // Close the validation block
         }
 
-        // Validate all composites to ensure they're within canvas bounds and properly sized
-        composites = await Promise.all(composites.map(async (comp) => {
-            if (!comp || !comp.input) {
-                console.warn('Skipping invalid composite element');
-                return null;
-            }
-
-            // Ensure positioning is within bounds
-            if (comp.left < 0 || comp.top < 0) {
-                console.warn(`Adjusting composite position from (${comp.left}, ${comp.top}) to fit canvas`);
-                comp.left = Math.max(0, comp.left);
-                comp.top = Math.max(0, comp.top);
-            }
-
-            try {
-                // Check if input is a buffer and validate its dimensions
-                if (Buffer.isBuffer(comp.input)) {
-                    const metadata = await sharp(comp.input).metadata();
-
-                    // Calculate maximum allowed dimensions based on position
-                    const maxWidth = THUMBNAIL_WIDTH - comp.left;
-                    const maxHeight = THUMBNAIL_HEIGHT - comp.top;
-
-                    // If the composite element is larger than allowed, resize it
-                    if (metadata.width > maxWidth || metadata.height > maxHeight) {
-                        console.warn(`Composite element exceeds canvas bounds (${metadata.width}x${metadata.height} at ${comp.left},${comp.top}). Resizing to fit.`);
-
-                        const resizedBuffer = await sharp(comp.input)
-                            .resize({
-                                width: Math.min(metadata.width, maxWidth),
-                                height: Math.min(metadata.height, maxHeight),
-                                fit: 'inside',
-                                withoutEnlargement: true
-                            })
-                            .toBuffer();
-
-                        comp.input = resizedBuffer;
-                    }
-                }
-            } catch (error) {
-                console.error('Error validating composite element:', error);
-                // If we can't validate, keep the original but log the error
-            }
-
-            return comp;
-        }));
-
-        // Filter out any null elements
-        composites = composites.filter(comp => comp !== null);
+        // Fast-path sanitization: avoid expensive metadata decode for each composite.
+        composites = composites
+            .filter(comp => comp && comp.input)
+            .map(comp => ({
+                ...comp,
+                left: Math.max(0, Math.floor(Number(comp.left) || 0)),
+                top: Math.max(0, Math.floor(Number(comp.top) || 0))
+            }));
 
         // Create final image with optimizations for YouTube
         const finalImage = canvas
@@ -1932,7 +1906,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const optimizeStart = Date.now();
             console.log('Applying YouTube optimizations...');
 
-            // First save with metadata stripped
+            // Single-pass save with metadata stripped to avoid an extra full re-encode.
             await finalImage
                 .withMetadata({
                     // Keep only essential metadata
@@ -1944,34 +1918,13 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 })
                 .toFile(outputPath);
 
-            // Get original size
-            const originalStats = await fs.promises.stat(outputPath);
-            const originalSize = originalStats.size;
-
-            // Create an optimized version with quality preservation
-            const optimizedBuffer = await sharp(outputPath)
-                .png({
-                    compressionLevel: 8,      // Compression Level
-                    progressive: true,        // Progressive rendering
-                    palette: false,           // Keep full color range
-                    effort: 8,                // High compression effort but not maximum
-                    adaptiveFiltering: true,  // Better filtering
-                    colors: 256               // Maximum colors for PNG
-                })
-                .toBuffer();
-
-            // Write optimized version
-            await fs.promises.writeFile(outputPath, optimizedBuffer);
-
-            // Get new size
             const newStats = await fs.promises.stat(outputPath);
             const newSize = newStats.size;
-            const savings = ((originalSize - newSize) / originalSize * 100).toFixed(2);
             const optimizeTime = Date.now() - optimizeStart;
             const totalTime = Date.now() - startTime;
 
             console.log(`YouTube optimization completed in ${optimizeTime}ms. Total processing time: ${totalTime}ms`);
-            console.log(`File size: ${formatBytes(originalSize)} → ${formatBytes(newSize)} (${savings}% reduction)`);
+            console.log(`File size: ${formatBytes(newSize)}`);
 
             return {
                 success: true,
@@ -1983,9 +1936,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 imagesUsed: selectedImages.length,
                 optimizationResult: {
                     path: outputPath,
-                    originalSize: formatBytes(originalSize),
+                    originalSize: formatBytes(newSize),
                     newSize: formatBytes(newSize),
-                    savings: `${savings}%`,
+                    savings: '0.00%',
                     qualityPreserved: true
                 }
             };
