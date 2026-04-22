@@ -264,6 +264,47 @@ function collectSharpBinariesForSigning(appPath) {
   return results;
 }
 
+function collectSharpBinariesForElectronBuilderMas() {
+  const sharpRoot = path.join(CONFIG.PROJECT_ROOT, 'node_modules', 'sharp');
+  if (!fs.existsSync(sharpRoot)) {
+    return [];
+  }
+
+  const sourceFiles = [];
+  const stack = [sharpRoot];
+  const seen = new Set();
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || seen.has(current) || !fs.existsSync(current)) {
+      continue;
+    }
+    seen.add(current);
+
+    const stat = fs.statSync(current);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(current)) {
+        stack.push(path.join(current, entry));
+      }
+      continue;
+    }
+
+    const normalized = current.replace(/\\/g, '/');
+    const isSharpNode = /\/build\/Release\/sharp-.*\.node$/.test(normalized);
+    const isSharpDylib = /\/vendor\/.*\/lib\/.*\.dylib$/.test(normalized);
+    if (isSharpNode || isSharpDylib) {
+      sourceFiles.push(current);
+    }
+  }
+
+  const bundleRelative = sourceFiles
+    .map((absolutePath) => path.relative(sharpRoot, absolutePath).split(path.sep).join('/'))
+    .map((relativePath) => `Contents/Resources/app.asar.unpacked/node_modules/sharp/${relativePath}`)
+    .sort();
+
+  return Array.from(new Set(bundleRelative));
+}
+
 function prompt(question) {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -600,6 +641,9 @@ async function buildMASApp(certs) {
     DEBUG: 'electron-builder',
   };
 
+  const masBinaries = collectSharpBinariesForElectronBuilderMas();
+  log('🧩', `MAS binaries for electron-builder: ${masBinaries.length}`);
+
   // Write electron-builder config for MAS
   const builderConfig = {
     appId: CONFIG.APP_BUNDLE_ID,
@@ -632,12 +676,7 @@ async function buildMASApp(certs) {
       type: 'distribution',
       category: 'public.app-category.graphics-design',
       identity: certs.appCert.name,
-      binaries: [
-        'Contents/Resources/app.asar.unpacked/node_modules/sharp/build/Release/sharp-*.node',
-        'Contents/Resources/app.asar.unpacked/node_modules/sharp/vendor/**/lib/*.dylib',
-        'Contents/Resources/app/node_modules/sharp/build/Release/sharp-*.node',
-        'Contents/Resources/app/node_modules/sharp/vendor/**/lib/*.dylib'
-      ],
+      ...(masBinaries.length > 0 ? { binaries: masBinaries } : {}),
     },
     afterSign: undefined,
   };
