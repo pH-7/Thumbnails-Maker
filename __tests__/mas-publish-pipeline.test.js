@@ -2,7 +2,9 @@ const {
   generateAutoBuildNumber,
   hasAltoolErrors,
   isDuplicateBundleVersionError,
+  isClosedPreReleaseTrainError,
   suggestNextBuildNumber,
+  suggestNextMarketingVersion,
 } = require('../scripts/mas-publish-pipeline');
 
 describe('MAS publish pipeline guards', () => {
@@ -31,5 +33,23 @@ describe('MAS publish pipeline guards', () => {
     expect(suggestNextBuildNumber('3.2.5')).toBe('3.2.6');
     expect(suggestNextBuildNumber('2026.4.22150001')).toBe('2026.4.22150002');
     expect(suggestNextBuildNumber('invalid')).toBe('1');
+  });
+
+  test('detects closed pre-release train and short-version errors', () => {
+    expect(
+      isClosedPreReleaseTrainError(
+        'This bundle is invalid. The value for key CFBundleShortVersionString [3.2.5] must contain a higher version.'
+      )
+    ).toBe(true);
+    expect(
+      isClosedPreReleaseTrainError("Invalid Pre-Release Train. The train version '3.2.5' is closed for new build submissions")
+    ).toBe(true);
+    expect(isClosedPreReleaseTrainError('Validation passed')).toBe(false);
+  });
+
+  test('suggests next marketing version by incrementing patch segment', () => {
+    expect(suggestNextMarketingVersion('3.2.5')).toBe('3.2.6');
+    expect(suggestNextMarketingVersion('3.2')).toBe('3.2.1');
+    expect(suggestNextMarketingVersion('invalid')).toBe('1.0.0');
   });
 });

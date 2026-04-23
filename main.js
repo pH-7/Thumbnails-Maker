@@ -11,6 +11,70 @@ if (process.mas) {
 let sharp = null;
 let sharpLoadAttempted = false;
 let sharpLoadErrorDetails = '';
+const THUMBNAIL_DEBUG = process.env.THUMBNAIL_DEBUG === '1';
+const VIGNETTE_OVERLAY_CACHE = new Map();
+const FINAL_PNG_OPTIONS = {
+    compressionLevel: 6,
+    progressive: false,
+    palette: false,
+    effort: 4,
+    adaptiveFiltering: false
+};
+
+function debugLog(...args) {
+    if (THUMBNAIL_DEBUG) {
+        console.log(...args);
+    }
+}
+
+function appendThumbnailTelemetry(entry) {
+    try {
+        const telemetryDir = path.join(app.getPath('userData'), 'telemetry');
+        fs.mkdirSync(telemetryDir, { recursive: true });
+        const telemetryPath = path.join(telemetryDir, 'thumbnail-generation.jsonl');
+        fs.appendFileSync(telemetryPath, JSON.stringify(entry) + '\n', 'utf8');
+    } catch (error) {
+        debugLog('Telemetry write failed:', error.message);
+    }
+}
+
+async function validateInputImages(imagePaths, sharpModule) {
+    if (!Array.isArray(imagePaths) || imagePaths.length < 1) {
+        throw new Error('At least 1 image is required for the thumbnail');
+    }
+
+    await Promise.all(imagePaths.map(async (imagePath, index) => {
+        if (typeof imagePath !== 'string' || imagePath.trim().length === 0) {
+            throw new Error(`Image ${index + 1} path is invalid`);
+        }
+
+        try {
+            await fs.promises.access(imagePath, fs.constants.R_OK);
+        } catch (error) {
+            throw new Error(`Image ${index + 1} is not readable: ${imagePath}`);
+        }
+
+        let stats;
+        try {
+            stats = await fs.promises.stat(imagePath);
+        } catch (error) {
+            throw new Error(`Image ${index + 1} could not be stat-ed: ${imagePath}`);
+        }
+
+        if (!stats.isFile() || stats.size <= 0) {
+            throw new Error(`Image ${index + 1} is not a valid file: ${imagePath}`);
+        }
+
+        try {
+            const metadata = await sharpModule(imagePath, { failOn: 'none' }).metadata();
+            if (!metadata || !metadata.width || !metadata.height) {
+                throw new Error('missing dimensions');
+            }
+        } catch (error) {
+            throw new Error(`Image ${index + 1} is not a supported/valid image: ${imagePath}`);
+        }
+    }));
+}
 
 function getSharpLoadCandidates() {
     const candidates = ['sharp'];
@@ -47,7 +111,7 @@ function getSharpModule() {
         try {
             // eslint-disable-next-line import/no-dynamic-require, global-require
             sharp = require(candidate);
-            console.log(`Loaded sharp module from: ${candidate}`);
+            debugLog(`Loaded sharp module from: ${candidate}`);
             sharpLoadErrorDetails = '';
             return sharp;
         } catch (e) {
@@ -241,7 +305,12 @@ async function enhanceImage(buffer, enhanceOptions) {
 }
 
 function createVignetteOverlay(width, height) {
-    return Buffer.from(`
+    const key = `${Math.floor(width)}x${Math.floor(height)}`;
+    if (VIGNETTE_OVERLAY_CACHE.has(key)) {
+        return VIGNETTE_OVERLAY_CACHE.get(key);
+    }
+
+    const overlay = Buffer.from(`
         <svg width="${width}" height="${height}">
             <defs>
                 <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
@@ -252,9 +321,16 @@ function createVignetteOverlay(width, height) {
             <rect width="100%" height="100%" fill="url(#vignette)" />
         </svg>
     `);
+    VIGNETTE_OVERLAY_CACHE.set(key, overlay);
+    return overlay;
 }
 
 async function processThumbnailTile(imageBuffer, targetWidth, targetHeight, applyEnhance, enhanceOptions) {
+    const sharpModule = getSharpModule();
+    if (!sharpModule) {
+        throw new Error('Image processing module is not available');
+    }
+
     let sourceBuffer = imageBuffer;
 
     if (applyEnhance) {
@@ -262,7 +338,7 @@ async function processThumbnailTile(imageBuffer, targetWidth, targetHeight, appl
         sourceBuffer = await enhancedSharp.toBuffer();
     }
 
-    return sharp(sourceBuffer)
+    return sharpModule(sourceBuffer, { failOn: 'none' })
         .resize({
             width: targetWidth,
             height: targetHeight,
@@ -286,6 +362,68 @@ async function processThumbnailTile(imageBuffer, targetWidth, targetHeight, appl
             saturation: 1.1
         })
         .toBuffer();
+}
+
+async function fitCompositeToCanvas(comp, canvasWidth, canvasHeight, sharpModule) {
+    if (!comp || !comp.input) {
+        return null;
+    }
+
+    const left = Math.max(0, Math.floor(Number(comp.left) || 0));
+    const top = Math.max(0, Math.floor(Number(comp.top) || 0));
+    if (left >= canvasWidth || top >= canvasHeight) {
+        return null;
+    }
+
+    const maxWidth = Math.max(1, canvasWidth - left);
+    const maxHeight = Math.max(1, canvasHeight - top);
+
+    let widthHint = Math.floor(Number(comp.width) || 0);
+    let heightHint = Math.floor(Number(comp.height) || 0);
+    let input = comp.input;
+
+    if (widthHint <= 0 || heightHint <= 0) {
+        if (Buffer.isBuffer(input) && sharpModule) {
+            try {
+                const metadata = await sharpModule(input, { failOn: 'none' }).metadata();
+                widthHint = Math.max(1, Math.floor(Number(metadata.width) || 1));
+                heightHint = Math.max(1, Math.floor(Number(metadata.height) || 1));
+            } catch (error) {
+                console.warn('Unable to read composite metadata:', error.message);
+                return { ...comp, left, top };
+            }
+        } else {
+            return { ...comp, left, top };
+        }
+    }
+
+    if (widthHint > maxWidth || heightHint > maxHeight) {
+        if (Buffer.isBuffer(input) && sharpModule) {
+            input = await sharpModule(input, { failOn: 'none' })
+                .resize({
+                    width: maxWidth,
+                    height: maxHeight,
+                    fit: 'inside',
+                    withoutEnlargement: true
+                })
+                .toBuffer();
+
+            const resizedMeta = await sharpModule(input, { failOn: 'none' }).metadata();
+            widthHint = Math.max(1, Math.floor(Number(resizedMeta.width) || 1));
+            heightHint = Math.max(1, Math.floor(Number(resizedMeta.height) || 1));
+        } else {
+            return null;
+        }
+    }
+
+    return {
+        ...comp,
+        input,
+        left,
+        top,
+        width: widthHint,
+        height: heightHint
+    };
 }
 
 // Analyze image characteristics
@@ -544,7 +682,7 @@ async function analyzeImageForLayout(imagePath) {
         }
 
         const imageBuffer = await fs.promises.readFile(imagePath);
-        const image = sharpModule(imageBuffer);
+        const image = sharpModule(imageBuffer, { failOn: 'none' });
         const metadata = await image.metadata();
         const stats = await image.stats();
 
@@ -1180,12 +1318,28 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
 ipcMain.handle('create-thumbnail', async (event, data) => {
     // Performance monitoring - define startTime early for error handling
     const startTime = Date.now();
+    const telemetry = {
+        timestamp: new Date().toISOString(),
+        mode: 'create-thumbnail',
+        isMas: Boolean(process.mas),
+        isPackaged: Boolean(app.isPackaged)
+    };
+    const finalizeAndReturn = (payload) => {
+        telemetry.totalMs = Date.now() - startTime;
+        telemetry.success = Boolean(payload && payload.success);
+        if (!telemetry.success && payload && payload.error) {
+            telemetry.error = payload.error;
+        }
+        appendThumbnailTelemetry(telemetry);
+        return payload;
+    };
 
-    if (!getSharpModule()) {
-        return {
+    const sharpModule = getSharpModule();
+    if (!sharpModule) {
+        return finalizeAndReturn({
             success: false,
             error: `Image processing module is not available (${getSharpDiagnosticsSummary()}). Please restart the application.`
-        };
+        });
     }
 
     const {
@@ -1197,6 +1351,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         youtubeOptimize = true, // Set to true by default
         textOverlay = null // Text overlay settings
     } = data;
+    telemetry.layoutMode = layoutMode;
+    telemetry.imageCountRequested = Array.isArray(imagePaths) ? imagePaths.length : 0;
 
     // Validate and sanitize delimiterWidth to prevent NaN
     const delimiterWidth = Math.max(0, Math.floor(Number(rawDelimiterWidth) || 18));
@@ -1223,14 +1379,13 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     };
 
     const backgroundColor = hexToRgb(delimiterColor);
-    console.log(`Using delimiter color: ${delimiterColor}, RGB: ${JSON.stringify(backgroundColor)}`);
+    debugLog(`Using delimiter color: ${delimiterColor}, RGB: ${JSON.stringify(backgroundColor)}`);
 
     try {
-        console.log(`Starting thumbnail creation with ${imagePaths.length} images using ${layoutMode} mode`);
-
-        if (imagePaths.length < 1) {
-            throw new Error('At least 1 image is required for the thumbnail');
-        }
+        debugLog(`Starting thumbnail creation with ${imagePaths.length} images using ${layoutMode} mode`);
+        const inputValidationStart = Date.now();
+        await validateInputImages(imagePaths, sharpModule);
+        telemetry.inputValidationMs = Date.now() - inputValidationStart;
 
         // Ensure delimiterTilt is always a number
         let parsedDelimiterTilt = 0;
@@ -1248,7 +1403,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const layoutStart = Date.now();
             const layoutAnalysis = await determineOptimalLayout(imagePaths);
             gridLayout = layoutAnalysis.recommendedLayout;
-            console.log(`Smart layout analysis completed in ${Date.now() - layoutStart}ms, recommended: ${gridLayout} (confidence: ${layoutAnalysis.confidence.toFixed(2)})`);
+            debugLog(`Smart layout analysis completed in ${Date.now() - layoutStart}ms, recommended: ${gridLayout} (confidence: ${layoutAnalysis.confidence.toFixed(2)})`);
+            telemetry.layoutAnalysisMs = Date.now() - layoutStart;
 
         } else if (layoutMode.includes('x')) {
             // Direct grid layout specification (e.g., '2x2', '3x1', etc.)
@@ -1275,7 +1431,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         // If we have fewer images than the layout requires, fill empty slots by repeating images
         // or adjust to a smaller layout that fits the available images
         if (selectedImages.length < layout.maxImages) {
-            console.log(`Layout ${gridLayout} requires ${layout.maxImages} images but only ${selectedImages.length} provided. Adjusting...`);
+            debugLog(`Layout ${gridLayout} requires ${layout.maxImages} images but only ${selectedImages.length} provided. Adjusting...`);
 
             if (selectedImages.length === 1) {
                 // Use single image layout for 1 image
@@ -1295,7 +1451,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     const nextImageIndex = selectedImages.length % originalLength;
                     selectedImages.push(selectedImages[nextImageIndex]);
                 }
-                console.log(`Filled ${layout.maxImages - originalLength} empty slots by repeating images`);
+                debugLog(`Filled ${layout.maxImages - originalLength} empty slots by repeating images`);
             }
 
             // Update layout configuration after potential layout change
@@ -1326,6 +1482,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const padding = Math.max(0, Math.floor((delimiterWidth || 0) / 2)); // Padding between cells
 
         // Process images for grid layout
+        const tileProcessingStart = Date.now();
         const processedImages = await Promise.all(
             selectedImages.map(async (imagePath, index) => {
                 try {
@@ -1334,27 +1491,32 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     const actualCellHeight = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
                     const imageBuffer = await fs.promises.readFile(imagePath);
 
-                    return await processThumbnailTile(
+                    const width = Math.max(100, Math.floor(Number(actualCellWidth) || 100));
+                    const height = Math.max(100, Math.floor(Number(actualCellHeight) || 100));
+                    const buffer = await processThumbnailTile(
                         imageBuffer,
-                        Math.max(100, Math.floor(Number(actualCellWidth) || 100)),
-                        Math.max(100, Math.floor(Number(actualCellHeight) || 100)),
+                        width,
+                        height,
                         applyEnhance,
                         enhanceOptions
                     );
+
+                    return { buffer, width, height };
                 } catch (error) {
                     console.error(`Error processing image ${index}:`, error);
                     throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
                 }
             })
         );
+        telemetry.tileProcessingMs = Date.now() - tileProcessingStart;
 
         // Calculate positions for grid layout or innovative layouts
         let composites;
 
         if (layout.type === 'custom') {
             // Use innovative layout positioning
-            console.log(`Using innovative layout: ${layout.layout} with ${selectedImages.length} images`);
-            console.log(`Dimensions: ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT}, padding: ${padding}`);
+            debugLog(`Using innovative layout: ${layout.layout} with ${selectedImages.length} images`);
+            debugLog(`Dimensions: ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT}, padding: ${padding}`);
 
             const positions = calculateInnovativeLayoutPositions(
                 layout.layout,
@@ -1364,7 +1526,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 padding
             );
 
-            console.log(`Generated ${positions.length} positions:`, positions);
+            debugLog(`Generated ${positions.length} positions:`, positions);
 
             // Process images with custom sizing for innovative layouts
             const customProcessedImages = await Promise.all(
@@ -1379,15 +1541,18 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                                 return null;
                             }
 
-                            console.log(`Processing image ${index} with dimensions: ${pos.width}x${pos.height}`);
+                            debugLog(`Processing image ${index} with dimensions: ${pos.width}x${pos.height}`);
                             const imageBuffer = await fs.promises.readFile(imagePath);
-                            return await processThumbnailTile(
+                            const width = Math.max(1, Math.floor(pos.width));
+                            const height = Math.max(1, Math.floor(pos.height));
+                            const buffer = await processThumbnailTile(
                                 imageBuffer,
-                                Math.floor(pos.width),
-                                Math.floor(pos.height),
+                                width,
+                                height,
                                 applyEnhance,
                                 enhanceOptions
                             );
+                            return { buffer, width, height };
                         }
                         return null;
                     } catch (error) {
@@ -1397,13 +1562,15 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 })
             );
 
-            composites = customProcessedImages.map((buffer, index) => {
+            composites = customProcessedImages.map((imageData, index) => {
                 const pos = positions[index];
-                if (pos && buffer) {
+                if (pos && imageData && imageData.buffer) {
                     return {
-                        input: buffer,
+                        input: imageData.buffer,
                         left: Math.floor(pos.left),
-                        top: Math.floor(pos.top)
+                        top: Math.floor(pos.top),
+                        width: imageData.width,
+                        height: imageData.height
                     };
                 }
                 return null;
@@ -1411,7 +1578,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         } else {
             // Standard grid layout positioning
-            composites = processedImages.map((buffer, index) => {
+            composites = processedImages.map((imageData, index) => {
                 const row = Math.floor(index / layout.cols);
                 const col = index % layout.cols;
 
@@ -1419,9 +1586,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 const top = row * cellHeight + padding;
 
                 return {
-                    input: buffer,
+                    input: imageData.buffer,
                     left: Math.floor(left),
-                    top: Math.floor(top)
+                    top: Math.floor(top),
+                    width: imageData.width,
+                    height: imageData.height
                 };
             });
         }
@@ -1431,12 +1600,11 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             // Add vertical delimiters
             for (let col = 1; col < layout.cols; col++) {
                 const x = col * cellWidth;
-                // Make the SVG much taller to allow for rotation
-                const svgW = delimiterWidth * 3;
-                const svgH = THUMBNAIL_HEIGHT * 2;
-                const cx = Math.floor(svgW / 2);
+                const svgW = THUMBNAIL_WIDTH;
+                const svgH = THUMBNAIL_HEIGHT;
+                const cx = Math.floor(x);
                 const cy = Math.floor(svgH / 2);
-                const rectX = Math.floor((svgW - delimiterWidth) / 2);
+                const rectX = Math.floor(x - delimiterWidth / 2);
                 const rectY = 0;
                 const delimiterSVG = Buffer.from(`
                     <svg width="${svgW}" height="${svgH}">
@@ -1444,11 +1612,12 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                               fill="${fillColor}" transform="rotate(${-parsedDelimiterTilt},${cx},${cy})"/>
                     </svg>
                 `);
-                // Adjust left/top so the center of the SVG aligns with the delimiter position
                 composites.push({
                     input: delimiterSVG,
-                    left: Math.floor(x - svgW / 2),
-                    top: Math.floor((THUMBNAIL_HEIGHT - svgH) / 2)
+                    left: 0,
+                    top: 0,
+                    width: svgW,
+                    height: svgH
                 });
             }
 
@@ -1465,7 +1634,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 composites.push({
                     input: delimiterSVG,
                     left: 0,
-                    top: Math.floor(y - delimiterWidth / 2)
+                    top: Math.floor(y - delimiterWidth / 2),
+                    width: THUMBNAIL_WIDTH,
+                    height: delimiterWidth
                 });
             }
         }
@@ -1596,7 +1767,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                             }
 
                             fillColor = bestColor;
-                            console.log(`Backend Auto Color: region avg(${avgR},${avgG},${avgB}) lum=${luminance.toFixed(2)} → ${fillColor} (contrast=${bestScore.toFixed(1)})`);
+                            debugLog(`Backend Auto Color: region avg(${avgR},${avgG},${avgB}) lum=${luminance.toFixed(2)} → ${fillColor} (contrast=${bestScore.toFixed(1)})`);
                         }
 
                         // --- Auto Effect ---
@@ -1640,7 +1811,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                                 effect = 'shadow';
                             }
 
-                            console.log(`Backend Auto Effect: lum=${luminance.toFixed(2)} stdDev=${stdDev.toFixed(3)} textLum=${textLum.toFixed(2)} busy=${isBusy} → ${effect}`);
+                            debugLog(`Backend Auto Effect: lum=${luminance.toFixed(2)} stdDev=${stdDev.toFixed(3)} textLum=${textLum.toFixed(2)} busy=${isBusy} → ${effect}`);
                         }
                     }
                 } catch (analysisError) {
@@ -1671,7 +1842,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
             // Additional validation to prevent empty or invalid text
             if (!safeText.trim()) {
-                console.log('Text overlay skipped: empty text content');
+                debugLog('Text overlay skipped: empty text content');
             } else {
                 try {
                     // SVG filter for shadow/outline/glow
@@ -1844,7 +2015,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     const textComposite = {
                         input: Buffer.from(svgText, 'utf8'),
                         left: 0,
-                        top: 0
+                        top: 0,
+                        width: svgW,
+                        height: svgH
                     };
 
                     if (originalLayer === 'behind') {
@@ -1856,31 +2029,21 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     }
                 } catch (svgError) {
                     console.error('Error creating text overlay SVG:', svgError);
-                    console.log('Skipping text overlay due to SVG error');
+                    debugLog('Skipping text overlay due to SVG error');
                 }
             } // Close the validation block
         }
 
-        // Fast-path sanitization: avoid expensive metadata decode for each composite.
-        composites = composites
-            .filter(comp => comp && comp.input)
-            .map(comp => ({
-                ...comp,
-                left: Math.max(0, Math.floor(Number(comp.left) || 0)),
-                top: Math.max(0, Math.floor(Number(comp.top) || 0))
-            }));
+        const compositeFitStart = Date.now();
+        composites = (await Promise.all(
+            composites.map(comp => fitCompositeToCanvas(comp, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, sharpModule))
+        )).filter(Boolean).map(({ width, height, ...comp }) => comp);
+        telemetry.compositeFitMs = Date.now() - compositeFitStart;
 
         // Create final image with optimizations for YouTube
         const finalImage = canvas
             .composite(composites)
-            .png({
-                compressionLevel: 8,
-                progressive: true,
-                palette: false,
-                effort: 8,
-                adaptiveFiltering: true,
-                colors: 256
-            });
+            .png(FINAL_PNG_OPTIONS);
 
         // Save the final image with enhanced error handling
         const outputDir = path.join(app.getPath('userData'), 'YouTube-Thumbnails');
@@ -1904,29 +2067,23 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         // Apply YouTube-specific optimizations
         if (youtubeOptimize) {
             const optimizeStart = Date.now();
-            console.log('Applying YouTube optimizations...');
+            debugLog('Applying YouTube optimizations...');
 
-            // Single-pass save with metadata stripped to avoid an extra full re-encode.
-            await finalImage
-                .withMetadata({
-                    // Keep only essential metadata
-                    orientation: undefined,
-                    icc: undefined,
-                    exif: undefined,
-                    iptc: undefined,
-                    xmp: undefined
-                })
-                .toFile(outputPath);
+            await finalImage.toFile(outputPath);
 
             const newStats = await fs.promises.stat(outputPath);
             const newSize = newStats.size;
             const optimizeTime = Date.now() - optimizeStart;
             const totalTime = Date.now() - startTime;
+            telemetry.writeMs = optimizeTime;
+            telemetry.outputSizeBytes = newSize;
+            telemetry.layout = gridLayout;
+            telemetry.imagesUsed = selectedImages.length;
 
-            console.log(`YouTube optimization completed in ${optimizeTime}ms. Total processing time: ${totalTime}ms`);
-            console.log(`File size: ${formatBytes(newSize)}`);
+            debugLog(`YouTube optimization completed in ${optimizeTime}ms. Total processing time: ${totalTime}ms`);
+            debugLog(`File size: ${formatBytes(newSize)}`);
 
-            return {
+            return finalizeAndReturn({
                 success: true,
                 outputPath,
                 outputDir,
@@ -1941,18 +2098,21 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     savings: '0.00%',
                     qualityPreserved: true
                 }
-            };
+            });
         } else {
             // Standard output without optimization
-            await finalImage
-                .withMetadata()  // Keep original metadata
-                .toFile(outputPath);
+            const writeStart = Date.now();
+            await finalImage.toFile(outputPath);
 
             const stats = await fs.promises.stat(outputPath);
             const totalTime = Date.now() - startTime;
+            telemetry.writeMs = Date.now() - writeStart;
+            telemetry.outputSizeBytes = stats.size;
+            telemetry.layout = gridLayout;
+            telemetry.imagesUsed = selectedImages.length;
             console.log(`Thumbnail created successfully with ${gridLayout} layout in ${totalTime}ms:`, outputPath);
 
-            return {
+            return finalizeAndReturn({
                 success: true,
                 outputPath,
                 outputDir,
@@ -1966,16 +2126,16 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     savings: '0%',
                     qualityPreserved: true
                 }
-            };
+            });
         }
     } catch (error) {
         const totalTime = Date.now() - startTime;
         console.error(`Error creating thumbnail after ${totalTime}ms:`, error);
-        return {
+        return finalizeAndReturn({
             success: false,
             error: error.message || 'An unknown error occurred while creating the thumbnail',
             processingTime: `${totalTime}ms`
-        };
+        });
     }
 });
 

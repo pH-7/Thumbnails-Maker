@@ -18,6 +18,7 @@ const fs = require('fs');
 const os = require('os');
 const readline = require('readline');
 const { signAsync } = require('@electron/osx-sign');
+const SCRIPT_REVISION = '2026-04-23-step6-diagnostics-v2';
 
 // Load environment variables from .env
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true });
@@ -82,6 +83,7 @@ function runCmd(cmd, options = {}) {
       cwd: CONFIG.PROJECT_ROOT,
       encoding: 'utf-8',
       stdio: options.silent ? 'pipe' : 'inherit',
+      maxBuffer: 64 * 1024 * 1024,
       ...options
     });
   } catch (error) {
@@ -102,6 +104,7 @@ function runCommandCapture(cmd, options = {}) {
       cwd: CONFIG.PROJECT_ROOT,
       encoding: 'utf-8',
       stdio: 'pipe',
+      maxBuffer: 64 * 1024 * 1024,
       ...options
     }) || '';
     return { success: true, output: String(output) };
@@ -111,12 +114,42 @@ function runCommandCapture(cmd, options = {}) {
   }
 }
 
+function writeDebugLogFile(name, contents) {
+  try {
+    const logsDir = path.join(CONFIG.DIST_DIR, 'mas', 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    const logPath = path.join(logsDir, `${name}-${CONFIG.BUILD_VERSION}.log`);
+    fs.writeFileSync(logPath, contents || '', 'utf8');
+    log('📝', `Saved debug log: ${logPath}`);
+  } catch (error) {
+    log('⚠️', `Unable to write debug log file: ${error.message}`);
+  }
+}
+
 function hasAltoolErrors(output) {
   return /\bERROR:\b|Failed to (validate|upload)|ENTITY_ERROR|status\s*:\s*409/i.test(output || '');
 }
 
 function isDuplicateBundleVersionError(output) {
   return /bundle version must be higher|ATTRIBUTE\.INVALID\.DUPLICATE|previousBundleVersion/i.test(output || '');
+}
+
+function isClosedPreReleaseTrainError(output) {
+  return /CFBundleShortVersionString|Invalid Pre-Release Train|train version .* is closed for new build submissions/i.test(output || '');
+}
+
+function suggestNextMarketingVersion(currentVersion) {
+  const parts = String(currentVersion || '').split('.').map((part) => Number.parseInt(part, 10));
+  if (parts.length === 0 || parts.some((part) => Number.isNaN(part))) {
+    return '1.0.0';
+  }
+
+  while (parts.length < 3) {
+    parts.push(0);
+  }
+
+  parts[2] += 1;
+  return `${parts[0]}.${parts[1]}.${parts[2]}`;
 }
 
 function suggestNextBuildNumber(currentBuildVersion) {
@@ -629,6 +662,7 @@ function prepareBuild() {
 // ============================================================
 async function buildMASApp(certs) {
   logStep(4, 'Building Mac App Store Package');
+  const useElectronBuilder = process.env.USE_ELECTRON_BUILDER === '1';
 
   // Set environment variables
   const env = {
@@ -638,86 +672,89 @@ async function buildMASApp(certs) {
     CSC_IDENTITY_AUTO_DISCOVERY: 'true',
     SKIP_NOTARIZATION: 'true',
     ELECTRON_TEAM_ID: CONFIG.TEAM_ID,
-    DEBUG: 'electron-builder',
+    ...(useElectronBuilder ? { DEBUG: 'electron-builder' } : {}),
   };
 
-  const masBinaries = collectSharpBinariesForElectronBuilderMas();
-  log('🧩', `MAS binaries for electron-builder: ${masBinaries.length}`);
+  log('ℹ️', `USE_ELECTRON_BUILDER=${process.env.USE_ELECTRON_BUILDER || 'unset'}`);
 
-  // Write electron-builder config for MAS
-  const builderConfig = {
-    appId: CONFIG.APP_BUNDLE_ID,
-    productName: CONFIG.PRODUCT_NAME,
-    buildVersion: CONFIG.BUILD_VERSION,
-    forceCodeSigning: true,
-    mac: {
-      category: 'public.app-category.graphics-design',
-      icon: 'build/mac/icon.icns',
-      hardenedRuntime: false,
-      timestamp: 'none',
-      gatekeeperAssess: false,
-      entitlements: 'build/entitlements.mac.plist',
-      entitlementsInherit: 'build/entitlements.mac.inherit.plist',
-      entitlementsLoginHelper: 'build/entitlements.loginhelper.plist',
-      target: ['mas'],
-      type: 'distribution',
-      identity: certs.appCert.name,
-      extendInfo: {
-        ElectronTeamID: CONFIG.TEAM_ID,
-      },
-    },
-    mas: {
-      entitlements: 'build/entitlements.mac.plist',
-      entitlementsInherit: 'build/entitlements.mac.inherit.plist',
-      entitlementsLoginHelper: 'build/entitlements.loginhelper.plist',
-      hardenedRuntime: false,
-      timestamp: 'none',
-      provisioningProfile: 'build/embedded.provisionprofile',
-      type: 'distribution',
-      category: 'public.app-category.graphics-design',
-      identity: certs.appCert.name,
-      ...(masBinaries.length > 0 ? { binaries: masBinaries } : {}),
-    },
-    afterSign: undefined,
-  };
+  if (useElectronBuilder) {
+    const masBinaries = collectSharpBinariesForElectronBuilderMas();
+    log('🧩', `MAS binaries for electron-builder: ${masBinaries.length}`);
 
-  const configPath = path.join(CONFIG.PROJECT_ROOT, 'mas-build-config.json');
-  fs.writeFileSync(configPath, JSON.stringify(builderConfig, null, 2));
-  log('📝', 'Created build configuration');
-
-  log('📦', 'Building app with electron-builder...');
-  log('⏳', 'This may take a few minutes...');
-
-  try {
-    execSync(
-      `npx electron-builder --mac mas --publish never --config mas-build-config.json`,
-      {
-        cwd: CONFIG.PROJECT_ROOT,
-        stdio: 'inherit',
-        env: {
-          ...env,
-          ELECTRON_TEAM_ID: CONFIG.TEAM_ID,
+    const builderConfig = {
+      appId: CONFIG.APP_BUNDLE_ID,
+      productName: CONFIG.PRODUCT_NAME,
+      buildVersion: CONFIG.BUILD_VERSION,
+      forceCodeSigning: true,
+      mac: {
+        category: 'public.app-category.graphics-design',
+        icon: 'build/mac/icon.icns',
+        hardenedRuntime: false,
+        timestamp: 'none',
+        gatekeeperAssess: false,
+        entitlements: 'build/entitlements.mac.plist',
+        entitlementsInherit: 'build/entitlements.mac.inherit.plist',
+        entitlementsLoginHelper: 'build/entitlements.loginhelper.plist',
+        target: ['mas'],
+        type: 'distribution',
+        identity: certs.appCert.name,
+        extendInfo: {
+          ElectronTeamID: CONFIG.TEAM_ID,
         },
-        timeout: 600000, // 10 minute timeout
+      },
+      mas: {
+        entitlements: 'build/entitlements.mac.plist',
+        entitlementsInherit: 'build/entitlements.mac.inherit.plist',
+        entitlementsLoginHelper: 'build/entitlements.loginhelper.plist',
+        hardenedRuntime: false,
+        timestamp: 'none',
+        provisioningProfile: 'build/embedded.provisionprofile',
+        type: 'distribution',
+        category: 'public.app-category.graphics-design',
+        identity: certs.appCert.name,
+        ...(masBinaries.length > 0 ? { binaries: masBinaries } : {}),
+      },
+      afterSign: undefined,
+    };
+
+    const configPath = path.join(CONFIG.PROJECT_ROOT, 'mas-build-config.json');
+    fs.writeFileSync(configPath, JSON.stringify(builderConfig, null, 2));
+    log('📝', 'Created build configuration');
+    log('📦', 'Building app with electron-builder...');
+    log('⏳', 'This may take a few minutes...');
+
+    try {
+      execSync(
+        `npx electron-builder --mac mas --publish never --config mas-build-config.json`,
+        {
+          cwd: CONFIG.PROJECT_ROOT,
+          stdio: 'inherit',
+          env: {
+            ...env,
+            ELECTRON_TEAM_ID: CONFIG.TEAM_ID,
+          },
+          timeout: 600000,
+        }
+      );
+      log('✅', 'MAS app built successfully');
+      return findBuiltPackage();
+    } catch (error) {
+      const output = `${error.stdout || ''}\n${error.stderr || ''}`;
+      if (/timestamp service is not available/i.test(output)) {
+        log('⚠️', 'codesign timestamp service unavailable; falling back to manual signing without network timestamp dependency.');
+      } else {
+        log('❌', 'electron-builder failed. Attempting manual build approach...');
       }
-    );
-  } catch (error) {
-    const output = `${error.stdout || ''}\n${error.stderr || ''}`;
-    if (/timestamp service is not available/i.test(output)) {
-      log('⚠️', 'codesign timestamp service unavailable; falling back to manual signing without network timestamp dependency.');
-    } else {
-      log('❌', 'electron-builder failed. Attempting manual build approach...');
+      return await manualBuild(certs, env);
+    } finally {
+      if (fs.existsSync(configPath)) {
+        fs.unlinkSync(configPath);
+      }
     }
-    return await manualBuild(certs, env);
   }
 
-  // Clean up config
-  if (fs.existsSync(configPath)) {
-    fs.unlinkSync(configPath);
-  }
-
-  log('✅', 'MAS app built successfully');
-  return findBuiltPackage();
+  log('ℹ️', 'Using manual MAS packaging/signing path (recommended). Set USE_ELECTRON_BUILDER=1 to force electron-builder path.');
+  return await manualBuild(certs, env);
 }
 
 async function manualBuild(certs, env) {
@@ -1021,11 +1058,15 @@ function createSignedPkg(certs) {
 function validatePackage(pkgPath) {
   logStep(6, 'Validating Package for App Store');
 
+  // Ensure API key is in the expected place for both altool and iTMSTransporter.
+  setupAPIKeyForAltool();
+
   log('🔍', 'Validating with App Store Connect...');
   const command =
     `xcrun altool --validate-app ` +
     `-f "${pkgPath}" ` +
     `-t macos ` +
+    `--output-format json ` +
     `--apiKey "${CONFIG.API_KEY_ID}" ` +
     `--apiIssuer "${CONFIG.API_ISSUER_ID}"`;
 
@@ -1039,6 +1080,7 @@ function validatePackage(pkgPath) {
 
   if (result.output) {
     process.stdout.write(result.output + '\n');
+    writeDebugLogFile('altool-validate', result.output);
   } else {
     log('📝', 'altool returned no detailed validation output.');
   }
@@ -1048,10 +1090,46 @@ function validatePackage(pkgPath) {
     return true;
   }
 
-  if (isDuplicateBundleVersionError(result.output)) {
+  // Fallback for richer diagnostics when altool only returns generic errors.
+  log('⚠️', 'altool validation failed. Trying iTMSTransporter verify for detailed diagnostics...');
+  const transporterVerifyResult = runCommandCapture(
+    `xcrun iTMSTransporter -m verify ` +
+    `-assetFile "${pkgPath}" ` +
+    `-apiKey "${CONFIG.API_KEY_ID}" ` +
+    `-apiIssuer "${CONFIG.API_ISSUER_ID}" ` +
+    `-v informational`,
+    { timeout: 600000 }
+  );
+
+  const combinedOutput = `${result.output || ''}\n${transporterVerifyResult.output || ''}`.trim();
+
+  if (transporterVerifyResult.output) {
+    process.stdout.write(transporterVerifyResult.output + '\n');
+    writeDebugLogFile('transporter-verify', transporterVerifyResult.output);
+  }
+
+  if (result.success || transporterVerifyResult.success) {
+    log('✅', 'Package validation passed!');
+    return true;
+  }
+
+  if (isDuplicateBundleVersionError(combinedOutput)) {
     log('❌', `Validation failed: build version "${CONFIG.BUILD_VERSION}" was already uploaded.`);
     log('📝', `Set a higher build number and rerun: APP_BUILD_NUMBER=${suggestNextBuildNumber(CONFIG.BUILD_VERSION)} npm run mas-publish`);
     return false;
+  }
+
+  if (isClosedPreReleaseTrainError(combinedOutput)) {
+    const suggestedVersion = suggestNextMarketingVersion(CONFIG.VERSION);
+    log('❌', `Validation failed: App Store Connect has closed version train "${CONFIG.VERSION}".`);
+    log('📝', `Bump package.json version (CFBundleShortVersionString) to a higher value, e.g. ${suggestedVersion}, then rerun with a new APP_BUILD_NUMBER.`);
+    return false;
+  }
+
+  if (combinedOutput) {
+    log('🧾', 'Validation diagnostic summary (first 40 lines):');
+    combinedOutput.split('\n').slice(0, 40).forEach((line) => console.log(line));
+    writeDebugLogFile('validation-combined', combinedOutput);
   }
 
   log('❌', `Package validation failed for build version "${CONFIG.BUILD_VERSION}".`);
@@ -1150,6 +1228,7 @@ async function main() {
   console.log('   MAC APP STORE BUILD & PUBLISH PIPELINE');
   console.log('   ' + CONFIG.PRODUCT_NAME + ' v' + CONFIG.VERSION);
   console.log('   Build Number: ' + CONFIG.BUILD_VERSION);
+  console.log('   Script Revision: ' + SCRIPT_REVISION);
   console.log('═'.repeat(60));
 
   try {
@@ -1216,5 +1295,7 @@ module.exports = {
   generateAutoBuildNumber,
   hasAltoolErrors,
   isDuplicateBundleVersionError,
+  isClosedPreReleaseTrainError,
   suggestNextBuildNumber,
+  suggestNextMarketingVersion,
 };
