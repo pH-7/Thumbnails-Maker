@@ -1668,7 +1668,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             // Shared analysis for both auto-color and auto-effect
             if (isAutoColor || isAutoEffect) {
                 try {
-                    const preTextComposites = composites.filter(c => c !== null);
+                    const preTextComposites = (await Promise.all(
+                        composites.map(comp => fitCompositeToCanvas(comp, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, sharpModule))
+                    )).filter(Boolean).map(({ width, height, ...comp }) => comp);
                     const tempBuffer = await sharp({
                         create: {
                             width: THUMBNAIL_WIDTH,
