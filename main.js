@@ -1383,7 +1383,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
     debugLog(`Using delimiter color: ${delimiterColor}, RGB: ${JSON.stringify(backgroundColor)}`);
 
     try {
-        debugLog(`Starting thumbnail creation with ${imagePaths.length} images using ${layoutMode} mode`);
+        debugLog(`Starting thumbnail creation with ${Array.isArray(imagePaths) ? imagePaths.length : 0} images using ${layoutMode} mode`);
         const inputValidationStart = Date.now();
         await validateInputImages(imagePaths, sharpModule);
         telemetry.inputValidationMs = Date.now() - inputValidationStart;
