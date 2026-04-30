@@ -13,7 +13,8 @@ let sharpLoadAttempted = false;
 let sharpLoadErrorDetails = '';
 const THUMBNAIL_DEBUG = process.env.THUMBNAIL_DEBUG === '1';
 const VIGNETTE_OVERLAY_CACHE = new Map();
-const FINAL_PNG_OPTIONS = {
+// PNG compression is lossless. Do not enable palette/quantization here.
+const LOSSLESS_PNG_OPTIONS = {
     compressionLevel: 6,
     progressive: false,
     palette: false,
@@ -2043,7 +2044,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         // Create final image with optimizations for YouTube
         const finalImage = canvas
             .composite(composites)
-            .png(FINAL_PNG_OPTIONS);
+            .png(LOSSLESS_PNG_OPTIONS);
 
         // Save the final image with enhanced error handling
         const outputDir = path.join(app.getPath('userData'), 'YouTube-Thumbnails');
@@ -2096,6 +2097,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     originalSize: formatBytes(newSize),
                     newSize: formatBytes(newSize),
                     savings: '0.00%',
+                    lossless: true,
+                    metadataStripped: true,
                     qualityPreserved: true
                 }
             });
@@ -2124,6 +2127,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     originalSize: formatBytes(stats.size),
                     newSize: formatBytes(stats.size),
                     savings: '0%',
+                    lossless: true,
+                    metadataStripped: true,
                     qualityPreserved: true
                 }
             });
@@ -2138,69 +2143,6 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         });
     }
 });
-
-async function optimizeThumbnail(outputPath, quality = 95) {
-    try {
-        const originalSize = (await fs.promises.stat(outputPath)).size;
-        const imageBuffer = await fs.promises.readFile(outputPath);
-
-        // Create quality-preserving optimization
-        let optimizedBuffer;
-
-        // Use high-quality optimization that preserves details
-        optimizedBuffer = await sharp(imageBuffer)
-            .png({
-                compressionLevel: 7,      // Slightly reduced from max (9) to preserve quality
-                progressive: true,        // Progressive rendering
-                palette: false,           // Disable palette to preserve full color range
-                quality: quality,         // Higher quality setting (95%)
-                effort: 8,                // High compression effort but not maximum
-                adaptiveFiltering: true,  // Better filtering
-                colors: 256               // Maximum colors for PNG
-            })
-            .toBuffer();
-
-        const extension = '.png';
-
-        // Create optimized file path
-        const optimizedPath = outputPath.replace(/\.[^.]+$/, `_optimized${extension}`);
-
-        // Write optimized file
-        await fs.promises.writeFile(optimizedPath, optimizedBuffer);
-
-        // Get optimized file stats
-        const newSize = (await fs.promises.stat(optimizedPath)).size;
-        const savings = ((originalSize - newSize) / originalSize * 100).toFixed(2);
-
-        console.log(`Thumbnail optimized: ${formatBytes(originalSize)} → ${formatBytes(newSize)} (${savings}% reduction)`);
-
-        // Keep optimized version if size reduced by >10%
-        if (newSize < originalSize * 0.9) {
-            await fs.promises.unlink(outputPath);
-            await fs.promises.rename(optimizedPath, outputPath);
-            return {
-                path: outputPath,
-                originalSize: formatBytes(originalSize),
-                newSize: formatBytes(newSize),
-                savings: `${savings}%`,
-                qualityPreserved: true
-            };
-        }
-
-        // Otherwise keep original
-        await fs.promises.unlink(optimizedPath);
-        return {
-            path: outputPath,
-            originalSize: formatBytes(originalSize),
-            newSize: formatBytes(originalSize),
-            savings: '0%',
-            qualityPreserved: true
-        };
-    } catch (error) {
-        console.error('Error optimizing thumbnail:', error);
-        return { path: outputPath, error: error.message };
-    }
-}
 
 // Helper to format file sizes
 function formatBytes(bytes, decimals = 2) {
