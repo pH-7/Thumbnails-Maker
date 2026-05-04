@@ -3,8 +3,10 @@ node_modules/
 vendor/
 .bundle/
 
-# Build configuration (contains Team ID, entitlements, signing config)
-build/
+# Build configuration — track source files, exclude generated artifacts and secrets
+build/mac-app-store/
+build/*.provisionprofile
+build/embedded.provisionprofile
 
 # Build output directories
 dist/
@@ -30,8 +32,9 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Fastlane
-fastlane/
+# Fastlane — track lane definitions, exclude generated reports
+fastlane/report.xml
+fastlane/Preview.html
 
 # Xcode user specific files
 *.xcuserstate
@@ -46,8 +49,11 @@ electron-builder.yml
 *.pid
 *.seed
 
-# Generated build config
+# Generated build config (copy from mas-build-config.example.json and fill in your values)
 mas-build-config.json
+
+# Generated at build time by Fastfile
+build/Info.plist.extra
 
 # Certificate request artifacts
 certs/
