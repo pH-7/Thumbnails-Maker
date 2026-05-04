@@ -1,7 +1,7 @@
 git_url("https://github.com/pH-7/YouTube-Thumbnail-Creator-Certs.git")
 
 type("appstore") # The default type, can be: appstore, adhoc, development, enterprise
-app_identifier("ph7.me.youtube-thumbnail-combiner")
+app_identifier(ENV['APP_IDENTIFIER'])
 team_id(ENV['TEAM_ID'])
 
 # Set storage mode to git

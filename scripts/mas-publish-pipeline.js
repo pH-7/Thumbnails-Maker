@@ -43,7 +43,8 @@ function generateAutoBuildNumber() {
 // ============================================================
 const CONFIG = {
   TEAM_ID: process.env.APPLE_TEAM_ID || '',
-  APP_BUNDLE_ID: 'ph7.me.youtube-thumbnail-combiner',
+  APP_BUNDLE_ID: process.env.APP_IDENTIFIER || '',
+  /* APP_IDENTIFIER must be set in .env (e.g. com.example.yourapp) */
   PRODUCT_NAME: 'YouTube Thumbnail Creator',
   VERSION: PACKAGE_VERSION,
   BUILD_VERSION: process.env.APP_BUILD_NUMBER || generateAutoBuildNumber(),

@@ -21,7 +21,7 @@ default_platform :mac
 platform :mac do
   # Configuration
   TEAM_ID = ENV['TEAM_ID']
-  APP_BUNDLE_ID = "ph7.me.youtube-thumbnail-combiner"
+  APP_BUNDLE_ID = ENV['APP_IDENTIFIER']
   
   # All-in-one lane for Mac App Store submission
   desc "Submit to Mac App Store"
