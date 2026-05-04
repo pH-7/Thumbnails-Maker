@@ -1,0 +1,39 @@
+{
+  "appId": "ph7.me.youtube-thumbnail-combiner",
+  "productName": "YouTube Thumbnail Creator",
+  "buildVersion": "2026.1.00000000",
+  "forceCodeSigning": true,
+  "mac": {
+    "category": "public.app-category.graphics-design",
+    "icon": "build/mac/icon.icns",
+    "hardenedRuntime": false,
+    "timestamp": "none",
+    "gatekeeperAssess": false,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+    "entitlementsLoginHelper": "build/entitlements.loginhelper.plist",
+    "target": [
+      "mas"
+    ],
+    "type": "distribution",
+    "identity": "Apple Distribution: Your Name (XXXXXXXXXX)",
+    "extendInfo": {
+      "ElectronTeamID": "XXXXXXXXXX"
+    }
+  },
+  "mas": {
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+    "entitlementsLoginHelper": "build/entitlements.loginhelper.plist",
+    "hardenedRuntime": false,
+    "timestamp": "none",
+    "provisioningProfile": "build/embedded.provisionprofile",
+    "type": "distribution",
+    "category": "public.app-category.graphics-design",
+    "identity": "Apple Distribution: Your Name (XXXXXXXXXX)",
+    "binaries": [
+      "Contents/Resources/app.asar.unpacked/node_modules/sharp/build/Release/sharp-darwin-arm64v8.node",
+      "Contents/Resources/app.asar.unpacked/node_modules/sharp/vendor/8.14.5/darwin-arm64v8/lib/libvips-cpp.42.dylib"
+    ]
+  }
+}
