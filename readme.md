@@ -172,6 +172,9 @@ Time: ~0.2s, estimated ~0.1s per test
 
 ## 🛠️ Development
 
+### Environment Setup
+For MAS publishing, copy `.env.example` to `.env` and fill in your Apple signing credentials.
+
 ### Available Script Commands
 - `npm start` - Launch the Electron app in development mode
 - `npm test` - Run the comprehensive Jest test suite
