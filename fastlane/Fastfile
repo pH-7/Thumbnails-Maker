@@ -1,0 +1,411 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+# This is the minimum version of fastlane required to use this Fastfile
+fastlane_version "2.200.0"
+
+default_platform :mac
+
+platform :mac do
+  # Configuration
+  TEAM_ID = ENV['TEAM_ID']
+  APP_BUNDLE_ID = "ph7.me.youtube-thumbnail-combiner"
+  
+  # All-in-one lane for Mac App Store submission
+  desc "Submit to Mac App Store"
+  lane :release do
+    # Skip the certificate check and directly run match_appstore to create new certs
+    match_appstore
+    
+    # Build the app
+    build_mac_app
+    
+    # Submit to the App Store
+    deliver(
+      submit_for_review: true,
+      automatic_release: false,
+      skip_metadata: false,
+      skip_screenshots: false
+    )
+  end
+  
+  # Just build the app without submitting
+  desc "Build the Mac app with proper signing"
+  lane :build_mac_app do
+    # Set up signing details
+    setup_ci if ENV['CI']
+    
+    # Create output directory 
+    sh("mkdir -p ../build/mac-app-store")
+    
+    # Use electron-packager for packaging (more reliable than electron-builder for Mac App Store)
+    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='1.0.0'")
+    
+    # Set correct app category
+    create_plist_file
+    
+    # Sign the app
+    sign_mac_app
+    
+    # Create package
+    package_mac_app
+  end
+  
+  # Create Info.plist additions
+  desc "Create and merge Info.plist additions"
+  lane :create_plist_file do
+    sh("cat > ../build/Info.plist.extra << EOL
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE plist PUBLIC '-//Apple//DTD PLIST 1.0//EN' 'http://www.apple.com/DTDs/PropertyList-1.0.dtd'>
+<plist version='1.0'>
+<dict>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.graphics-design</string>
+</dict>
+</plist>
+EOL")
+    
+    # Merge with main Info.plist
+    sh("/usr/libexec/PlistBuddy -c 'Merge ../build/Info.plist.extra' '../build/mac-app-store/YouTube Thumbnail Creator-darwin-x64/YouTube Thumbnail Creator.app/Contents/Info.plist'")
+  end
+  
+  # Find the right signing identity
+  desc "Find a valid distribution signing identity"
+  private_lane :get_signing_identity do
+    # Debug current certificates
+    UI.message("Debugging available certificates...")
+    sh("security find-identity -v -p codesigning", log: true)
+    
+    # Try to find a valid Mac App Store distribution certificate
+    identity = ""
+    begin
+      UI.message("Looking for Apple Distribution certificates...")
+      apple_dist = sh("security find-identity -v -p codesigning | grep 'Apple Distribution' | head -1 | awk '{print $2}'", log: true).strip
+      UI.message("Apple Distribution cert found: #{apple_dist.empty? ? 'None' : apple_dist}")
+      
+      if !apple_dist.empty?
+        identity = apple_dist
+      else
+        UI.message("Looking for Mac App Store certificates...")
+        mac_store = sh("security find-identity -v -p codesigning | grep 'Mac App Store' | head -1 | awk '{print $2}'", log: true).strip
+        UI.message("Mac App Store cert found: #{mac_store.empty? ? 'None' : mac_store}")
+        
+        if !mac_store.empty?
+          identity = mac_store
+        else
+          UI.message("Looking for 3rd Party Mac certificates...")
+          third_party = sh("security find-identity -v -p codesigning | grep '3rd Party Mac' | head -1 | awk '{print $2}'", log: true).strip
+          UI.message("3rd Party Mac cert found: #{third_party.empty? ? 'None' : third_party}")
+          
+          if !third_party.empty?
+            identity = third_party
+          else
+            # As a last resort, get any valid codesigning certificate
+            UI.message("Looking for any valid codesigning certificate...")
+            any_cert = sh("security find-identity -v -p codesigning | head -1 | awk '{print $2}'", log: true).strip
+            UI.message("Any cert found: #{any_cert.empty? ? 'None' : any_cert}")
+            
+            if !any_cert.empty?
+              identity = any_cert
+            else
+              UI.important("❗ No valid certificate found, using team ID")
+              identity = TEAM_ID
+            end
+          end
+        end
+      end
+      
+      UI.success("Final signing identity: #{identity}")
+    rescue => ex
+      UI.error("Error finding signing identity: #{ex}")
+      identity = TEAM_ID # Fallback to team ID
+    end
+    
+    # Return the identity outside of the begin/rescue block
+    identity
+  end
+  
+  # Sign the app components and main app
+  desc "Sign the app with proper entitlements"
+  lane :sign_mac_app do
+    app_path = "../build/mac-app-store/YouTube Thumbnail Creator-darwin-x64/YouTube Thumbnail Creator.app"
+    frameworks_path = "#{app_path}/Contents/Frameworks"
+    
+    # Copy entitlements files to the build directory
+    sh("cp ../build/entitlements.mac.plist ../build/mac-app-store/")
+    sh("cp ../build/entitlements.mac.inherit.plist ../build/mac-app-store/")
+    
+    # DIRECT CERTIFICATE APPROACH - bypass all other mechanisms
+    UI.important("🔐 Using direct certificate lookup (bypassing other mechanisms)")
+    
+    # Get the first valid certificate from the system keychain
+    raw_certs = sh("security find-identity -v -p codesigning", log: true)
+    UI.message("Available certificates: #{raw_certs}")
+    
+    # Try to extract a valid certificate for Mac App Store (excluding revoked ones)
+    valid_cert = nil
+    old_cert_id = "1120764EF3BFD48561A2FD422B610358F637B508"
+    
+    # For Mac App Store app signing, prioritize 3rd Party Mac Developer Application certificates
+    raw_certs.scan(/([A-F0-9]+)\s+"3rd Party Mac Developer Application[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+      cert_id = match[0]
+      if cert_id != old_cert_id
+        valid_cert = cert_id
+        UI.success("Found valid 3rd Party Mac Developer Application certificate: #{valid_cert}")
+        break
+      end
+    end
+    
+    # If no 3rd Party certificate, check for Apple Distribution certificate (fallback)
+    if valid_cert.nil?
+      raw_certs.scan(/([A-F0-9]+)\s+"Apple Distribution[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+        cert_id = match[0]
+        if cert_id != old_cert_id
+          valid_cert = cert_id
+          UI.success("Found valid Apple Distribution certificate: #{valid_cert}")
+          break
+        end
+      end
+    end
+    
+    # If no Apple Distribution certificate, try Mac App Store
+    if valid_cert.nil?
+      raw_certs.scan(/([A-F0-9]+)\s+"Mac App Store[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+        cert_id = match[0]
+        if cert_id != old_cert_id
+          valid_cert = cert_id
+          UI.success("Found valid Mac App Store certificate: #{valid_cert}")
+          break
+        end
+      end
+    end
+    
+    # If no Mac App Store certificate, try any valid certificate (excluding revoked ones)
+    if valid_cert.nil?
+      raw_certs.scan(/([A-F0-9]+)\s+"[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+        cert_id = match[0]
+        if cert_id != old_cert_id
+          valid_cert = cert_id
+          UI.success("Found valid certificate: #{valid_cert}")
+          break
+        end
+      end
+    end
+    
+    # Fallback to team ID if no valid certificate found
+    if valid_cert.nil?
+      valid_cert = TEAM_ID
+      UI.important("No valid certificate found, using team ID: #{valid_cert}")
+    end
+    
+    # EXPLICITLY reject the old certificate ID
+    if valid_cert == "1120764EF3BFD48561A2FD422B610358F637B508"
+      UI.user_error!("Found old certificate ID - aborting to prevent errors. Run npm run force-clear-cert and try again.")
+    end
+    
+    # Sign the app with deep flag
+    UI.important("Signing app with certificate: #{valid_cert}")
+    sh("codesign --force --options runtime --deep --entitlements '../build/mac-app-store/entitlements.mac.plist' --sign '#{valid_cert}' '#{app_path}'")
+    
+    # Verify signature
+    sh("codesign --verify --verbose '#{app_path}'")
+  end
+  
+  # Package the app for App Store
+  desc "Create .pkg file for App Store"
+  lane :package_mac_app do
+    app_path = "../build/mac-app-store/YouTube Thumbnail Creator-darwin-x64/YouTube Thumbnail Creator.app"
+    pkg_path = "../build/mac-app-store/YouTube Thumbnail Creator.pkg"
+    
+    # DIRECT CERTIFICATE APPROACH - bypass all other mechanisms
+    UI.important("🔐 Using direct certificate lookup (bypassing other mechanisms)")
+    
+    # Get the first valid certificate from the system keychain
+    raw_certs = sh("security find-identity -v -p codesigning", log: true)
+    UI.message("Available certificates: #{raw_certs}")
+    
+    # Try to extract a valid certificate for Mac App Store packaging (excluding revoked ones)
+    valid_cert = nil
+    old_cert_id = "1120764EF3BFD48561A2FD422B610358F637B508"
+    
+    # For Mac App Store pkg creation, first look for 3rd Party Mac Developer Installer
+    installer_cert_found = false
+    raw_certs.scan(/([A-F0-9]+)\s+"3rd Party Mac Developer Installer[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+      cert_id = match[0]
+      if cert_id != old_cert_id
+        valid_cert = cert_id
+        installer_cert_found = true
+        UI.success("Found valid 3rd Party Mac Developer Installer certificate: #{valid_cert}")
+        break
+      end
+    end
+    
+    # If no installer cert, use 3rd Party Mac Developer Application certificate
+    if !installer_cert_found
+      raw_certs.scan(/([A-F0-9]+)\s+"3rd Party Mac Developer Application[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+        cert_id = match[0]
+        if cert_id != old_cert_id
+          valid_cert = cert_id
+          UI.success("Found valid 3rd Party Mac Developer Application certificate: #{valid_cert}")
+          break
+        end
+      end
+    end
+    
+    # If no 3rd Party certificate, check for Apple Distribution certificate (fallback)
+    if valid_cert.nil?
+      raw_certs.scan(/([A-F0-9]+)\s+"Apple Distribution[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+        cert_id = match[0]
+        if cert_id != old_cert_id
+          valid_cert = cert_id
+          UI.success("Found valid Apple Distribution certificate: #{valid_cert}")
+          break
+        end
+      end
+    end
+    
+    # If no Apple Distribution certificate, try Mac App Store
+    if valid_cert.nil?
+      raw_certs.scan(/([A-F0-9]+)\s+"Mac App Store[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+        cert_id = match[0]
+        if cert_id != old_cert_id
+          valid_cert = cert_id
+          UI.success("Found valid Mac App Store certificate: #{valid_cert}")
+          break
+        end
+      end
+    end
+    
+    # If no Mac App Store certificate, try any valid certificate (excluding revoked ones)
+    if valid_cert.nil?
+      raw_certs.scan(/([A-F0-9]+)\s+"[^"]*"(?!\s.*CSSMERR_TP_CERT_REVOKED)/) do |match|
+        cert_id = match[0]
+        if cert_id != old_cert_id
+          valid_cert = cert_id
+          UI.success("Found valid certificate: #{valid_cert}")
+          break
+        end
+      end
+    end
+    
+    # Fallback to team ID if no valid certificate found
+    if valid_cert.nil?
+      valid_cert = TEAM_ID
+      UI.important("No valid certificate found, using team ID: #{valid_cert}")
+    end
+    
+    # EXPLICITLY reject the old certificate ID
+    if valid_cert == "1120764EF3BFD48561A2FD422B610358F637B508"
+      UI.user_error!("Found old certificate ID - aborting to prevent errors. Run npm run force-clear-cert and try again.")
+    end
+    
+    # Build the package with the selected certificate
+    UI.important("Building package with certificate: #{valid_cert}")
+    
+    # Check if we have a valid installer certificate for package signing
+    begin
+      if installer_cert_found
+        sh("productbuild --component '#{app_path}' /Applications --sign '#{valid_cert}' '#{pkg_path}'")
+        UI.success("✅ Signed package created successfully!")
+      else
+        UI.important("⚠️  No Mac App Store installer certificate found")
+        UI.important("Creating unsigned package for manual signing or direct app submission...")
+        
+        # Create an unsigned package first
+        sh("productbuild --component '#{app_path}' /Applications '#{pkg_path}'")
+        UI.success("✅ Unsigned package created at: #{pkg_path}")
+        UI.important("📝 Note: For App Store submission, you may need to:")
+        UI.important("   1. Get a '3rd Party Mac Developer Installer' certificate from Apple Developer Portal")
+        UI.important("   2. Or submit the signed .app directly via Application Loader/Transporter")
+        UI.important("   3. Or use fastlane's deliver action which can handle .app submission")
+      end
+    rescue => ex
+      UI.error("Package creation failed: #{ex}")
+      UI.important("Attempting to create unsigned package as fallback...")
+      
+      begin
+        sh("productbuild --component '#{app_path}' /Applications '#{pkg_path}'")
+        UI.success("✅ Unsigned package created as fallback")
+      rescue => fallback_ex
+        UI.error("Even unsigned package creation failed: #{fallback_ex}")
+        UI.important("The signed .app is available at: #{app_path}")
+        UI.important("You can submit this directly to the App Store via Transporter")
+      end
+    end
+  end
+  
+  # Set up certificates and profiles
+  desc "Fetch certificates and provisioning profiles"
+  lane :match_appstore do
+    match(
+      type: "appstore",
+      app_identifier: APP_BUNDLE_ID,
+      team_id: TEAM_ID,
+      readonly: false,
+      # Use existing certificate when possible instead of creating a new one
+      generate_apple_certs: false
+    )
+  end
+  
+  # Cleanup certificates and profiles
+  desc "Clean up old or unused certificates"
+  lane :clean_certificates do
+    match_nuke(
+      type: "appstore",
+      app_identifier: APP_BUNDLE_ID,
+      team_id: TEAM_ID,
+      skip_confirmation: false  # Will prompt for confirmation
+    )
+  end
+  
+  # Upload to App Store using Transporter
+  desc "Upload to App Store via Transporter"
+  lane :upload_to_app_store do
+    # First make sure the app is built and packaged
+    build_mac_app
+    
+    # Then upload using altool
+    sh("xcrun altool --upload-app -f '../build/mac-app-store/YouTube Thumbnail Creator.pkg' -t macos -p '@keychain:AC_PASSWORD' --team-id '#{TEAM_ID}'")
+  end
+  
+  # Build without certificate handling (emergency fallback)
+  desc "Build the app without using match for certificates"
+  lane :no_certs_build do
+    UI.important("⚠️ Building WITHOUT certificate management - for TESTING only!")
+    
+    # Set up signing details 
+    setup_ci if ENV['CI']
+    
+    # Create output directory 
+    sh("mkdir -p ../build/mac-app-store")
+    
+    # Use electron-packager for packaging
+    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='1.0.0'")
+    
+    # Set correct app category
+    create_plist_file
+    
+    # Sign the app
+    sign_mac_app
+    
+    # Create package
+    package_mac_app
+    
+    UI.success("⚠️ Build completed WITHOUT certificate management")
+    UI.important("This is NOT suitable for App Store submission")
+    UI.important("Once certificates are working, use 'fastlane-build' instead")
+  end
+end
+
