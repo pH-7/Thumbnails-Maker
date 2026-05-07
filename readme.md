@@ -1,17 +1,17 @@
 # YouTube Multi-Layout Thumbnail Creator 📸🎨
 
-![Version](https://img.shields.io/badge/version-3.2.0-blue.svg) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Version](https://img.shields.io/badge/version-4.0.0-blue.svg) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-Create professional **YouTube Thumbnails** with flexible grid layouts supporting 1-6 images! 🎨
+Create professional **YouTube thumbnails** with flexible grid layouts supporting 1 to 6 images. 🎨
 
-Perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more. With an intelligent Smart Layout system and 8 different grid configurations, you can generate professional-looking thumbnails that help boost engagement on your channel.
+Perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more. The intelligent Smart Layout system with 8 grid configurations helps you generate professional thumbnails that can boost engagement on your channel.
 
-**🆕 What's New in v3.2.0**:
-- ✨ **Universal image support**: Create thumbnails with ANY layout mode regardless of image count
-- 🖼️ **Text Behind Image**: Add text that automatically fits any thumbnail with custom fonts and colors
-- ⚡ **ENTER key shortcut**: Instant thumbnail creation from anywhere in the app
-- 🧠 **Smart layout analysis**: Improved image analysis for automatic layout selection
-- 🍎 **Mac App Store**: Available on the Mac App Store
+**🆕 What's New in v4.0.0**:
+- 🚀 **Improved stability**: More reliable thumbnail generation and image processing
+- 🍎 **Mac App Store**: Hardened build, signing, and submission pipeline
+- 🔐 **Safer configuration**: App credentials are now fully environment-driven
+- 🛠️ **Better diagnostics**: Clearer error messages throughout the release workflow
+- 🐛 **Bug fixes**: Validation and packaging improvements for complex image compositions
 
 ![Universal Multi Image Thumbnail Generator App](media/demo-youyube-thumbnail-maker-studio.gif)
 
@@ -49,7 +49,7 @@ npm start
 ## 🪄 Features
 
 ### ✨ **Flexible Thumbnail Creation**
-- **1-6 images support**: Create thumbnails with any number of images
+- **1 to 6 images support**: Create thumbnails with any number of images
 - **Smart adaptation**: System automatically adjusts layouts when you have fewer images than the selected grid requires
 - **No workflow interruptions**: "Create Thumbnail" button always available when you have at least 1 image
 - **Standard YouTube dimensions**: All thumbnails output at 1280×720 pixels
@@ -65,7 +65,7 @@ npm start
 - **Entropy calculation**: Assesses visual complexity for optimal grid placement
 - **Color variance analysis**: Evaluates saturation and vibrancy for balanced compositions
 - **Edge detection**: Identifies prominent subjects for strategic positioning
-- **Confidence scoring**: 0-1 ratings for layout recommendations
+- **Confidence scoring**: 0 to 1 ratings for layout recommendations
 
 ### 🚀 **Keyboard Shortcuts & UX**
 - **Universal ENTER shortcut**: Create thumbnails instantly from anywhere in the app
@@ -114,7 +114,7 @@ The Auto mode uses advanced analysis to recommend optimal layouts:
 ### Dynamic Interface
 - **Adaptive UI**: Image slots show/hide automatically based on selected layout
 - **Smart validation**: Real-time feedback with helpful user guidance
-- **Flexible workflow**: Create thumbnails with any image count - no restrictions
+- **Flexible workflow**: Create thumbnails with any image count, no restrictions
 - **Universal shortcuts**: ENTER key works anywhere in the app for instant creation
 
 ## 🚀 Performance & Optimization
@@ -130,7 +130,7 @@ The Auto mode uses advanced analysis to recommend optimal layouts:
 - **Progressive encoding**: PNG optimization for better compression ratios
 - **Adaptive filtering**: Smart compression algorithms preserve visual quality
 - **Color space optimization**: Ensures consistent colors across different devices
-- **File size reduction**: 25-35% smaller files without visible quality loss
+- **File size reduction**: 25 to 35% smaller files without visible quality loss
 
 ### Error Handling & Validation
 - **Path compatibility**: Windows long path validation and cross-platform support
@@ -156,7 +156,7 @@ npm test
 - **Cell Calculations**: Validates grid positioning math
 
 ### Test Results
-✅ **12 tests passing** - Complete test coverage across all core functionality:
+✅ **13 tests passing** - Core behavior is validated by automated tests:
 
 ```
 ✓ Grid Layout System (4 tests)
@@ -165,15 +165,14 @@ npm test
 ✓ Thumbnail Configuration (2 tests)
 ✓ Application loads without errors
 
-Test Suites: 1 passed, 0 failed
-Tests: 12 passed, 0 failed
-Time: ~0.2s, estimated ~0.1s per test
+Test Suites: 2 passed, 0 failed
+Tests: 13 passed, 0 failed
 ```
 
 ## 🛠️ Development
 
 ### Environment Setup
-For MAS publishing, copy `.env.example` to `.env` and fill in your Apple signing credentials.
+For MAS publishing, copy `.env.example` to `.env`, then fill in your Apple signing credentials and `APP_IDENTIFIER`.
 
 ### Available Script Commands
 - `npm start` - Launch the Electron app in development mode

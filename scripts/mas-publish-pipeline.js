@@ -128,7 +128,7 @@ function writeDebugLogFile(name, contents) {
 }
 
 function hasAltoolErrors(output) {
-  return /\bERROR:\b|Failed to (validate|upload)|ENTITY_ERROR|status\s*:\s*409/i.test(output || '');
+  return /(\bERROR:\b|Failed to (validate|upload)|ENTITY_ERROR|STATE_ERROR\.VALIDATION_ERROR|Validation failed|product-errors|"code"\s*:\s*409|status\s*:\s*409)/i.test(output || '');
 }
 
 function isDuplicateBundleVersionError(output) {
@@ -1091,25 +1091,11 @@ function validatePackage(pkgPath) {
     return true;
   }
 
-  // Fallback for richer diagnostics when altool only returns generic errors.
-  log('⚠️', 'altool validation failed. Trying iTMSTransporter verify for detailed diagnostics...');
-  const transporterVerifyResult = runCommandCapture(
-    `xcrun iTMSTransporter -m verify ` +
-    `-assetFile "${pkgPath}" ` +
-    `-apiKey "${CONFIG.API_KEY_ID}" ` +
-    `-apiIssuer "${CONFIG.API_ISSUER_ID}" ` +
-    `-v informational`,
-    { timeout: 600000 }
-  );
+  // xcrun iTMSTransporter is no longer available standalone; skip the verify fallback.
+  // altool output above contains all available diagnostics.
+  const combinedOutput = (result.output || '').trim();
 
-  const combinedOutput = `${result.output || ''}\n${transporterVerifyResult.output || ''}`.trim();
-
-  if (transporterVerifyResult.output) {
-    process.stdout.write(transporterVerifyResult.output + '\n');
-    writeDebugLogFile('transporter-verify', transporterVerifyResult.output);
-  }
-
-  if (result.success || transporterVerifyResult.success) {
+  if (result.success) {
     log('✅', 'Package validation passed!');
     return true;
   }
@@ -1175,29 +1161,23 @@ function uploadToAppStore(pkgPath) {
     return false;
   }
 
-  log('⚠️', 'altool upload failed. Trying Transporter...');
+  log('⚠️', 'altool upload failed. Attempting to open Transporter app...');
 
-  const transporterResult = runCommandCapture(
-    `xcrun iTMSTransporter -m upload ` +
-    `-assetFile "${pkgPath}" ` +
-    `-apiKey "${CONFIG.API_KEY_ID}" ` +
-    `-apiIssuer "${CONFIG.API_ISSUER_ID}"`,
-    { timeout: 1800000 }
-  );
+  // xcrun iTMSTransporter is no longer available standalone — Transporter app is required.
+  // Try to open Transporter with the package pre-loaded.
+  const openResult = runCommandCapture(`open -a Transporter "${pkgPath}"`);
 
-  if (transporterResult.output) {
-    process.stdout.write(transporterResult.output + '\n');
+  if (openResult.success) {
+    log('✅', 'Transporter app opened with your package. Complete the upload there.');
+    log('📝', 'Install Transporter from: https://apps.apple.com/us/app/transporter/id1450874784');
+    return false; // not automatically uploaded — user must confirm in UI
   }
 
-  if (transporterResult.success && !hasAltoolErrors(transporterResult.output)) {
-    log('✅', 'Upload via Transporter successful!');
-    return true;
-  }
-
-  log('❌', 'Upload failed with both methods.');
-  log('📝', 'You can manually upload using Transporter app:');
+  log('❌', 'Could not open Transporter app. Install it from the Mac App Store:');
+  log('📝', '  https://apps.apple.com/us/app/transporter/id1450874784');
+  log('📝', 'Then manually upload:');
   log('📝', `  open -a Transporter "${pkgPath}"`);
-  log('📝', 'Or via command line:');
+  log('📝', 'Or retry via altool:');
   log('📝', `  xcrun altool --upload-app -f "${pkgPath}" -t macos --apiKey ${CONFIG.API_KEY_ID} --apiIssuer ${CONFIG.API_ISSUER_ID}`);
   return false;
 }
