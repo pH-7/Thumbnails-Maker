@@ -636,6 +636,7 @@ const GRID_LAYOUTS = {
     '1x3': { rows: 1, cols: 3, maxImages: 3 },
     '2x3': { rows: 2, cols: 3, maxImages: 6 },
     '3x2': { rows: 3, cols: 2, maxImages: 6 },
+    '3x3': { rows: 3, cols: 3, maxImages: 9 },
 
     // Creative YouTube-optimized layouts
     'hero-side': {
@@ -667,6 +668,36 @@ const GRID_LAYOUTS = {
         maxImages: 5,
         layout: 'l-shape',
         description: 'L-shaped dynamic arrangement'
+    },
+    'trio-hero': {
+        type: 'custom',
+        maxImages: 3,
+        layout: 'trio-hero',
+        description: 'Wide hero banner top + 2 equal panels below'
+    },
+    'pyramid': {
+        type: 'custom',
+        maxImages: 4,
+        layout: 'pyramid',
+        description: '1 wide top + 3 equal bottom panels'
+    },
+    'filmstrip': {
+        type: 'custom',
+        maxImages: 6,
+        layout: 'filmstrip',
+        description: 'Alternating tall and short columns, like a film contact sheet'
+    },
+    'triptych': {
+        type: 'custom',
+        maxImages: 3,
+        layout: 'triptych',
+        description: '3 equal tall columns — classic triptych'
+    },
+    'magazine-grid': {
+        type: 'custom',
+        maxImages: 12,
+        layout: 'magazine-grid',
+        description: 'Newspaper-style rows — each row fills the full width'
     }
 };
 
@@ -911,10 +942,13 @@ async function determineOptimalLayout(imagePaths) {
                 recommendedLayout = '2x3'; // Default for 5-6 images
                 confidence = 0.7;
             }
+        } else if (imageCount <= 9) {
+            recommendedLayout = '3x3';
+            confidence = 0.7;
         } else {
-            // For more than 6 images, use the largest available grid
-            recommendedLayout = '3x2';
-            confidence = 0.6;
+            // For 10+ images, use the magazine newspaper grid
+            recommendedLayout = 'magazine-grid';
+            confidence = 0.75;
         }
 
         // Apply confidence boost for high-quality analysis
@@ -928,20 +962,20 @@ async function determineOptimalLayout(imagePaths) {
             let innovativeConfidence = 0;
 
             if (imageCount === 3 && prominentSubjectCount >= 1) {
-                // Banner-split is great for storytelling with 3 images
-                innovativeRecommendation = 'banner-split';
+                // Banner-split or trio-hero for storytelling with 3 images
+                innovativeRecommendation = portraitCount >= 2 ? 'triptych' : 'trio-hero';
                 innovativeConfidence = 0.85;
             } else if (imageCount === 4 && prominentSubjectCount >= 2) {
-                // Hero-side or spotlight for 4 images with prominent subjects
+                // Pyramid or hero-side for 4 images with prominent subjects
                 if (avgAspectRatio > 1.2) {
                     innovativeRecommendation = 'hero-side';
                     innovativeConfidence = 0.9;
                 } else {
-                    innovativeRecommendation = 'spotlight';
+                    innovativeRecommendation = 'pyramid';
                     innovativeConfidence = 0.85;
                 }
             } else if (imageCount === 5) {
-                // Corner-grid or L-shape for 5 images
+                // Corner-grid (mosaic) or L-shape for 5 images
                 if (aspectRatioVariance < 0.3) {
                     innovativeRecommendation = 'corner-grid';
                     innovativeConfidence = 0.8;
@@ -949,6 +983,12 @@ async function determineOptimalLayout(imagePaths) {
                     innovativeRecommendation = 'l-shape';
                     innovativeConfidence = 0.85;
                 }
+            } else if (imageCount === 6) {
+                innovativeRecommendation = 'filmstrip';
+                innovativeConfidence = 0.8;
+            } else if (imageCount >= 7) {
+                innovativeRecommendation = 'magazine-grid';
+                innovativeConfidence = 0.85;
             }
 
             // Use innovative layout if it has higher confidence
@@ -1056,84 +1096,79 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
             }
             break;
 
-        case 'corner-grid':
-            // Improved: Mosaic-style with better space utilization
-            if (imageCount === 3) {
-                // Vertical split: large left + 2 stacked right
-                const leftWidth = ensureValidDimension(width * 0.6 - padding, 200);
-                const rightWidth = ensureValidDimension(width - leftWidth - padding * 3, 100);
-                const rightHeight = ensureValidDimension((height - padding * 3) / 2, 100);
-
-                positions.push({
-                    width: leftWidth,
-                    height: ensureValidDimension(height - padding * 2, 100),
-                    left: padding,
-                    top: padding
-                });
-
-                positions.push({
-                    width: rightWidth,
-                    height: rightHeight,
-                    left: leftWidth + padding * 2,
-                    top: padding
-                });
-
-                positions.push({
-                    width: rightWidth,
-                    height: rightHeight,
-                    left: leftWidth + padding * 2,
-                    top: padding * 2 + rightHeight
-                });
-            } else if (imageCount === 4) {
-                // 2x2 grid with equal sizes
-                const cellWidth = ensureValidDimension((width - padding * 3) / 2, 100);
-                const cellHeight = ensureValidDimension((height - padding * 3) / 2, 100);
-
-                for (let i = 0; i < 4; i++) {
-                    const row = Math.floor(i / 2);
-                    const col = i % 2;
-                    positions.push({
-                        width: cellWidth,
-                        height: cellHeight,
-                        left: padding + col * (cellWidth + padding),
-                        top: padding + row * (cellHeight + padding)
-                    });
+        case 'corner-grid': {
+            // True mosaic: every pixel is covered, cells have varied sizes
+            if (imageCount <= 2) {
+                // Simple split
+                const halfW = ensureValidDimension((width - padding * 3) / 2, 100);
+                const fullH = ensureValidDimension(height - padding * 2, 100);
+                positions.push({ width: halfW, height: fullH, left: padding, top: padding });
+                if (imageCount === 2) {
+                    positions.push({ width: halfW, height: fullH, left: halfW + padding * 2, top: padding });
                 }
+            } else if (imageCount === 3) {
+                // Large left (60%) + two stacked right (40%)
+                const leftW = ensureValidDimension(width * 0.6 - padding * 1.5, 200);
+                const rightW = ensureValidDimension(width - leftW - padding * 3, 100);
+                const topRH = ensureValidDimension((height - padding * 3) * 0.55, 100);
+                const botRH = ensureValidDimension(height - topRH - padding * 3, 100);
+                positions.push({ width: leftW, height: ensureValidDimension(height - padding * 2, 100), left: padding, top: padding });
+                positions.push({ width: rightW, height: topRH, left: leftW + padding * 2, top: padding });
+                positions.push({ width: rightW, height: botRH, left: leftW + padding * 2, top: topRH + padding * 2 });
+            } else if (imageCount === 4) {
+                // Unequal mosaic: 1 large top-left, 1 tall right, 2 bottom-left
+                const bigW = ensureValidDimension(width * 0.55 - padding * 1.5, 200);
+                const bigH = ensureValidDimension(height * 0.6 - padding * 1.5, 150);
+                const rightW = ensureValidDimension(width - bigW - padding * 3, 100);
+                const botH = ensureValidDimension(height - bigH - padding * 3, 100);
+                const botSmW = ensureValidDimension((bigW - padding) / 2, 80);
+                // Top-left large
+                positions.push({ width: bigW, height: bigH, left: padding, top: padding });
+                // Right tall
+                positions.push({ width: rightW, height: ensureValidDimension(height - padding * 2, 100), left: bigW + padding * 2, top: padding });
+                // Bottom-left two
+                positions.push({ width: botSmW, height: botH, left: padding, top: bigH + padding * 2 });
+                positions.push({ width: botSmW, height: botH, left: padding + botSmW + padding, top: bigH + padding * 2 });
+            } else if (imageCount === 5) {
+                // 5-cell mosaic: 2-column left (tall + 2 bottom), 1 tall right, 1 mid-right
+                const leftW = ensureValidDimension(width * 0.38 - padding * 1.5, 150);
+                const midW = ensureValidDimension(width * 0.32 - padding, 120);
+                const rightW = ensureValidDimension(width - leftW - midW - padding * 4, 100);
+                const topH = ensureValidDimension(height * 0.58 - padding * 1.5, 150);
+                const botH = ensureValidDimension(height - topH - padding * 3, 100);
+                // Left column: tall top
+                positions.push({ width: leftW, height: topH, left: padding, top: padding });
+                // Left column: bottom
+                positions.push({ width: leftW, height: botH, left: padding, top: topH + padding * 2 });
+                // Middle column: full height
+                positions.push({ width: midW, height: ensureValidDimension(height - padding * 2, 100), left: leftW + padding * 2, top: padding });
+                // Right column: top
+                positions.push({ width: rightW, height: topH, left: leftW + midW + padding * 3, top: padding });
+                // Right column: bottom
+                positions.push({ width: rightW, height: botH, left: leftW + midW + padding * 3, top: topH + padding * 2 });
             } else {
-                // 5+ images: center + corners layout
-                const centerSize = ensureValidDimension(Math.min(width, height) * 0.5, 200);
-                const cornerSize = ensureValidDimension(Math.min(width, height) * 0.22, 100);
-                const centerX = Math.max(0, Math.floor((width - centerSize) / 2));
-                const centerY = Math.max(0, Math.floor((height - centerSize) / 2));
-
-                positions.push({
-                    width: centerSize,
-                    height: centerSize,
-                    left: centerX,
-                    top: centerY
-                });
-
-                // Corner positions
-                const corners = [
-                    { left: padding, top: padding }, // Top-left
-                    { left: Math.max(0, width - cornerSize - padding), top: padding }, // Top-right
-                    { left: padding, top: Math.max(0, height - cornerSize - padding) }, // Bottom-left
-                    { left: Math.max(0, width - cornerSize - padding), top: Math.max(0, height - cornerSize - padding) } // Bottom-right
+                // 6+ images: 3-column mosaic with staggered heights
+                const cols = 3;
+                const colW = ensureValidDimension((width - padding * (cols + 1)) / cols, 100);
+                const tallH = ensureValidDimension(height * 0.62 - padding * 1.5, 150);
+                const shortH = ensureValidDimension(height - tallH - padding * 3, 100);
+                // Alternate: col0 tall-top/short-bot, col1 short-top/tall-bot, col2 tall-top/short-bot
+                const colLayout = [
+                    [{ h: tallH, top: padding }, { h: shortH, top: tallH + padding * 2 }],
+                    [{ h: shortH, top: padding }, { h: tallH, top: shortH + padding * 2 }],
+                    [{ h: tallH, top: padding }, { h: shortH, top: tallH + padding * 2 }]
                 ];
-
-                for (let i = 1; i < Math.min(imageCount, 5); i++) {
-                    const corner = corners[i - 1];
-                    if (corner) {
-                        positions.push({
-                            width: cornerSize,
-                            height: cornerSize,
-                            left: corner.left,
-                            top: corner.top
-                        });
+                let imgIdx = 0;
+                for (let c = 0; c < cols && imgIdx < imageCount; c++) {
+                    for (let r = 0; r < 2 && imgIdx < imageCount; r++) {
+                        const cell = colLayout[c][r];
+                        positions.push({ width: colW, height: cell.h, left: padding + c * (colW + padding), top: cell.top });
+                        imgIdx++;
                     }
                 }
             }
             break;
+        }
 
         case 'banner-split':
             // Improved: Better proportions and no gaps
@@ -1286,6 +1321,119 @@ function calculateInnovativeLayoutPositions(layoutType, imageCount, width, heigh
                 }
             }
             break;
+
+        case 'triptych': {
+            // 3 perfectly equal tall columns
+            const colW = ensureValidDimension((width - padding * 4) / 3, 100);
+            const colH = ensureValidDimension(height - padding * 2, 100);
+            for (let i = 0; i < Math.min(imageCount, 3); i++) {
+                positions.push({ width: colW, height: colH, left: padding + i * (colW + padding), top: padding });
+            }
+            break;
+        }
+
+        case 'trio-hero': {
+            // Wide hero banner (top 55%) + 2 equal panels (bottom 45%)
+            const heroH = ensureValidDimension(height * 0.55 - padding * 1.5, 150);
+            const botH = ensureValidDimension(height - heroH - padding * 3, 100);
+            const heroW = ensureValidDimension(width - padding * 2, 100);
+            const panelW = ensureValidDimension((width - padding * 3) / 2, 100);
+            positions.push({ width: heroW, height: heroH, left: padding, top: padding });
+            if (imageCount >= 2) {
+                positions.push({ width: panelW, height: botH, left: padding, top: heroH + padding * 2 });
+            }
+            if (imageCount >= 3) {
+                positions.push({ width: panelW, height: botH, left: panelW + padding * 2, top: heroH + padding * 2 });
+            }
+            break;
+        }
+
+        case 'pyramid': {
+            // 1 wide top (60% height) + up to 3 equal bottom panels
+            const topH = ensureValidDimension(height * 0.58 - padding * 1.5, 150);
+            const btmH = ensureValidDimension(height - topH - padding * 3, 100);
+            const topW = ensureValidDimension(width - padding * 2, 100);
+            const bottomCount = Math.max(1, imageCount - 1);
+            const btmCellW = ensureValidDimension((width - padding * (bottomCount + 1)) / bottomCount, 100);
+            positions.push({ width: topW, height: topH, left: padding, top: padding });
+            for (let i = 0; i < bottomCount && i + 1 < imageCount; i++) {
+                positions.push({ width: btmCellW, height: btmH, left: padding + i * (btmCellW + padding), top: topH + padding * 2 });
+            }
+            break;
+        }
+
+        case 'filmstrip': {
+            // Alternating tall/short columns for a contact-sheet look
+            const count = Math.min(imageCount, 6);
+            const colW = ensureValidDimension((width - padding * (count + 1)) / count, 80);
+            const tallH = ensureValidDimension(height - padding * 2, 100);
+            const shortH = ensureValidDimension(height * 0.65 - padding, 100);
+            const shortTop = Math.floor((height - shortH) / 2);
+            for (let i = 0; i < count; i++) {
+                const isShort = i % 2 === 1;
+                positions.push({
+                    width: colW,
+                    height: isShort ? shortH : tallH,
+                    left: padding + i * (colW + padding),
+                    top: isShort ? shortTop : padding
+                });
+            }
+            break;
+        }
+
+        case 'magazine-grid': {
+            // Newspaper/magazine style: each row fills the full width, number of
+            // images per row is distributed as evenly as possible. The middle row
+            // gets one extra image when the total doesn't divide evenly, matching
+            // the classic editorial 3-4-3 / 2-3-2 look.
+            const n = Math.min(imageCount, 12);
+
+            // Determine row distribution based on image count
+            let rowDist;
+            if (n <= 2) {
+                rowDist = [n];
+            } else if (n === 3) {
+                rowDist = [1, 2];        // 1 top + 2 bottom
+            } else if (n === 4) {
+                rowDist = [2, 2];
+            } else if (n === 5) {
+                rowDist = [2, 3];        // wider bottom row
+            } else if (n === 6) {
+                rowDist = [2, 2, 2];
+            } else if (n === 7) {
+                rowDist = [2, 3, 2];
+            } else if (n === 8) {
+                rowDist = [3, 2, 3];
+            } else if (n === 9) {
+                rowDist = [3, 3, 3];
+            } else if (n === 10) {
+                rowDist = [3, 4, 3];    // classic editorial
+            } else if (n === 11) {
+                rowDist = [3, 4, 4];
+            } else {
+                rowDist = [4, 4, 4];    // 12
+            }
+
+            const numRows = rowDist.length;
+            const rowH = ensureValidDimension((height - padding * (numRows + 1)) / numRows, 80);
+            let imgIdx = 0;
+
+            for (let r = 0; r < numRows; r++) {
+                const cols = rowDist[r];
+                const cellW = ensureValidDimension((width - padding * (cols + 1)) / cols, 60);
+                const rowTop = padding + r * (rowH + padding);
+                for (let c = 0; c < cols && imgIdx < n; c++) {
+                    positions.push({
+                        width: cellW,
+                        height: rowH,
+                        left: padding + c * (cellW + padding),
+                        top: rowTop
+                    });
+                    imgIdx++;
+                }
+            }
+            break;
+        }
 
         default:
             // Fallback to basic grid
@@ -1441,8 +1589,9 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 // Use 2-image layout for 2 images
                 gridLayout = '1x2';
             } else if (selectedImages.length === 3) {
-                // Use 3-image layout for 3 images
-                gridLayout = '1x3';
+                // Use 3-image layout for 3 images (prefer triptych for custom layouts)
+                const is3Custom = ['hero-side', 'pyramid', 'filmstrip', 'corner-grid', 'l-shape'].includes(gridLayout);
+                gridLayout = is3Custom ? 'triptych' : '1x3';
             }
             // For 4+ images, keep the original layout and fill missing slots by repeating images
             else {
