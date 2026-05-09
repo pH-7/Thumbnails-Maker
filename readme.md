@@ -6,7 +6,7 @@ Create professional **YouTube thumbnails** with flexible grid layouts supporting
 
 Perfect for YouTube vlogs, tutorials, cooking videos, travel content, "Day in the Life" (DITL) videos, and more. The intelligent Smart Layout system with 8 grid configurations helps you generate professional thumbnails that can boost engagement on your channel.
 
-**🆕 What's New in v4.0.0**:
+**🆕 What's New in v4**:
 - 🚀 **Improved stability**: More reliable thumbnail generation and image processing
 - 🍎 **Mac App Store**: Hardened build, signing, and submission pipeline
 - 🔐 **Safer configuration**: App credentials are now fully environment-driven
