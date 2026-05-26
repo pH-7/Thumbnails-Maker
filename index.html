@@ -492,8 +492,13 @@
 
     .toggle-switch input {
       opacity: 0;
-      width: 0;
-      height: 0;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      cursor: pointer;
+      z-index: 2;
     }
 
     .toggle-switch label {
@@ -506,6 +511,7 @@
       background-color: #ccc;
       transition: .4s;
       border-radius: 24px;
+      z-index: 1;
     }
 
     .toggle-switch label:before {
@@ -1037,8 +1043,7 @@
         <label for="youtubeOptimize">YouTube Optimization</label>
         <div class="toggle-switch">
           <input type="checkbox" id="youtubeOptimize" checked>
-          <label for="
-          "></label>
+          <label for="youtubeOptimize"></label>
         </div>
         <div class="help-text">Optimize for YouTube by removing metadata and applying lossless compression</div>
       </div>
