@@ -1037,8 +1037,7 @@
         <label for="youtubeOptimize">YouTube Optimization</label>
         <div class="toggle-switch">
           <input type="checkbox" id="youtubeOptimize" checked>
-          <label for="
-          "></label>
+          <label for="youtubeOptimize"></label>
         </div>
         <div class="help-text">Optimize for YouTube by removing metadata and applying lossless compression</div>
       </div>
@@ -2728,10 +2727,11 @@
       const preset = selectedPreset;
 
       // Advanced options
-      const rotation = parseInt(elements.textRotation.value) || 0;
-      const stroke = parseFloat(elements.textStroke.value) || 0;
-      const letterSpacing = parseFloat(elements.textLetterSpacing.value) || 0;
-      const strokeColor = elements.textStrokeColor.value || '#000000';
+      const advancedEnabled = elements.advancedTextOptions.checked;
+      const rotation = advancedEnabled ? (parseInt(elements.textRotation.value) || 0) : 0;
+      const stroke = advancedEnabled ? (parseFloat(elements.textStroke.value) || 0) : 0;
+      const letterSpacing = advancedEnabled ? (parseFloat(elements.textLetterSpacing.value) || 0) : 0;
+      const strokeColor = advancedEnabled ? (elements.textStrokeColor.value || '#000000') : '#000000';
       // Auto color sticky
       const autoColorActive = elements.autoColorBtn.classList.contains('active');
       // Resolve 'auto' effect using image analysis
@@ -2756,6 +2756,7 @@
         isAutoEffect: isAutoEffect,
         layer: elements.textLayer.value === 'behind' ? 'watermark' : elements.textLayer.value,
         preset: preset,
+        advancedEnabled,
         rotation,
         stroke,
         letterSpacing,
