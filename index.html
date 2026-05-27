@@ -2765,10 +2765,19 @@
 
       // Advanced options
       const advancedEnabled = elements.advancedTextOptions.checked;
-      const rotation = advancedEnabled ? (parseInt(elements.textRotation.value) || 0) : 0;
-      const stroke = advancedEnabled ? (parseFloat(elements.textStroke.value) || 0) : 0;
-      const letterSpacing = advancedEnabled ? (parseFloat(elements.textLetterSpacing.value) || 0) : 0;
-      const strokeColor = advancedEnabled ? (elements.textStrokeColor.value || '#000000') : '#000000';
+      const advancedTextOptions = advancedEnabled
+        ? {
+          rotation: parseNumberOrDefault(elements.textRotation.value, 0),
+          stroke: parseNumberOrDefault(elements.textStroke.value, 0),
+          letterSpacing: parseNumberOrDefault(elements.textLetterSpacing.value, 0),
+          strokeColor: elements.textStrokeColor.value || '#000000',
+        }
+        : {
+          rotation: 0,
+          stroke: 0,
+          letterSpacing: 0,
+          strokeColor: '#000000',
+        };
       // Auto color sticky
       const autoColorActive = elements.autoColorBtn.classList.contains('active');
       // Resolve 'auto' effect using image analysis
@@ -2796,10 +2805,7 @@
         layer: elements.textLayer.value === 'behind' ? 'watermark' : elements.textLayer.value,
         preset: preset,
         advancedEnabled,
-        rotation,
-        stroke,
-        letterSpacing,
-        strokeColor,
+        ...advancedTextOptions,
         autoColorActive
       };
     }
