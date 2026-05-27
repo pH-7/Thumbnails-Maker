@@ -1809,6 +1809,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const strokeColor = textOverlay.strokeColor || '#000000';
             const letterSpacing = textOverlay.letterSpacing || 0;
             let effect = textOverlay.effect || 'shadow';
+            const textPosition = textOverlay.position === 'smart-auto' ? 'center' : (textOverlay.position || 'center');
             // Style auto flags
             const isAutoColor = textOverlay.autoColorActive || textOverlay.autoColor || false;
             const isAutoEffect = textOverlay.isAutoEffect || effect === 'auto';
@@ -1830,7 +1831,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     }).composite(preTextComposites).raw().toBuffer();
 
                     // Determine sample region based on text position
-                    const pos = textOverlay.position || 'center';
+                    const pos = textPosition;
                     const W = THUMBNAIL_WIDTH, H = THUMBNAIL_HEIGHT;
                     let rx = 0, ry = 0, rw = W, rh = H;
                     const margin = Math.floor(W * 0.03);
@@ -1988,7 +1989,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             const safeStrokeColor = String(strokeColor || '#000000').replace(/[^#a-fA-F0-9]/g, '') || '#000000';
             const safeRotation = Math.max(-360, Math.min(360, Number(rotation) || 0));
             const safeFontSize = Math.max(8, Math.min(500, Number(fontSize) || 60));
-            const safeOpacity = Math.max(0, Math.min(1, Number(opacity) || 0.9));
+            const parsedOpacity = Number(opacity);
+            const safeOpacity = Math.max(0, Math.min(1, Number.isFinite(parsedOpacity) ? parsedOpacity : 0.9));
             const safeStroke = Math.max(0, Math.min(20, Number(stroke) || 0));
             const safeLetterSpacing = Math.max(-10, Math.min(50, Number(letterSpacing) || 0));
 
@@ -1999,10 +2001,13 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 try {
                     // SVG filter for shadow/outline/glow
                     let svgFilter = '';
+                    let textFill = safeFillColor;
+                    let textFilterAttr = '';
                     if (effect === 'shadow') {
                         svgFilter = `<filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="black" flood-opacity="0.5"/>
                 </filter>`;
+                        textFilterAttr = "filter='url(#shadow)'";
                     } else if (effect === 'glow') {
                         svgFilter = `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
                     <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
@@ -2011,6 +2016,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                 </filter>`;
+                        textFilterAttr = "filter='url(#glow)'";
                     } else if (effect === 'outline') {
                         svgFilter = `<filter id="outline" x="-50%" y="-50%" width="200%" height="200%">
                     <feMorphology in="SourceAlpha" result="DILATED" operator="dilate" radius="2"/>
@@ -2021,13 +2027,40 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                 </filter>`;
+                        textFilterAttr = "filter='url(#outline)'";
+                    } else if (effect === 'neon') {
+                        svgFilter = `<filter id="neon" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="5" result="glow"/>
+                    <feColorMatrix in="glow" type="matrix"
+                        values="1 0 0 0 0
+                                0 1 0 0 0
+                                0 0 1 0 0
+                                0 0 0 1.8 0" result="brightGlow"/>
+                    <feMerge>
+                        <feMergeNode in="brightGlow"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>`;
+                        textFilterAttr = "filter='url(#neon)'";
+                    } else if (effect === 'gradient') {
+                        svgFilter = `<linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffffff"/>
+                    <stop offset="45%" stop-color="${safeFillColor}"/>
+                    <stop offset="100%" stop-color="#ffcc00"/>
+                </linearGradient>`;
+                        textFill = 'url(#textGradient)';
+                    } else if (effect === 'vintage') {
+                        svgFilter = `<filter id="vintageShadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="3" dy="3" stdDeviation="1.5" flood-color="#4a2f18" flood-opacity="0.55"/>
+                </filter>`;
+                        textFilterAttr = "filter='url(#vintageShadow)'";
                     }
                     // Compose SVG text (always 1280x720) with correct position
                     // Calculate text position based on 'position' option
                     let posX = svgW / 2;
                     let posY = svgH / 2 + safeFontSize / 2;
                     let anchor;
-                    switch (textOverlay.position) {
+                    switch (textPosition) {
                         case 'top':
                             posX = svgW / 2;
                             posY = safeFontSize + 40;
@@ -2102,7 +2135,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         let adjustedPosX = posX;
                         let adjustedPosY = posY;
 
-                        if (textOverlay.position === 'center' || !textOverlay.position) {
+                        if (textPosition === 'center' || !textPosition) {
                             adjustedPosX = svgW / 2; // True horizontal center
                             adjustedPosY = svgH / 2; // True vertical center without font offset
                         } else {
@@ -2145,18 +2178,36 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                     </svg>
                 `;
                     } else {
+                        let textDecorationLayers = '';
+                        if (effect === '3d') {
+                            textDecorationLayers = [6, 5, 4, 3, 2, 1].map((offset, index) => `
+                            <text x="${posX + offset}" y="${posY + offset}" text-anchor="${anchor}"
+                                font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="#151515"
+                                fill-opacity="${0.16 + index * 0.05}"
+                                letter-spacing="${safeLetterSpacing}"
+                            >${safeText}</text>`).join('');
+                        } else if (effect === 'vintage') {
+                            textDecorationLayers = `
+                            <text x="${posX + 3}" y="${posY + 3}" text-anchor="${anchor}"
+                                font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="#4a2f18"
+                                fill-opacity="0.45"
+                                letter-spacing="${safeLetterSpacing}"
+                            >${safeText}</text>`;
+                        }
+
                         svgText = `
                     <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             ${svgFilter}
                         </defs>
                         <g transform="rotate(${safeRotation},${posX},${posY})">
+                            ${textDecorationLayers}
                             <text x="${posX}" y="${posY}" text-anchor="${anchor}"
-                                font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="${safeFillColor}"
+                                font-family="${safeFontFamily}" font-size="${safeFontSize}" fill="${textFill}"
                                 fill-opacity="${safeOpacity}"
                                 ${safeStroke > 0 ? `stroke='${safeStrokeColor}' stroke-width='${safeStroke}'` : ''}
                                 letter-spacing="${safeLetterSpacing}"
-                                ${effect === 'shadow' ? "filter='url(#shadow)'" : effect === 'glow' ? "filter='url(#glow)'" : effect === 'outline' ? "filter='url(#outline)'" : ''}
+                                ${textFilterAttr}
                             >${safeText}</text>
                         </g>
                     </svg>

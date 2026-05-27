@@ -1363,6 +1363,16 @@
       ENHANCE_LEVEL: "medium"
     };
 
+    function parseNumberOrDefault(value, fallback) {
+      if (value === '' || value === undefined || value === null) return fallback;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function valueOrDefault(value, fallback) {
+      return value === undefined || value === null ? fallback : value;
+    }
+
     const ENHANCE_MESSAGES = {
       none: 'No enhancement applied to images',
       light: 'Smart enhancement with subtle adjustments for high-quality images',
@@ -1383,9 +1393,9 @@
     // Function to get current preferences from the form
     function getCurrentPreferences() {
       return {
-        delimiterWidth: parseInt(elements.delimiterWidthInput.value) || DEFAULT_VALUES.DELIMITER_WIDTH,
+        delimiterWidth: parseNumberOrDefault(elements.delimiterWidthInput.value, DEFAULT_VALUES.DELIMITER_WIDTH),
         delimiterColor: elements.delimiterColorInput.value || DEFAULT_VALUES.DELIMITER_COLOR,
-        delimiterTilt: parseInt(elements.delimiterTiltInput.value) || DEFAULT_VALUES.DELIMITER_TILT,
+        delimiterTilt: parseNumberOrDefault(elements.delimiterTiltInput.value, DEFAULT_VALUES.DELIMITER_TILT),
         enhanceLevel: elements.enhanceLevel.value || DEFAULT_VALUES.ENHANCE_LEVEL,
         layoutMode: elements.layoutMode.value || 'auto',
         youtubeOptimize: elements.youtubeOptimize.checked,
@@ -1397,10 +1407,11 @@
           font: elements.textFont.value,
           size: parseInt(elements.textSize.value) || 60,
           color: elements.textColor.value,
-          opacity: parseFloat(elements.textOpacity.value) || 0.9,
+          opacity: parseNumberOrDefault(elements.textOpacity.value, 0.9),
           position: elements.textPosition.value,
           effect: elements.textEffect.value,
           layer: elements.textLayer.value,
+          preset: selectedPreset,
           rotation: parseInt(elements.textRotation.value) || 0,
           stroke: parseFloat(elements.textStroke.value) || 0,
           letterSpacing: parseFloat(elements.textLetterSpacing.value) || 0,
@@ -1411,6 +1422,32 @@
         // Add timestamp for reference
         savedAt: new Date().toISOString()
       };
+    }
+
+    function setPanelVisibility(panel, isVisible) {
+      if (!panel) return;
+      panel.style.display = isVisible ? 'block' : 'none';
+      panel.classList.toggle('show', isVisible);
+    }
+
+    function syncAdvancedTextOptionsPanel() {
+      setPanelVisibility(
+        elements.advancedTextOptionsPanel,
+        elements.enableTextOverlay.checked && elements.advancedTextOptions.checked
+      );
+    }
+
+    function syncAutoDesignControls() {
+      setPanelVisibility(
+        elements.manualControls,
+        elements.enableTextOverlay.checked && !elements.autoDesignText.checked
+      );
+    }
+
+    function syncTextOverlayUi() {
+      setPanelVisibility(elements.textOverlayOptions, elements.enableTextOverlay.checked);
+      syncAutoDesignControls();
+      syncAdvancedTextOptionsPanel();
     }
 
     // Function to save current preferences as favorites
@@ -1476,10 +1513,10 @@
 
       try {
         // Apply delimiter settings
-        elements.delimiterWidthInput.value = preferences.delimiterWidth || DEFAULT_VALUES.DELIMITER_WIDTH;
+        elements.delimiterWidthInput.value = valueOrDefault(preferences.delimiterWidth, DEFAULT_VALUES.DELIMITER_WIDTH);
         elements.delimiterColorInput.value = preferences.delimiterColor || DEFAULT_VALUES.DELIMITER_COLOR;
-        elements.delimiterTiltInput.value = preferences.delimiterTilt || DEFAULT_VALUES.DELIMITER_TILT;
-        elements.tiltValueOutput.textContent = `${preferences.delimiterTilt || DEFAULT_VALUES.DELIMITER_TILT}°`;
+        elements.delimiterTiltInput.value = valueOrDefault(preferences.delimiterTilt, DEFAULT_VALUES.DELIMITER_TILT);
+        elements.tiltValueOutput.textContent = `${valueOrDefault(preferences.delimiterTilt, DEFAULT_VALUES.DELIMITER_TILT)}°`;
 
         // Apply enhance level
         elements.enhanceLevel.value = preferences.enhanceLevel || DEFAULT_VALUES.ENHANCE_LEVEL;
@@ -1500,13 +1537,14 @@
           elements.textFont.value = textOverlay.font || 'Arial Black';
           elements.textSize.value = textOverlay.size || 60;
           elements.textColor.value = textOverlay.color || '#ffffff';
-          elements.textOpacity.value = textOverlay.opacity || 0.9;
+          elements.textOpacity.value = valueOrDefault(textOverlay.opacity, 0.9);
           elements.textPosition.value = textOverlay.position || 'center';
           elements.textEffect.value = textOverlay.effect || 'auto';
           elements.textLayer.value = textOverlay.layer || 'overlay';
-          elements.textRotation.value = textOverlay.rotation || 0;
-          elements.textStroke.value = textOverlay.stroke || 0;
-          elements.textLetterSpacing.value = textOverlay.letterSpacing || 0;
+          syncPresetSelection(textOverlay.preset || null);
+          elements.textRotation.value = valueOrDefault(textOverlay.rotation, 0);
+          elements.textStroke.value = valueOrDefault(textOverlay.stroke, 0);
+          elements.textLetterSpacing.value = valueOrDefault(textOverlay.letterSpacing, 0);
           elements.textStrokeColor.value = textOverlay.strokeColor || '#000000';
           elements.advancedTextOptions.checked = textOverlay.advancedEnabled || false;
 
@@ -1523,28 +1561,13 @@
 
           // Update display values
           elements.textSizeValue.textContent = `${textOverlay.size || 60}px`;
-          elements.textOpacityValue.textContent = `${((textOverlay.opacity || 0.9) * 100).toFixed(0)}%`;
-          elements.textRotationValue.textContent = `${textOverlay.rotation || 0}°`;
-          elements.textStrokeValue.textContent = `${textOverlay.stroke || 0}px`;
-          elements.textLetterSpacingValue.textContent = `${textOverlay.letterSpacing || 0}px`;
-
-          // Show/hide panels
-          if (textOverlay.enabled) {
-            elements.textOverlayOptions.style.display = 'block';
-            elements.textOverlayOptions.classList.add('show');
-          } else {
-            elements.textOverlayOptions.style.display = 'none';
-            elements.textOverlayOptions.classList.remove('show');
-          }
-
-          if (textOverlay.advancedEnabled) {
-            elements.advancedTextOptionsPanel.style.display = 'block';
-            elements.advancedTextOptionsPanel.classList.add('show');
-          } else {
-            elements.advancedTextOptionsPanel.style.display = 'none';
-            elements.advancedTextOptionsPanel.classList.remove('show');
-          }
+          elements.textOpacityValue.textContent = `${(valueOrDefault(textOverlay.opacity, 0.9) * 100).toFixed(0)}%`;
+          elements.textRotationValue.textContent = `${valueOrDefault(textOverlay.rotation, 0)}°`;
+          elements.textStrokeValue.textContent = `${valueOrDefault(textOverlay.stroke, 0)}px`;
+          elements.textLetterSpacingValue.textContent = `${valueOrDefault(textOverlay.letterSpacing, 0)}px`;
         }
+
+        syncTextOverlayUi();
 
         // Update delimiter preview
         updateDelimiterPreview();
@@ -1872,6 +1895,44 @@
       }
     }
 
+    function getSmartTextPosition() {
+      const candidates = [
+        'top',
+        'bottom',
+        'left',
+        'right',
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right',
+        'center'
+      ];
+
+      let bestPosition = 'center';
+      let bestScore = -Infinity;
+
+      candidates.forEach(position => {
+        const analysis = analyzeImageRegion(position);
+        if (!analysis) return;
+
+        const lowVisualNoise = 1 - Math.min(analysis.stdDev || 0, 1);
+        const contrastPotential = Math.abs((analysis.luminance || 0.5) - 0.5);
+        const edgeBonus = position === 'center' ? 0 : 0.08;
+        const score = lowVisualNoise + contrastPotential + edgeBonus;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestPosition = position;
+        }
+      });
+
+      return bestPosition;
+    }
+
+    function resolveTextPosition(position) {
+      return position === 'smart-auto' ? getSmartTextPosition() : (position || 'center');
+    }
+
     // Smart text effect picker: uses analysis data (including stdDev) to choose the best effect
     function getSmartTextEffect(analysis, textColor) {
       if (!analysis) return 'shadow';
@@ -2001,9 +2062,9 @@
       elements.textPosition.value = 'center';
       elements.textEffect.value = 'auto';
       elements.textLayer.value = 'overlay';
+      syncPresetSelection(null);
       elements.textSizeValue.textContent = '60px';
       elements.textOpacityValue.textContent = '90%';
-      elements.textOverlayOptions.style.display = 'none';
 
       // Reset advanced text options to defaults
       elements.advancedTextOptions.checked = false;
@@ -2014,7 +2075,7 @@
       elements.textRotationValue.textContent = '0°';
       elements.textStrokeValue.textContent = '0px';
       elements.textLetterSpacingValue.textContent = '0px';
-      elements.advancedTextOptionsPanel.style.display = 'none';
+      syncTextOverlayUi();
 
       // Reset auto color to default OFF state
       autoColorActive = false;
@@ -2245,9 +2306,9 @@
         elements.progressContainer.classList.add('active');
         showProcessingAnimation();
 
-        const delimiterWidth = parseInt(elements.delimiterWidthInput.value) || DEFAULT_VALUES.DELIMITER_WIDTH;
+        const delimiterWidth = parseNumberOrDefault(elements.delimiterWidthInput.value, DEFAULT_VALUES.DELIMITER_WIDTH);
         const delimiterColor = elements.delimiterColorInput.value || DEFAULT_VALUES.DELIMITER_COLOR;
-        const delimiterTilt = parseInt(elements.delimiterTiltInput.value) || DEFAULT_VALUES.DELIMITER_TILT;
+        const delimiterTilt = parseNumberOrDefault(elements.delimiterTiltInput.value, DEFAULT_VALUES.DELIMITER_TILT);
         const enhanceLevel = elements.enhanceLevel.value;
         const enhanceOptions = ENHANCE_OPTIONS[enhanceLevel];
         const outputName = elements.outputNameInput.value.trim();
@@ -2413,25 +2474,7 @@
       const initialLetterSpacing = elements.textLetterSpacing.value;
       elements.textLetterSpacingValue.textContent = `${initialLetterSpacing}px`;
 
-      // Initialize advanced text options panel state
-      const advancedPanel = elements.advancedTextOptionsPanel;
-      if (elements.advancedTextOptions.checked) {
-        advancedPanel.style.display = 'block';
-        advancedPanel.classList.add('show');
-      } else {
-        advancedPanel.style.display = 'none';
-        advancedPanel.classList.remove('show');
-      }
-
-      // Initialize text overlay options panel state
-      const textOverlayOptions = elements.textOverlayOptions;
-      if (elements.enableTextOverlay.checked) {
-        textOverlayOptions.style.display = 'block';
-        textOverlayOptions.classList.add('show');
-      } else {
-        textOverlayOptions.style.display = 'none';
-        textOverlayOptions.classList.remove('show');
-      }
+      syncTextOverlayUi();
     }    // Initialize all controls
     initializeTextOverlayControls();
 
@@ -2457,6 +2500,7 @@
         console.log('No saved favorites found, using default settings');
         // Initialize Auto Design Text to default checked state when no preferences exist
         elements.autoDesignText.checked = true;
+        syncTextOverlayUi();
       }
     }
 
@@ -2496,16 +2540,7 @@
 
     // Toggle text overlay options visibility
     elements.enableTextOverlay.addEventListener('change', () => {
-      const isChecked = elements.enableTextOverlay.checked;
-      const textOverlayOptions = elements.textOverlayOptions;
-
-      if (isChecked) {
-        textOverlayOptions.style.display = 'block';
-        textOverlayOptions.classList.add('show');
-      } else {
-        textOverlayOptions.style.display = 'none';
-        textOverlayOptions.classList.remove('show');
-      }
+      syncTextOverlayUi();
     });
 
     // Update text size value display
@@ -2551,14 +2586,7 @@
 
     // --- Advanced Text Options Toggle ---
     elements.advancedTextOptions.addEventListener('change', () => {
-      const panel = elements.advancedTextOptionsPanel;
-      if (elements.advancedTextOptions.checked) {
-        panel.style.display = 'block';
-        panel.classList.add('show');
-      } else {
-        panel.style.display = 'none';
-        panel.classList.remove('show');
-      }
+      syncAdvancedTextOptionsPanel();
     });
 
     // --- Delimiter Tilt Angle: Always parse as number and update preview ---
@@ -2570,9 +2598,12 @@
 
     // --- Auto Design Text Feature ---
     elements.autoDesignText.addEventListener('change', () => {
+      syncAutoDesignControls();
       if (elements.autoDesignText.checked) {
         // Apply auto design - choose good defaults based on content and current settings
         autoApplyDesignText();
+      } else {
+        clearTimeout(elements.overlayText._autoDesignTimeout);
       }
     });
 
@@ -2615,7 +2646,7 @@
 
       // Auto color: use smart image analysis if images are loaded, else fallback to delimiter
       settingAutoColor = true;
-      const position = elements.textPosition.value;
+      const position = resolveTextPosition(elements.textPosition.value);
       const imgAnalysis = analyzeImageRegion(position);
       let autoColor;
       if (imgAnalysis) {
@@ -2642,7 +2673,7 @@
     // Uses actual image analysis when images are loaded, falls back to delimiter color
     function applyAutoColor() {
       settingAutoColor = true;
-      const position = elements.textPosition ? elements.textPosition.value : 'center';
+      const position = elements.textPosition ? resolveTextPosition(elements.textPosition.value) : 'center';
       const analysis = analyzeImageRegion(position);
 
       let bestColor;
@@ -2735,11 +2766,12 @@
       // Auto color sticky
       const autoColorActive = elements.autoColorBtn.classList.contains('active');
       // Resolve 'auto' effect using image analysis
+      const requestedPosition = elements.textPosition.value;
+      const resolvedPosition = resolveTextPosition(requestedPosition);
       let effectValue = elements.textEffect.value;
       const isAutoEffect = effectValue === 'auto';
       if (isAutoEffect) {
-        const position = elements.textPosition.value;
-        const imgAnalysis = analyzeImageRegion(position);
+        const imgAnalysis = analyzeImageRegion(resolvedPosition);
         const textColorVal = elements.textColor.value;
         effectValue = getSmartTextEffect(imgAnalysis, textColorVal);
       }
@@ -2750,8 +2782,9 @@
         font: elements.textFont.value,
         size: parseInt(elements.textSize.value) || 60,
         color: elements.textColor.value,
-        opacity: parseFloat(elements.textOpacity.value) || 0.9,
-        position: elements.textPosition.value,
+        opacity: parseNumberOrDefault(elements.textOpacity.value, 0.9),
+        position: resolvedPosition,
+        requestedPosition,
         effect: effectValue,
         isAutoEffect: isAutoEffect,
         layer: elements.textLayer.value === 'behind' ? 'watermark' : elements.textLayer.value,
@@ -2812,14 +2845,18 @@
       }
     };
     const presetButtons = document.querySelectorAll('.preset-btn');
+
+    function syncPresetSelection(preset) {
+      selectedPreset = preset && presetStyles[preset] ? preset : null;
+      presetButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.preset === selectedPreset);
+      });
+    }
+
     presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         // Clear previous selection
-        presetButtons.forEach(b => b.classList.remove('active'));
-
-        // Mark new selection
-        btn.classList.add('active');
-        selectedPreset = btn.dataset.preset;
+        syncPresetSelection(btn.dataset.preset);
 
         // Apply preset styles to text overlay controls
         const style = presetStyles[selectedPreset];
