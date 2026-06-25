@@ -33,6 +33,7 @@ Thumbs.db
 # Fastlane — track lane definitions, exclude generated reports
 fastlane/report.xml
 fastlane/Preview.html
+fastlane/screenshots/
 
 # Xcode user specific files
 *.xcuserstate

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>App Store Screenshot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    .stage {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: radial-gradient(120% 75% at 50% 0%, #ff5252 0%, #d50000 48%, #7a0000 100%);
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .copy {
+      text-align: center;
+      padding: 7% 8% 0;
+      flex-shrink: 0;
+    }
+
+    .headline {
+      font-size: 84px;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -1.5px;
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .sub {
+      margin-top: 20px;
+      font-size: 37px;
+      font-weight: 500;
+      opacity: 0.92;
+    }
+
+    /* Phone mockup — bleeds off the bottom edge for a modern look. */
+    .device-shell {
+      position: relative;
+      margin-top: 52px;
+      width: 66%;
+      aspect-ratio: 9 / 19.5;
+      background: #0d0d0d;
+      border-radius: 62px;
+      padding: 16px;
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.45), inset 0 0 0 3px rgba(255, 255, 255, 0.08);
+      flex-shrink: 0;
+    }
+
+    .screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #f9f9f9;
+      border-radius: 48px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 0 22px;
+    }
+
+    .notch {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 32%;
+      height: 28px;
+      background: #0d0d0d;
+      border-radius: 16px;
+      z-index: 5;
+    }
+
+    body.tablet .copy {
+      padding: 5.5% 8% 0;
+    }
+
+    body.tablet .headline {
+      font-size: 102px;
+    }
+
+    body.tablet .sub {
+      font-size: 42px;
+      margin-top: 24px;
+    }
+
+    body.tablet .device-shell {
+      width: 78%;
+      aspect-ratio: 3 / 4;
+      border-radius: 42px;
+      padding: 14px;
+    }
+
+    body.tablet .screen {
+      border-radius: 30px;
+      padding: 0 24px;
+    }
+
+    body.tablet .notch {
+      display: none;
+    }
+
+    body.tablet .app-head {
+      padding: 28px 0 6px;
+      font-size: 36px;
+    }
+
+    body.tablet .app-sub {
+      font-size: 20px;
+      margin-bottom: 18px;
+    }
+
+    body.tablet .label {
+      font-size: 22px;
+      margin: 22px 2px 12px;
+    }
+
+    body.tablet .chip {
+      padding: 11px 18px;
+      font-size: 19px;
+    }
+
+    body.tablet .opt-row {
+      font-size: 21px;
+      padding: 14px 0;
+    }
+
+    body.tablet .cta {
+      font-size: 27px;
+      margin-bottom: 26px;
+      padding: 22px;
+    }
+
+    .app-head {
+      text-align: center;
+      padding: 50px 0 4px;
+      color: #ff0000;
+      font-weight: 800;
+      font-size: 30px;
+    }
+
+    .app-sub {
+      text-align: center;
+      color: #888;
+      font-size: 17px;
+      margin-bottom: 16px;
+    }
+
+    .label {
+      font-size: 18px;
+      font-weight: 700;
+      color: #333;
+      margin: 20px 2px 10px;
+    }
+
+    .result-wrap {
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+    }
+
+    .result-wrap canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    .chip {
+      border: 1.5px solid #e2e2e2;
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-size: 17px;
+      color: #444;
+      background: #fff;
+    }
+
+    .chip.active {
+      border-color: #ff0000;
+      background: #fff0f0;
+      color: #ff0000;
+      font-weight: 700;
+    }
+
+    .sources {
+      display: flex;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .sources .src {
+      flex: 1;
+      aspect-ratio: 16/9;
+      border-radius: 10px;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .opt-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      font-size: 18px;
+      color: #333;
+      padding: 12px 0;
+    }
+
+    .slider-mock {
+      position: relative;
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #e2e2e2;
+    }
+
+    .slider-mock i {
+      position: absolute;
+      left: 38%;
+      top: 50%;
+      width: 26px;
+      height: 26px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: #ff0000;
+    }
+
+    .slider-mock::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 38%;
+      border-radius: 3px;
+      background: #ff0000;
+    }
+
+    .toggle-mock {
+      width: 50px;
+      height: 30px;
+      border-radius: 999px;
+      background: #ff0000;
+      position: relative;
+    }
+
+    .toggle-mock::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .cta {
+      margin-top: auto;
+      margin-bottom: 30px;
+      background: #ff0000;
+      color: #fff;
+      text-align: center;
+      font-weight: 700;
+      font-size: 23px;
+      padding: 20px;
+      border-radius: 16px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="stage">
+    <div class="copy">
+      <div class="headline" id="headline"></div>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div class="device-shell">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="app-head">Thumbnail Maker</div>
+        <div class="app-sub">1280 × 720 · ready for YouTube</div>
+        <div class="result-wrap" id="resultWrap"></div>
+        <div class="label">Layout</div>
+        <div class="chips" id="chips"></div>
+        <div class="label">Photos</div>
+        <div class="sources" id="sources"></div>
+        <div class="label">Options</div>
+        <div class="opt-row"><span>Gap</span>
+          <div class="slider-mock"><i></i></div>
+        </div>
+        <div class="opt-row"><span>Auto enhance</span>
+          <div class="toggle-mock"></div>
+        </div>
+        <div class="cta">Save to Photos</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../mobile/thumbnail-engine.js"></script>
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const layout = params.get('layout') || 'auto';
+      const count = parseInt(params.get('count') || '4', 10);
+      const enhance = params.get('enhance') === '1';
+      const deviceKind = params.get('deviceKind') || 'phone';
+      document.body.classList.add(deviceKind === 'tablet' ? 'tablet' : 'phone');
+      document.getElementById('headline').textContent = params.get('headline') || 'Join your photos';
+      document.getElementById('sub').textContent = params.get('sub') || '';
+
+      // Pleasant gradient "video frames" so screenshots need no bundled assets.
+      const PALETTES = [
+        ['#ff6a00', '#ee0979'], ['#00c6ff', '#0072ff'], ['#11998e', '#38ef7d'],
+        ['#8e2de2', '#4a00e0'], ['#f7971e', '#ffd200'], ['#fc466b', '#3f5efb'],
+        ['#43cea2', '#185a9d'], ['#ff512f', '#dd2476'], ['#1d976c', '#93f9b9']
+      ];
+
+      function makeFrame(i) {
+        const c = document.createElement('canvas');
+        c.width = 640;
+        c.height = 360;
+        const ctx = c.getContext('2d');
+        const [a, b] = PALETTES[i % PALETTES.length];
+        const g = ctx.createLinearGradient(0, 0, 640, 360);
+        g.addColorStop(0, a);
+        g.addColorStop(1, b);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 640, 360);
+        const r = ctx.createRadialGradient(180, 110, 20, 180, 110, 320);
+        r.addColorStop(0, 'rgba(255,255,255,0.35)');
+        r.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = r;
+        ctx.fillRect(0, 0, 640, 360);
+        return c;
+      }
+
+      function frameToImg(canvas) {
+        return new Promise((res) => {
+          const img = new Image();
+          img.onload = () => res(img);
+          img.src = canvas.toDataURL();
+        });
+      }
+
+      function renderChips() {
+        const chips = [
+          { key: 'auto', label: 'Auto' },
+          { key: '1x2', label: 'Side by side' },
+          { key: '2x2', label: '2×2' },
+          { key: '3x3', label: '3×3' },
+          { key: '1x1', label: 'Single' }
+        ];
+        const wrap = document.getElementById('chips');
+        chips.forEach((c) => {
+          const el = document.createElement('div');
+          el.className = 'chip' + (c.key === layout ? ' active' : '');
+          el.textContent = c.label;
+          wrap.appendChild(el);
+        });
+      }
+
+      (async function build() {
+        const frames = [];
+        for (let i = 0; i < count; i++) frames.push(makeFrame(i));
+        const imgs = await Promise.all(frames.map(frameToImg));
+
+        const canvas = ThumbnailEngine.compose({
+          images: imgs, layout, delimiterWidth: 18, delimiterColor: '#ffffff', enhance
+        });
+        document.getElementById('resultWrap').appendChild(canvas);
+
+        renderChips();
+
+        const sources = document.getElementById('sources');
+        for (let i = 0; i < 3; i++) {
+          const div = document.createElement('div');
+          div.className = 'src';
+          div.style.backgroundImage = `url(${frames[i % frames.length].toDataURL()})`;
+          sources.appendChild(div);
+        }
+
+        document.body.dataset.ready = '1';
+      })();
+    })();
+  </script>
+</body>
+
+</html>
