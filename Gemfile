@@ -4,7 +4,7 @@ source "https://rubygems.org"
 # ruby "3.0.0"
 
 # Primary dependencies for app distribution
-gem "fastlane", "~> 2.200.0"
+gem "fastlane", ">= 2.220", "< 3.0"
 gem "cocoapods", "~> 1.11.3"
 
 # Additional Fastlane plugins

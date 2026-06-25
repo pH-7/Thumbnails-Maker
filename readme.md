@@ -46,6 +46,30 @@ npm install
 npm start
 ```
 
+## 📱 iPhone (iOS)
+
+Runs natively on iPhone via [Capacitor](https://capacitorjs.com/), reusing the web UI in [`mobile/`](mobile/) with an on-device Canvas engine instead of `sharp`. Requires macOS, Xcode and CocoaPods.
+
+```bash
+npm install      # includes Capacitor
+npm run ios:add  # first time only
+npm run ios:sync # after any change in mobile/
+npm run ios:open # opens Xcode → set Team → Run
+```
+
+### 🚀 Publish to the App Store
+
+Automated with [Fastlane](https://fastlane.tools/). iOS signing uses **Xcode automatic signing** driven by your App Store Connect API key (no `match` repo or passphrase needed). Set the env vars from [`.env.example`](.env.example) (`IOS_APP_IDENTIFIER`, `TEAM_ID`, and the API key: `APP_STORE_KEY_ID`, `APP_STORE_ISSUER_ID`, `APP_STORE_KEY_PATH`), then:
+
+```bash
+npm run ios:certificates # create App ID + App Store Connect record (idempotent)
+npm run ios:screenshots  # generate App Store screenshots
+npm run ios:beta         # build + upload to TestFlight
+npm run ios:release      # build + upload metadata/screenshots + submit for review
+```
+
+Listing metadata lives in [`fastlane/metadata/ios/`](fastlane/metadata/ios/) and generated screenshots in `fastlane/screenshots/ios/`.
+
 ## 🪄 Features
 
 ### ✨ **Flexible Thumbnail Creation**
