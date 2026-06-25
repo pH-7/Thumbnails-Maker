@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Thumbnail Maker</title>
+  <style>
+    :root {
+      --yt-red: #ff0000;
+      --yt-red-dark: #cc0000;
+      --bg: #f9f9f9;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #e2e2e2;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      padding: calc(16px + var(--safe-top)) 16px calc(110px + var(--safe-bottom));
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+      color: var(--yt-red);
+    }
+
+    header p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    /* Image grid */
+    .images {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .thumb {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f0f0f0;
+      border: 1px solid var(--border);
+      touch-action: none;
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+    }
+
+    .thumb.drag-source {
+      opacity: 0.35;
+    }
+
+    .thumb.drag-over {
+      outline: 2px solid var(--yt-red);
+      outline-offset: -2px;
+    }
+
+    .thumb.drag-floating {
+      position: fixed;
+      margin: 0;
+      z-index: 1000;
+      pointer-events: none;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      opacity: 0.96;
+      transform: scale(1.04);
+    }
+
+    .thumb .remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 26px;
+      height: 26px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-size: 16px;
+      line-height: 26px;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .thumb .order {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 5px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-size: 11px;
+      line-height: 20px;
+      text-align: center;
+    }
+
+    .add-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      aspect-ratio: 16 / 9;
+      border: 2px dashed #cfcfcf;
+      border-radius: 10px;
+      background: #fafafa;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .add-tile span {
+      font-size: 24px;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    /* Layout chips */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chip.active {
+      border-color: var(--yt-red);
+      background: #fff0f0;
+      color: var(--yt-red);
+      font-weight: 600;
+    }
+
+    /* Options */
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+    }
+
+    .row label {
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--yt-red);
+    }
+
+    input[type="color"] {
+      width: 40px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: none;
+      padding: 2px;
+    }
+
+    .switch {
+      position: relative;
+      width: 46px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+    }
+
+    .switch .slider {
+      position: absolute;
+      inset: 0;
+      background: #ccc;
+      border-radius: 999px;
+      transition: background 0.2s;
+    }
+
+    .switch .slider::before {
+      content: "";
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      left: 3px;
+      top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .switch input:checked+.slider {
+      background: var(--yt-red);
+    }
+
+    .switch input:checked+.slider::before {
+      transform: translateX(18px);
+    }
+
+    .value {
+      font-size: 13px;
+      color: var(--muted);
+      min-width: 42px;
+      text-align: right;
+    }
+
+    /* Result */
+    #resultCard {
+      display: none;
+    }
+
+    #resultImg {
+      width: 100%;
+      border-radius: 10px;
+      display: block;
+      background: #000;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+
+    #resultImg.saving {
+      opacity: 0.72;
+      cursor: progress;
+    }
+
+    .status {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 18px;
+      margin-top: 6px;
+    }
+
+    /* Sticky action bar */
+    .actions {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 16px calc(12px + var(--safe-bottom));
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .btn {
+      flex: 1;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--yt-red);
+      color: #fff;
+    }
+
+    .btn-primary:disabled {
+      background: #f0a8a8;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: var(--text);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Thumbnail Maker</h1>
+    <p>Join your photos into a 1280×720 thumbnail</p>
+  </header>
+
+  <section class="card">
+    <h2>Photos</h2>
+    <div class="images" id="imagesGrid">
+      <div class="add-tile" id="addTile">
+        <span>+</span>
+        Add photos
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple class="hidden" />
+  </section>
+
+  <section class="card">
+    <h2>Layout</h2>
+    <div class="chips" id="layoutChips"></div>
+  </section>
+
+  <section class="card">
+    <h2>Options</h2>
+    <div class="row">
+      <label for="delimiter">Gap</label>
+      <input type="range" id="delimiter" min="0" max="60" value="18" />
+      <span class="value" id="delimiterValue">18px</span>
+    </div>
+    <div class="row">
+      <label for="delimiterColor">Gap colour</label>
+      <input type="color" id="delimiterColor" value="#ffffff" />
+    </div>
+    <div class="row">
+      <label for="enhance">Auto enhance</label>
+      <span class="switch">
+        <input type="checkbox" id="enhance" />
+        <span class="slider"></span>
+      </span>
+    </div>
+  </section>
+
+  <section class="card" id="resultCard">
+    <h2>Result</h2>
+    <img id="resultImg" alt="Generated thumbnail" role="button" tabindex="0" aria-disabled="true" />
+  </section>
+
+  <p class="status" id="status"></p>
+
+  <div class="actions">
+    <button class="btn btn-secondary" id="resetBtn">Reset</button>
+    <button class="btn btn-primary" id="createBtn" disabled>Create</button>
+    <button class="btn btn-primary hidden" id="saveBtn">Save</button>
+  </div>
+
+  <script src="thumbnail-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
