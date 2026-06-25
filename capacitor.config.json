@@ -1,0 +1,11 @@
+{
+  "appId": "me.ph7.youtubethumbnailmaker",
+  "appName": "Thumbnail Maker",
+  "webDir": "mobile",
+  "ios": {
+    "contentInset": "always"
+  },
+  "server": {
+    "iosScheme": "thumbnailmaker"
+  }
+}

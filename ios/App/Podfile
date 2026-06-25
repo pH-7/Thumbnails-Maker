@@ -1,0 +1,47 @@
+require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '13.0'
+use_frameworks!
+
+# workaround to avoid Xcode caching of Pods that requires
+# Product -> Clean Build Folder after new Cordova plugins installed
+# Requires CocoaPods 1.6 or newer
+install! 'cocoapods', :disable_input_output_paths => true
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+
+end
+
+target 'App' do
+  capacitor_pods
+  # Add your Pods here
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+
+  frameworks_script = File.join(__dir__, 'Pods', 'Target Support Files', 'Pods-App', 'Pods-App-frameworks.sh')
+  if File.exist?(frameworks_script)
+    content = File.read(frameworks_script)
+    broken = 'source="$(readlink "${source}")"'
+    previously_fixed = <<~'SH'.strip
+      source="$(readlink "${source}")"
+      [[ "${source}" != /* ]] && source="$(dirname "${source}")/${source}"
+    SH
+    fixed = <<~'SH'.strip
+      local symlink_target
+      symlink_target="$(readlink "${source}")"
+      if [[ "${symlink_target}" != /* ]]; then
+        source="$(dirname "${source}")/${symlink_target}"
+      else
+        source="${symlink_target}"
+      fi
+    SH
+
+    content = content.sub(previously_fixed, fixed)
+    content = content.sub(broken, fixed)
+    File.write(frameworks_script, content)
+  end
+end
