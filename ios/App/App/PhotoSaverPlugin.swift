@@ -11,25 +11,27 @@ public class PhotoSaverPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     @objc func saveImage(_ call: CAPPluginCall) {
-        guard let base64Data = call.getString("data"), !base64Data.isEmpty else {
-            call.reject("Missing image data.")
-            return
-        }
-
-        guard let imageData = decodeImageData(base64Data) else {
-            call.reject("Could not decode image data.")
-            return
-        }
-
-        requestPhotoAccess { [weak self] granted in
+        DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
-            guard granted else {
-                call.reject("Photos access was denied. Please allow Photos access in Settings.")
+            guard let base64Data = call.getString("data"), !base64Data.isEmpty else {
+                call.reject("Missing image data.")
                 return
             }
 
-            self.saveToPhotoLibrary(imageData: imageData, call: call)
+            guard let imageData = self.decodeImageData(base64Data) else {
+                call.reject("Could not decode image data.")
+                return
+            }
+
+            self.requestPhotoAccess { granted in
+                guard granted else {
+                    call.reject("Photos access was denied. Please allow Photos access in Settings.")
+                    return
+                }
+
+                self.saveToPhotoLibrary(imageData: imageData, call: call)
+            }
         }
     }
 
@@ -47,20 +49,26 @@ public class PhotoSaverPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func requestPhotoAccess(completion: @escaping (Bool) -> Void) {
         if #available(iOS 14, *) {
-            let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
-            switch status {
-            case .authorized, .limited:
+            let addOnlyStatus = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+            switch addOnlyStatus {
+            case .authorized:
                 completion(true)
+                return
             case .notDetermined:
                 PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
                     DispatchQueue.main.async {
-                        completion(newStatus == .authorized || newStatus == .limited)
+                        if newStatus == .authorized {
+                            completion(true)
+                            return
+                        }
+                        self.requestReadWriteFallback(completion: completion)
                     }
                 }
+                return
             default:
-                completion(false)
+                requestReadWriteFallback(completion: completion)
+                return
             }
-            return
         }
 
         let status = PHPhotoLibrary.authorizationStatus()
@@ -71,6 +79,23 @@ public class PhotoSaverPlugin: CAPPlugin, CAPBridgedPlugin {
             PHPhotoLibrary.requestAuthorization { newStatus in
                 DispatchQueue.main.async {
                     completion(newStatus == .authorized)
+                }
+            }
+        default:
+            completion(false)
+        }
+    }
+
+    @available(iOS 14, *)
+    private func requestReadWriteFallback(completion: @escaping (Bool) -> Void) {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        switch status {
+        case .authorized, .limited:
+            completion(true)
+        case .notDetermined:
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
+                DispatchQueue.main.async {
+                    completion(newStatus == .authorized || newStatus == .limited)
                 }
             }
         default:
