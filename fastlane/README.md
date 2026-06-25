@@ -89,6 +89,51 @@ Build the app without using match for certificates
 
 ----
 
+
+## iOS
+
+### ios certificates
+
+```sh
+[bundle exec] fastlane ios certificates
+```
+
+Register the App ID & App Store Connect record (no match needed)
+
+### ios screenshots
+
+```sh
+[bundle exec] fastlane ios screenshots
+```
+
+Generate App Store screenshots into fastlane/screenshots/ios
+
+### ios build
+
+```sh
+[bundle exec] fastlane ios build
+```
+
+Build a signed .ipa for the App Store (automatic signing via API key)
+
+### ios beta
+
+```sh
+[bundle exec] fastlane ios beta
+```
+
+Upload the latest build to TestFlight
+
+### ios release
+
+```sh
+[bundle exec] fastlane ios release
+```
+
+Build, upload metadata + screenshots, and submit to the App Store
+
+----
+
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 
 More information about _fastlane_ can be found on [fastlane.tools](https://fastlane.tools).

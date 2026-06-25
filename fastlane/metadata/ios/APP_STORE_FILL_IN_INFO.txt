@@ -1,0 +1,143 @@
+APP STORE FILL-IN INFO (iOS)
+Project: Thumbnail Maker
+Bundle ID: me.ph7.youtubethumbnailmaker
+Version: 1.0.0
+Date: 2026-06-25
+
+PURPOSE OF THIS FILE
+- Collect all relevant listing/submission information in one place.
+- Highlight the item that previously blocked submission.
+- Provide ready-to-paste values and fields that still need manual input.
+
+IMPORTANT BLOCKER THAT WAS FIXED
+- Previous failure: invalid primary category value in deliver metadata upload.
+- Wrong value used before: GRAPHICS_DESIGN
+- Correct value to use: GRAPHICS_AND_DESIGN
+
+READY-TO-PASTE APP STORE LISTING VALUES
+App Name
+- Thumbnail Maker
+
+Subtitle (<= 30 chars)
+- Join photos into thumbnails
+Alternative subtitle options:
+- YouTube Thumbnail Builder
+- Photo Grid Thumbnail Maker
+- Thumbnail Collage Creator
+
+Description
+- Create scroll-stopping YouTube thumbnails right from your iPhone. Thumbnail Maker joins multiple photos into a single, perfectly sized 1280x720 image in seconds - no desktop, no design skills required.
+
+- Pick photos from your library, choose a grid layout, and tap Create. Adjust the spacing and gap colour, turn on Auto Enhance for a brighter, more vibrant look, then save straight to Photos or share anywhere.
+
+- WHY YOU'LL LOVE IT
+- Join 1 to 9 photos into one thumbnail
+- Smart grid layouts: side by side, stacked, 2x2, 2x3, 3x3 and more
+- Auto layout picks the best grid for your photo count
+- Adjustable gap width and colour between photos
+- One-tap Auto Enhance for punchy, eye-catching colours
+- Always exports at the standard YouTube size (1280x720)
+- Save to Photos or share with a single tap
+- Fast, private, and fully on-device - your photos never leave your iPhone
+
+- Perfect for vlogs, tutorials, cooking, travel, gaming, reactions, and Day in the Life videos. Make your channel stand out - one thumbnail at a time.
+
+Keywords (comma-separated, <= 100 chars total)
+- thumbnail,youtube,collage,photo grid,joiner,combine,video,creator,montage,maker
+
+Promotional Text
+- Create pro-looking YouTube thumbnails in seconds. Join 1-9 photos with smart grids, auto enhance, and instant export to Photos.
+
+What is New (Release Notes)
+- First release
+- Join 1-9 photos into a 1280x720 YouTube thumbnail
+- Smart grid layouts with adjustable gaps
+- One-tap Auto Enhance
+- Save to Photos or share instantly
+
+Support URL
+- https://ph7.me
+
+Marketing URL
+- https://ph7.me
+
+Privacy Policy URL
+- https://ph7.me/privacy
+
+Categories
+- Primary: GRAPHICS_AND_DESIGN
+- Secondary: PRODUCTIVITY
+
+Content Rights and Export Compliance
+- Uses encryption: NO
+- Encryption updated: NO
+- Contains third-party content rights: NO
+- Uses IDFA: NO
+
+Price
+- Free (tier 0)
+
+Copyright
+- 2026 pH7
+
+AGE RATING (CURRENT CONFIG)
+All set to NONE (0):
+- Cartoon/Fantasy Violence
+- Realistic Violence
+- Prolonged Graphic/Sadistic/Realistic Violence
+- Profanity/Crude Humor
+- Mature/Suggestive
+- Horror/Fear Themes
+- Medical/Treatment Information
+- Alcohol/Tobacco/Drug Use
+- Simulated Gambling
+- Sexual Content/Nudity
+- Graphic Sexual Content/Nudity
+- Unrestricted Web Access
+- Gambling/Contests
+
+SCREENSHOTS GENERATED
+- 6.7 inch set: 5 images
+- 6.5 inch set: 5 images
+- 12.9 inch iPad set: 5 images
+- 11 inch iPad set: 5 images
+- Path: fastlane/screenshots/ios/en-US
+
+ACCESSIBILITY (MANUAL IN APP STORE CONNECT)
+- Fastlane does not reliably fill the accessibility support section in App Store Connect.
+- Only claim features that let users complete the app's core flow with that feature enabled.
+- Safe recommendation for now: leave all accessibility support options unchecked unless you test them end to end on device.
+- Most likely candidate after testing: VoiceOver, because the app uses standard HTML controls and at least one explicit aria-label.
+- Do not claim Dark Interface right now: the app currently uses a fixed light theme.
+- Do not claim Larger Text, Reduced Motion, Voice Control, Captions, Audio Descriptions, or Differentiate Without Color Alone unless you verify the full app flow with each feature.
+
+FIELDS THAT STILL NEED MANUAL CONFIRMATION OR INPUT
+1) App Review Information (required by Apple)
+- First name:
+- Last name:
+- Phone number:
+- Email:
+- Demo account required: NO (if app has no login)
+- Review notes:
+  Suggested: No account required. App works fully offline. Select up to 9 photos, choose a layout, and tap Create to generate a 1280x720 thumbnail.
+
+2) App Privacy (Data Collection)
+- Confirm in App Store Connect privacy questionnaire.
+- Suggested baseline if true for your app: No data collected, no tracking.
+
+3) Availability and Distribution
+- Countries/regions:
+- Release option: manual release after approval
+
+4) Apple ID username for some fastlane actions
+- Fastlane app_store_build_number asked for Apple ID username when not provided.
+- If needed, run with explicit username parameter to avoid prompt.
+
+QUICK PRE-FLIGHT CHECKLIST
+- [ ] Primary category is GRAPHICS_AND_DESIGN
+- [ ] Subtitle <= 30 chars
+- [ ] Keywords <= 100 chars
+- [ ] Privacy URL is reachable
+- [ ] App Review contact fields are complete
+- [ ] Screenshots exist for required iPhone sizes
+- [ ] App Privacy questionnaire is complete in App Store Connect

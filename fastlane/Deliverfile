@@ -3,7 +3,6 @@
 # https://docs.fastlane.tools/actions/deliver/
 
 app_identifier(ENV['APP_IDENTIFIER'])
-team_id(ENV['APPLE_STORE_TEAM_ID'])
 
 # App information
 app_version("1.0.0")
@@ -22,10 +21,9 @@ force(true) # Skip verification of HTML preview file
 # Submission options
 submit_for_review(true)
 automatic_release(false)
-price_tier(0) # Free app
 
 # Categories
-primary_category("GRAPHICS_DESIGN")
+primary_category("GRAPHICS_AND_DESIGN")
 secondary_category("PRODUCTIVITY") 
 
 # Rating settings
