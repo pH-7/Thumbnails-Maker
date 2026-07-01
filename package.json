@@ -18,9 +18,9 @@
     "ios:sync": "cap sync ios",
     "ios:open": "cap open ios",
     "ios:screenshots": "node scripts/generate-ios-screenshots.js",
-    "ios:certificates": "cd fastlane && bundle exec fastlane ios certificates",
-    "ios:testflight": "cd fastlane && bundle exec fastlane ios testflight_upload",
-    "ios:release": "cd fastlane && bundle exec fastlane ios release"
+    "ios:certificates": "cd fastlane && /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane ios certificates",
+    "ios:testflight": "cd fastlane && /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane ios testflight_upload",
+    "ios:release": "cd fastlane && /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane ios release"
   },
   "author": "Pierre-Henry Soria",
   "homepage": "https://github.com/pH-7/Thumbnails-Maker",
