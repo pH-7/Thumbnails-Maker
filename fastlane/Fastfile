@@ -498,7 +498,8 @@ platform :ios do
 
   desc "Build a signed .ipa for the App Store (automatic signing via API key)"
   lane :build do
-    sh("cd #{IOS_APP_DIR} && pod install")
+    # Force CocoaPods through the same Bundler/Ruby toolchain used by fastlane.
+    sh("cd #{IOS_APP_DIR} && /opt/homebrew/opt/ruby@3.3/bin/bundle exec pod install")
 
     update_code_signing_settings(
       use_automatic_signing: true,
@@ -519,6 +520,7 @@ platform :ios do
       output_directory: "../build/ios",
       output_name: "ThumbnailMaker.ipa",
       clean: true,
+      xcodebuild_formatter: "",
       xcargs: "CURRENT_PROJECT_VERSION=#{build_number} DEVELOPMENT_TEAM=#{ENV['TEAM_ID']} -allowProvisioningUpdates"
     )
   end
