@@ -116,7 +116,7 @@ Generate App Store screenshots into fastlane/screenshots/ios
 
 Build a signed .ipa for the App Store (automatic signing via API key)
 
-### ios testflight
+### ios testflight_upload
 
 ```sh
 [bundle exec] fastlane ios testflight_upload
