@@ -426,6 +426,8 @@ platform :ios do
   # Build the App Store Connect API key object from env vars (no Apple ID 2FA).
   # set_spaceship_token makes legacy actions (produce) use the key too.
   private_lane :asc_api_key do
+    require_ios_testflight_env!
+
     app_store_connect_api_key(
       key_id: ENV['APP_STORE_KEY_ID'],
       issuer_id: ENV['APP_STORE_ISSUER_ID'],
@@ -433,6 +435,15 @@ platform :ios do
       in_house: false,
       set_spaceship_token: true
     )
+  end
+
+  private_lane :require_ios_testflight_env! do
+    required_keys = %w[TEAM_ID APP_STORE_KEY_ID APP_STORE_ISSUER_ID APP_STORE_KEY_PATH]
+    missing_keys = required_keys.select { |key| ENV[key].to_s.strip.empty? }
+
+    return if missing_keys.empty?
+
+    UI.user_error!("Missing required iOS TestFlight environment variables: #{missing_keys.join(', ')}")
   end
 
   # Ensure the App ID and the App Store Connect record exist (idempotent).
@@ -501,8 +512,8 @@ platform :ios do
     )
   end
 
-  desc "Upload the latest build to TestFlight"
-  lane :beta do
+  desc "Build and upload the latest build to TestFlight"
+  lane :testflight_upload do
     certificates
     build
     upload_to_testflight(
@@ -513,6 +524,11 @@ platform :ios do
       skip_waiting_for_build_processing: true
     )
     UI.success("🚀 Uploaded to TestFlight")
+  end
+
+  desc "Upload the latest build to TestFlight"
+  lane :beta do
+    testflight_upload
   end
 
   desc "Build, upload metadata + screenshots, and submit to the App Store"

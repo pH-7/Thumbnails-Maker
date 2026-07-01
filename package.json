@@ -20,6 +20,7 @@
     "ios:screenshots": "node scripts/generate-ios-screenshots.js",
     "ios:certificates": "cd fastlane && bundle exec fastlane ios certificates",
     "ios:beta": "cd fastlane && bundle exec fastlane ios beta",
+    "ios:testflight": "cd fastlane && bundle exec fastlane ios testflight_upload",
     "ios:release": "cd fastlane && bundle exec fastlane ios release"
   },
   "author": "Pierre-Henry Soria",

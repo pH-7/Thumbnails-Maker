@@ -124,6 +124,14 @@ Build a signed .ipa for the App Store (automatic signing via API key)
 
 Upload the latest build to TestFlight
 
+### ios testflight
+
+```sh
+[bundle exec] fastlane ios testflight_upload
+```
+
+Build and upload the latest build to TestFlight
+
 ### ios release
 
 ```sh
