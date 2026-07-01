@@ -64,7 +64,7 @@ Automated with [Fastlane](https://fastlane.tools/). iOS signing uses **Xcode aut
 ```bash
 npm run ios:certificates # create App ID + App Store Connect record (idempotent)
 npm run ios:screenshots  # generate App Store screenshots
-npm run ios:beta         # build + upload to TestFlight
+npm run ios:testflight   # build + upload to TestFlight
 npm run ios:release      # build + upload metadata/screenshots + submit for review
 ```
 
