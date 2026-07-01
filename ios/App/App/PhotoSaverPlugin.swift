@@ -48,27 +48,24 @@ public class PhotoSaverPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func requestPhotoAccess(completion: @escaping (Bool) -> Void) {
+        // Saving only needs "add" access, so request the minimal add-only
+        // permission on iOS 14+. This shows the system prompt on first use and
+        // never presents a second, confusing prompt.
         if #available(iOS 14, *) {
-            let addOnlyStatus = PHPhotoLibrary.authorizationStatus(for: .addOnly)
-            switch addOnlyStatus {
-            case .authorized:
+            let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+            switch status {
+            case .authorized, .limited:
                 completion(true)
-                return
             case .notDetermined:
                 PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
                     DispatchQueue.main.async {
-                        if newStatus == .authorized {
-                            completion(true)
-                            return
-                        }
-                        self.requestReadWriteFallback(completion: completion)
+                        completion(newStatus == .authorized || newStatus == .limited)
                     }
                 }
-                return
             default:
-                requestReadWriteFallback(completion: completion)
-                return
+                completion(false)
             }
+            return
         }
 
         let status = PHPhotoLibrary.authorizationStatus()
@@ -79,23 +76,6 @@ public class PhotoSaverPlugin: CAPPlugin, CAPBridgedPlugin {
             PHPhotoLibrary.requestAuthorization { newStatus in
                 DispatchQueue.main.async {
                     completion(newStatus == .authorized)
-                }
-            }
-        default:
-            completion(false)
-        }
-    }
-
-    @available(iOS 14, *)
-    private func requestReadWriteFallback(completion: @escaping (Bool) -> Void) {
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        switch status {
-        case .authorized, .limited:
-            completion(true)
-        case .notDetermined:
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
-                DispatchQueue.main.async {
-                    completion(newStatus == .authorized || newStatus == .limited)
                 }
             }
         default:
