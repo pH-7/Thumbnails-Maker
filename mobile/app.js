@@ -10,10 +10,23 @@
 
   const engine = window.ThumbnailEngine;
   const capacitor = window.Capacitor;
-  const photoSaver =
-    capacitor && capacitor.getPlatform && capacitor.getPlatform() === 'ios'
-      ? capacitor.registerPlugin('PhotoSaver')
-      : null;
+
+  // Register the native save bridge defensively: a failure here must never
+  // abort initialisation (which would leave every control unwired/"frozen").
+  let photoSaver = null;
+  try {
+    if (
+      capacitor &&
+      typeof capacitor.getPlatform === 'function' &&
+      capacitor.getPlatform() === 'ios' &&
+      typeof capacitor.registerPlugin === 'function'
+    ) {
+      photoSaver = capacitor.registerPlugin('PhotoSaver');
+    }
+  } catch (error) {
+    console.error('PhotoSaver plugin registration failed:', error);
+    photoSaver = null;
+  }
 
   // Available layouts shown as chips. 'auto' picks a sensible grid by count.
   const LAYOUT_OPTIONS = [
@@ -432,7 +445,9 @@
   }
 
   // --- Wire up events ---------------------------------------------------------
-  el.addTile.addEventListener('click', () => el.fileInput.click());
+  // The "Add photos" tile is a <label for="fileInput">, so tapping it opens the
+  // native picker directly — this is the only reliable way on iOS WKWebView.
+  // (A synthetic fileInput.click() on a display:none input is ignored there.)
   el.fileInput.addEventListener('change', (e) => {
     addFiles(e.target.files);
     el.fileInput.value = ''; // allow re-picking the same file

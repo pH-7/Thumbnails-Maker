@@ -339,6 +339,22 @@
     .hidden {
       display: none !important;
     }
+
+    /* Visually hidden but still focusable/activatable — required so iOS
+       WKWebView reliably opens the native photo picker via the label.
+       Do NOT use display:none here; iOS may refuse to present the picker. */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+      opacity: 0;
+    }
   </style>
 </head>
 
@@ -351,12 +367,12 @@
   <section class="card">
     <h2>Photos</h2>
     <div class="images" id="imagesGrid">
-      <div class="add-tile" id="addTile">
+      <label class="add-tile" id="addTile" for="fileInput">
         <span>+</span>
         Add photos
-      </div>
+      </label>
     </div>
-    <input type="file" id="fileInput" accept="image/*" multiple class="hidden" />
+    <input type="file" id="fileInput" accept="image/*" multiple class="visually-hidden" />
   </section>
 
   <section class="card">
