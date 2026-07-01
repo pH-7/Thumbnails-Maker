@@ -474,7 +474,7 @@ platform :ios do
         )
         UI.success("✅ Created App Store Connect app for #{IOS_APP_ID}")
       rescue => ex
-        UI.user_error!("Unable to create app '#{IOS_APP_ID}' with the current API key permissions. Create it once in App Store Connect (My Apps > + > New App), then rerun ios:beta. Original error: #{ex.message}")
+        UI.user_error!("Unable to create app '#{IOS_APP_ID}' with the current API key permissions. Create it once in App Store Connect (My Apps > + > New App), then rerun ios:testflight. Original error: #{ex.message}")
       end
     end
   end
@@ -524,11 +524,6 @@ platform :ios do
       skip_waiting_for_build_processing: true
     )
     UI.success("🚀 Uploaded to TestFlight")
-  end
-
-  desc "Upload the latest build to TestFlight"
-  lane :beta do
-    testflight_upload
   end
 
   desc "Build, upload metadata + screenshots, and submit to the App Store"
