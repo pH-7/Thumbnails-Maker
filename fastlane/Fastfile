@@ -583,8 +583,18 @@ platform :ios do
       UI.success("✅ Submitted to the App Store for review")
     rescue => ex
       message = ex.message.to_s
-      if message.include?("A review submission is already in progress")
-        UI.important("ℹ️ Upload completed, but review submission is already in progress on App Store Connect. Skipping re-submission.")
+      # The binary is uploaded and processed before this point. These errors only
+      # mean the automatic "submit for review" step was refused because the app
+      # version already has a submission in review on App Store Connect. The new
+      # build is still available to select there, so treat them as non-fatal.
+      tolerable = [
+        "A review submission is already in progress",
+        "The specified pre-release build could not be added",
+        "A relationship value is not acceptable for the current resource state",
+        "There is already a version in review"
+      ]
+      if tolerable.any? { |snippet| message.include?(snippet) }
+        UI.important("ℹ️ Build uploaded and processed successfully, but automatic review submission was skipped because a submission for this version is already in progress on App Store Connect. Select the new build manually if needed.")
       else
         raise ex
       end
