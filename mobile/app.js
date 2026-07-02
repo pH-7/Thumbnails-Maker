@@ -29,6 +29,7 @@
   }
 
   // Available layouts shown as chips. 'auto' picks a sensible grid by count.
+  // Mirrors the desktop (Electron) app so both offer the same frames.
   const LAYOUT_OPTIONS = [
     { key: 'auto', label: 'Auto' },
     { key: '1x2', label: 'Side by side' },
@@ -39,7 +40,18 @@
     { key: '2x3', label: '2×3' },
     { key: '3x2', label: '3×2' },
     { key: '3x3', label: '3×3' },
-    { key: '1x1', label: 'Single' }
+    { key: '1x1', label: 'Single' },
+    // Creative YouTube-optimised layouts
+    { key: 'hero-side', label: 'Hero + Side' },
+    { key: 'corner-grid', label: 'Mosaic' },
+    { key: 'banner-split', label: 'Banner Split' },
+    { key: 'spotlight', label: 'Spotlight' },
+    { key: 'l-shape', label: 'L-Shape' },
+    { key: 'triptych', label: 'Triptych' },
+    { key: 'trio-hero', label: 'Trio Hero' },
+    { key: 'pyramid', label: 'Pyramid' },
+    { key: 'filmstrip', label: 'Filmstrip' },
+    { key: 'magazine-grid', label: 'Magazine' }
   ];
 
   const state = {
