@@ -1,5 +1,13 @@
-First release 🎉
-• Join 1–9 photos into a 1280x720 YouTube thumbnail
-• Smart grid layouts with adjustable gaps
-• One-tap Auto Enhance
-• Save to Photos or share instantly
+Create better YouTube thumbnails faster on your iPhone.
+
+This update improves thumbnail layouts, photo frames, and saving to Photos so it is easier to create, preview, and keep your best designs.
+
+What's new:
+• Save generated thumbnails straight to Apple Photos
+• Tap the preview image to save your thumbnail instantly
+• Improved photo frame accuracy for cleaner YouTube thumbnail layouts
+• Better layout behavior when combining multiple photos
+• Refined app icon and store-ready visual polish
+• Smoother workflow for creators, vloggers, gamers, tutorial makers, and social media posts
+
+Thumbnail Maker helps you turn photos into a sharp 1280x720 YouTube thumbnail on iPhone without desktop editing or complicated design tools.
