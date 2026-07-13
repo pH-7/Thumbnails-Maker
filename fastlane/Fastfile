@@ -498,7 +498,7 @@ platform :ios do
 
   desc "Build a signed .ipa for the App Store (automatic signing via API key)"
   lane :build do
-    sh("cd #{IOS_APP_DIR} && pod install")
+    sh("cd #{IOS_APP_DIR} && env -u GEM_PATH -u GEM_HOME pod install")
 
     update_code_signing_settings(
       use_automatic_signing: true,
