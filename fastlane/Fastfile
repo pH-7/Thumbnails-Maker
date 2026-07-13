@@ -498,8 +498,7 @@ platform :ios do
 
   desc "Build a signed .ipa for the App Store (automatic signing via API key)"
   lane :build do
-    # Force CocoaPods through the same Bundler/Ruby toolchain used by fastlane.
-    sh("cd #{IOS_APP_DIR} && /opt/homebrew/opt/ruby@3.3/bin/bundle exec pod install")
+    sh("cd #{IOS_APP_DIR} && pod install")
 
     update_code_signing_settings(
       use_automatic_signing: true,
