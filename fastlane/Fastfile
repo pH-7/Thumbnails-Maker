@@ -460,19 +460,21 @@ platform :ios do
 
   private_lane :resolved_ios_app_version do
     requested = ENV['IOS_APP_VERSION'].to_s.strip
-    return IOS_RELEASE_VERSION if requested.empty?
+    resolved = IOS_RELEASE_VERSION
 
-    begin
-      if Gem::Version.new(requested) < Gem::Version.new(IOS_RELEASE_VERSION)
-        UI.important("Ignoring stale IOS_APP_VERSION=#{requested}; using #{IOS_RELEASE_VERSION}")
-        return IOS_RELEASE_VERSION
+    unless requested.empty?
+      begin
+        if Gem::Version.new(requested) < Gem::Version.new(IOS_RELEASE_VERSION)
+          UI.important("Ignoring stale IOS_APP_VERSION=#{requested}; using #{IOS_RELEASE_VERSION}")
+        else
+          resolved = requested
+        end
+      rescue ArgumentError
+        UI.important("Ignoring invalid IOS_APP_VERSION=#{requested}; using #{IOS_RELEASE_VERSION}")
       end
-    rescue ArgumentError
-      UI.important("Ignoring invalid IOS_APP_VERSION=#{requested}; using #{IOS_RELEASE_VERSION}")
-      return IOS_RELEASE_VERSION
     end
 
-    requested
+    resolved
   end
 
   # Ensure the App ID and the App Store Connect record exist (idempotent).
