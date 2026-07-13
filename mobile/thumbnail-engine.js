@@ -461,11 +461,11 @@
 
   /**
    * Resolve the effective layout + usable image count. Mirrors the desktop
-   * app's "adapt down when fewer images" behaviour: standard grids fall back to
-   * a grid that fits the count exactly, creative layouts adapt internally (and
-   * drop to 1x1 / 1x2 for very small counts). Images are never repeated.
+   * app's backend behavior: one/two images use compact layouts, specific
+   * three-image creative layouts fall back to triptych, and 4+ image layouts
+   * keep all expected frames by cycling available photos into empty slots.
    *
-   * @returns {{key:string, layout:object, count:number}}
+   * @returns {{key:string, layout:object, count:number, cycleImages:boolean}}
    */
   function resolveLayout(layoutKey, providedCount) {
     if (layoutKey === 'auto') {
@@ -474,24 +474,39 @@
 
     let layout = GRID_LAYOUTS[layoutKey] || GRID_LAYOUTS['1x1'];
     let count = Math.max(1, Math.min(providedCount, layout.maxImages));
+    let cycleImages = false;
 
     if (count < layout.maxImages) {
-      if (layout.type === 'custom') {
-        if (count <= 1) {
-          layoutKey = '1x1';
-        } else if (count === 2) {
-          layoutKey = '1x2';
-        }
-        // 3+ keeps the creative layout, which adapts to the actual count.
+      if (count === 1) {
+        layoutKey = '1x1';
+      } else if (count === 2) {
+        layoutKey = '1x2';
+      } else if (count === 3) {
+        const threeImageCustomFallbacks = ['hero-side', 'pyramid', 'filmstrip', 'corner-grid', 'l-shape'];
+        layoutKey = threeImageCustomFallbacks.includes(layoutKey) ? 'triptych' : '1x3';
       } else {
-        // Standard grid: adapt down to a grid that fits the count exactly.
-        layoutKey = autoLayoutFor(count);
+        cycleImages = true;
       }
+
       layout = GRID_LAYOUTS[layoutKey] || GRID_LAYOUTS['1x1'];
-      count = Math.max(1, Math.min(count, layout.maxImages));
+      count = cycleImages ? layout.maxImages : Math.max(1, Math.min(count, layout.maxImages));
     }
 
-    return { key: layoutKey, layout, count };
+    return { key: layoutKey, layout, count, cycleImages };
+  }
+
+  function selectImagesForLayout(images, resolved) {
+    const layoutMax = resolved.layout.maxImages;
+    const selected = images.slice(0, Math.min(images.length, layoutMax));
+
+    if (resolved.cycleImages && selected.length > 0) {
+      const originalLength = selected.length;
+      while (selected.length < layoutMax) {
+        selected.push(selected[selected.length % originalLength]);
+      }
+    }
+
+    return selected.slice(0, resolved.count);
   }
 
   /**
@@ -526,6 +541,39 @@
     ctx.restore();
   }
 
+  function paintStandardGridDelimiters(ctx, layout, delimiterWidth, delimiterColor, delimiterTilt) {
+    if (layout.type === 'custom' || delimiterWidth <= 0 || (layout.cols <= 1 && layout.rows <= 1)) {
+      return;
+    }
+
+    const cellWidth = Math.floor(THUMBNAIL_WIDTH / layout.cols);
+    const cellHeight = Math.floor(THUMBNAIL_HEIGHT / layout.rows);
+    const tiltRadians = (Number(delimiterTilt) || 0) * Math.PI / 180;
+
+    ctx.save();
+    ctx.fillStyle = delimiterColor;
+
+    for (let col = 1; col < layout.cols; col++) {
+      const x = col * cellWidth;
+      const cx = Math.floor(x);
+      const cy = Math.floor(THUMBNAIL_HEIGHT / 2);
+      const rectX = Math.floor(x - delimiterWidth / 2);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-tiltRadians);
+      ctx.fillRect(rectX - cx, -cy, delimiterWidth, THUMBNAIL_HEIGHT);
+      ctx.restore();
+    }
+
+    for (let row = 1; row < layout.rows; row++) {
+      const y = row * cellHeight;
+      ctx.fillRect(0, Math.floor(y - delimiterWidth / 2), THUMBNAIL_WIDTH, delimiterWidth);
+    }
+
+    ctx.restore();
+  }
+
   /**
    * Compose the final thumbnail.
    *
@@ -534,6 +582,7 @@
    * @param {string} [opts.layout='auto'] Layout key (e.g. '2x2') or 'auto'.
    * @param {number} [opts.delimiterWidth=18] Gap between tiles, in px (output scale).
    * @param {string} [opts.delimiterColor='#ffffff'] Gap / background colour.
+   * @param {number} [opts.delimiterTilt=0] Standard-grid vertical delimiter tilt.
    * @param {boolean} [opts.enhance=false] Apply the light auto-enhance.
    * @returns {HTMLCanvasElement} The rendered 1280x720 canvas.
    */
@@ -545,14 +594,16 @@
 
     const delimiterWidth = Math.max(0, Math.floor(Number(opts.delimiterWidth) || 0));
     const delimiterColor = opts.delimiterColor || '#ffffff';
+    const delimiterTilt = Number(opts.delimiterTilt) || 0;
     const enhance = Boolean(opts.enhance);
 
     // Desktop uses padding = half the delimiter width for both the outer border
     // and the inter-tile gaps, so every photo ends up inside a visible frame.
     const padding = Math.floor(delimiterWidth / 2);
 
-    const { layout, count } = resolveLayout(opts.layout || 'auto', images.length);
-    const usedImages = images.slice(0, count);
+    const resolved = resolveLayout(opts.layout || 'auto', images.length);
+    const { layout } = resolved;
+    const usedImages = selectImagesForLayout(images, resolved);
 
     const positions =
       layout.type === 'custom'
@@ -614,6 +665,8 @@
       ctx.restore();
     });
 
+    paintStandardGridDelimiters(ctx, layout, delimiterWidth, delimiterColor, delimiterTilt);
+
     return canvas;
   }
 
@@ -641,6 +694,7 @@
     LAYOUTS,
     autoLayoutFor,
     resolveLayout,
+    selectImagesForLayout,
     calculateGridPositions,
     calculateInnovativeLayoutPositions,
     compose,
