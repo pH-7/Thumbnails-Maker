@@ -782,6 +782,11 @@ async function manualBuild(certs, env) {
     `--ignore="^/dist($|/)" ` +
     `--ignore="^/certs($|/)" ` +
     `--ignore="^/build($|/)" ` +
+    `--ignore="^/mobile($|/)" ` +
+    `--ignore="^/ios($|/)" ` +
+    `--ignore="^/fastlane($|/)" ` +
+    `--ignore="^/node_modules/@capacitor($|/)" ` +
+    `--ignore="^/capacitor\\.config\\.json$" ` +
     `--ignore="\\.p8$" ` +
     `--ignore="\\.p12$" ` +
     `--ignore="\\.mobileprovision$" ` +
@@ -1094,11 +1099,6 @@ function validatePackage(pkgPath) {
   // xcrun iTMSTransporter is no longer available standalone; skip the verify fallback.
   // altool output above contains all available diagnostics.
   const combinedOutput = (result.output || '').trim();
-
-  if (result.success) {
-    log('✅', 'Package validation passed!');
-    return true;
-  }
 
   if (isDuplicateBundleVersionError(combinedOutput)) {
     log('❌', `Validation failed: build version "${CONFIG.BUILD_VERSION}" was already uploaded.`);

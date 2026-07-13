@@ -20,6 +20,7 @@ describe('MAS publish pipeline guards', () => {
   test('detects altool validation/upload failures', () => {
     expect(hasAltoolErrors('2026-04-22 ERROR: Failed to upload package.')).toBe(true);
     expect(hasAltoolErrors('status : 409 detail : duplicate build version')).toBe(true);
+    expect(hasAltoolErrors('{ "product-errors": [{ "message": "Validation failed" }] }')).toBe(true);
     expect(hasAltoolErrors('Upload completed successfully.')).toBe(false);
   });
 

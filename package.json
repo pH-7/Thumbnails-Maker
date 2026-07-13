@@ -1,7 +1,7 @@
 {
   "name": "thumbnail-maker",
   "productName": "YouTube Thumbnail Creator",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "Create professional YouTube thumbnails with multiple images, custom layouts, and intelligent enhancement features.",
   "main": "main.js",
   "scripts": {
@@ -43,7 +43,8 @@
       "!.env.*",
       "!mobile/**",
       "!ios/**",
-      "!capacitor.config.json"
+      "!capacitor.config.json",
+      "!node_modules/@capacitor/**"
     ],
     "mac": {
       "category": "public.app-category.graphics-design",
