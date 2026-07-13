@@ -423,6 +423,7 @@ platform :ios do
   IOS_PROJECT   = File.expand_path("../ios/App/App.xcodeproj", __dir__)
   IOS_APP_DIR   = File.expand_path("../ios/App", __dir__)
   IOS_SCHEME    = "App"
+  IOS_RELEASE_VERSION = "1.1.1"
 
   private_lane :resolved_app_store_key_path do
     raw_path = ENV['APP_STORE_KEY_PATH'].to_s.strip
@@ -455,6 +456,23 @@ platform :ios do
     if missing_keys.any?
       UI.user_error!("Missing required iOS TestFlight environment variables: #{missing_keys.join(', ')}")
     end
+  end
+
+  private_lane :resolved_ios_app_version do
+    requested = ENV['IOS_APP_VERSION'].to_s.strip
+    return IOS_RELEASE_VERSION if requested.empty?
+
+    begin
+      if Gem::Version.new(requested) < Gem::Version.new(IOS_RELEASE_VERSION)
+        UI.important("Ignoring stale IOS_APP_VERSION=#{requested}; using #{IOS_RELEASE_VERSION}")
+        return IOS_RELEASE_VERSION
+      end
+    rescue ArgumentError
+      UI.important("Ignoring invalid IOS_APP_VERSION=#{requested}; using #{IOS_RELEASE_VERSION}")
+      return IOS_RELEASE_VERSION
+    end
+
+    requested
   end
 
   # Ensure the App ID and the App Store Connect record exist (idempotent).
@@ -509,7 +527,7 @@ platform :ios do
 
     # Unique build number for every upload (no plugin / agvtool needed).
     build_number = ENV['BUILD_NUMBER'] || Time.now.strftime("%Y%m%d%H%M")
-    app_version = ENV['IOS_APP_VERSION'] || "1.1.1"
+    app_version = resolved_ios_app_version
 
     build_app(
       workspace: IOS_WORKSPACE,
@@ -564,7 +582,7 @@ platform :ios do
         ipa: lane_context[SharedValues::IPA_OUTPUT_PATH],
         metadata_path: "./metadata/ios",
         screenshots_path: "./screenshots/ios",
-        app_version: (ENV['IOS_APP_VERSION'] || "1.1.1"),
+        app_version: resolved_ios_app_version,
         submission_information: {
           export_compliance_uses_encryption: false,
           export_compliance_encryption_updated: false,
