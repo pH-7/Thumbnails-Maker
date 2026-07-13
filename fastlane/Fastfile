@@ -510,7 +510,7 @@ platform :ios do
 
     # Unique build number for every upload (no plugin / agvtool needed).
     build_number = ENV['BUILD_NUMBER'] || Time.now.strftime("%Y%m%d%H%M")
-    app_version = ENV['IOS_APP_VERSION'] || "1.1.0"
+    app_version = ENV['IOS_APP_VERSION'] || "1.1.1"
 
     build_app(
       workspace: IOS_WORKSPACE,
@@ -565,7 +565,7 @@ platform :ios do
         ipa: lane_context[SharedValues::IPA_OUTPUT_PATH],
         metadata_path: "./metadata/ios",
         screenshots_path: "./screenshots/ios",
-        app_version: (ENV['IOS_APP_VERSION'] || "1.1.0"),
+        app_version: (ENV['IOS_APP_VERSION'] || "1.1.1"),
         submission_information: {
           export_compliance_uses_encryption: false,
           export_compliance_encryption_updated: false,
