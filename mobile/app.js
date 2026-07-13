@@ -59,6 +59,7 @@
     layout: 'auto',
     delimiterWidth: 18,
     delimiterColor: '#ffffff',
+    delimiterTilt: 0,
     enhance: false,
     resultBlob: null,
     isSaving: false
@@ -72,6 +73,8 @@
     delimiter: document.getElementById('delimiter'),
     delimiterValue: document.getElementById('delimiterValue'),
     delimiterColor: document.getElementById('delimiterColor'),
+    delimiterTilt: document.getElementById('delimiterTilt'),
+    delimiterTiltValue: document.getElementById('delimiterTiltValue'),
     enhance: document.getElementById('enhance'),
     resultCard: document.getElementById('resultCard'),
     resultImg: document.getElementById('resultImg'),
@@ -96,6 +99,26 @@
 
   function canSaveFromImageTap() {
     return Boolean(state.resultBlob) && !state.isSaving;
+  }
+
+  function hasPhotosWriteAccess(permissionResult) {
+    if (!permissionResult || typeof permissionResult !== 'object') {
+      return true;
+    }
+
+    const status = permissionResult.photos || permissionResult.photoLibrary || permissionResult.status;
+    return status === 'granted' || status === 'limited' || status === 'authorized';
+  }
+
+  async function requestPhotosWriteAccess() {
+    if (!photoSaver || typeof photoSaver.requestPermissions !== 'function') {
+      return;
+    }
+
+    const permissions = await photoSaver.requestPermissions();
+    if (!hasPhotosWriteAccess(permissions)) {
+      throw new Error('Photos access was denied. Please allow Photos access in Settings.');
+    }
   }
 
   function blobToBase64Data(blob) {
@@ -366,6 +389,7 @@
         layout: state.layout,
         delimiterWidth: state.delimiterWidth,
         delimiterColor: state.delimiterColor,
+        delimiterTilt: state.delimiterTilt,
         enhance: state.enhance
       });
 
@@ -400,6 +424,7 @@
 
     if (photoSaver) {
       try {
+        await requestPhotosWriteAccess();
         const base64Data = await blobToBase64Data(state.resultBlob);
         await photoSaver.saveImage({
           data: base64Data,
@@ -473,6 +498,12 @@
 
   el.delimiterColor.addEventListener('input', (e) => {
     state.delimiterColor = e.target.value;
+    invalidateResult();
+  });
+
+  el.delimiterTilt.addEventListener('input', (e) => {
+    state.delimiterTilt = Number(e.target.value) || 0;
+    el.delimiterTiltValue.textContent = `${state.delimiterTilt}°`;
     invalidateResult();
   });
 
