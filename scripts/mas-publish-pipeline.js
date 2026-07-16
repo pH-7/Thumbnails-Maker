@@ -12,7 +12,7 @@
  * Usage: node scripts/mas-publish-pipeline.js
  */
 
-const { execSync, exec } = require('child_process');
+const { execSync, exec, execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -264,6 +264,27 @@ function ensureSharpAddonPresent(appPath) {
       'This usually means packaging ignore patterns removed node_modules/sharp/build.'
     ].join('\n')
   );
+}
+
+function removeUnusedPrivacyUsageDescriptions(appPath) {
+  const infoPlist = path.join(appPath, 'Contents', 'Info.plist');
+  const unusedKeys = [
+    'NSBluetoothAlwaysUsageDescription',
+    'NSBluetoothPeripheralUsageDescription',
+    'NSCameraUsageDescription',
+    'NSMicrophoneUsageDescription'
+  ];
+
+  for (const key of unusedKeys) {
+    try {
+      execFileSync('/usr/bin/plutil', ['-remove', key, infoPlist], { stdio: 'pipe' });
+    } catch (error) {
+      const output = `${error.stdout || ''}${error.stderr || ''}`;
+      if (!/Could not modify plist|does not exist/i.test(output)) {
+        throw error;
+      }
+    }
+  }
 }
 
 function collectSharpBinariesForSigning(appPath) {
@@ -785,6 +806,7 @@ async function manualBuild(certs, env) {
     `--ignore="^/mobile($|/)" ` +
     `--ignore="^/ios($|/)" ` +
     `--ignore="^/fastlane($|/)" ` +
+    `--ignore="^/store-assets($|/)" ` +
     `--ignore="^/node_modules/@capacitor($|/)" ` +
     `--ignore="^/capacitor\\.config\\.json$" ` +
     `--ignore="\\.p8$" ` +
@@ -825,6 +847,8 @@ async function manualBuild(certs, env) {
 
   ensureSharpAddonPresent(appPath);
   log('✅', 'Verified sharp native addon is present in packaged app.');
+  removeUnusedPrivacyUsageDescriptions(appPath);
+  log('✅', 'Removed unused camera, microphone, and Bluetooth permission descriptions.');
   const sharpBinaries = collectSharpBinariesForSigning(appPath);
   log('✅', `Discovered ${sharpBinaries.length} sharp native binary file(s) for signing.`);
 
