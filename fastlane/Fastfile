@@ -22,6 +22,86 @@ platform :mac do
   # Configuration
   TEAM_ID = ENV['TEAM_ID']
   APP_BUNDLE_ID = ENV['APP_IDENTIFIER']
+  MAC_ROOT_DIR = File.expand_path('..', __dir__)
+
+  private_lane :mac_asc_api_key do
+    required_keys = %w[APP_STORE_KEY_ID APP_STORE_ISSUER_ID APP_STORE_KEY_PATH]
+    missing_keys = required_keys.select { |key| ENV[key].to_s.strip.empty? }
+    UI.user_error!("Missing required Mac App Store environment variables: #{missing_keys.join(', ')}") if missing_keys.any?
+
+    raw_path = ENV['APP_STORE_KEY_PATH'].to_s.strip
+    key_path = raw_path.start_with?('/') ? raw_path : File.expand_path(raw_path, MAC_ROOT_DIR)
+    app_store_connect_api_key(
+      key_id: ENV['APP_STORE_KEY_ID'],
+      issuer_id: ENV['APP_STORE_ISSUER_ID'],
+      key_filepath: key_path,
+      in_house: false,
+      set_spaceship_token: true
+    )
+  end
+
+  private_lane :resolved_mac_app_version do
+    require 'json'
+    ENV['MAC_APP_VERSION'].to_s.strip.empty? ? JSON.parse(File.read(File.join(MAC_ROOT_DIR, 'package.json')))['version'] : ENV['MAC_APP_VERSION'].to_s.strip
+  end
+
+  desc "Generate current Mac App Store screenshots"
+  lane :screenshots do
+    sh("cd .. && npm run mac:screenshots")
+    UI.success("Mac App Store screenshots generated")
+  end
+
+  desc "Upload Mac metadata and screenshots, then submit the uploaded build"
+  lane :publish_store_listing do
+    screenshots
+    review_info = {
+      first_name: ENV['APP_REVIEW_FIRST_NAME'],
+      last_name: ENV['APP_REVIEW_LAST_NAME'],
+      phone_number: ENV['APP_REVIEW_PHONE_NUMBER'],
+      email_address: ENV['APP_REVIEW_EMAIL_ADDRESS'],
+      notes: ENV['APP_REVIEW_NOTES'] || 'No account is required. The app works fully offline. Select photos, choose a layout, adjust options, and create a 1280 × 720 thumbnail.'
+    }
+    has_review_contact = [:first_name, :last_name, :phone_number, :email_address].all? { |key| !review_info[key].to_s.strip.empty? }
+
+    options = {
+      api_key: mac_asc_api_key,
+      app_identifier: APP_BUNDLE_ID,
+      platform: 'osx',
+      app_version: resolved_mac_app_version,
+      metadata_path: './metadata/mac',
+      screenshots_path: './screenshots/mac',
+      skip_binary_upload: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      overwrite_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      app_review_information: has_review_contact ? review_info : nil
+    }
+    build_number = ENV['MAC_BUILD_NUMBER'].to_s.strip
+    options[:build_number] = build_number unless build_number.empty?
+    deliver(**options)
+    UI.success("Mac App Store listing submitted for review")
+  end
+
+  desc "Cancel the active Mac review so its build and listing can be replaced"
+  lane :cancel_active_review do
+    require 'spaceship'
+    mac_asc_api_key
+    app = Spaceship::ConnectAPI::App.find(APP_BUNDLE_ID)
+    UI.user_error!("Mac App Store app not found for #{APP_BUNDLE_ID}") unless app
+
+    review = app.get_in_progress_review_submission(platform: 'MAC_OS')
+    if review
+      UI.important("Canceling active Mac review submission #{review.id} (#{review.state})")
+      review.cancel_submission
+      UI.success("Active Mac review submission canceled")
+    else
+      UI.message("No active Mac review submission needs cancellation")
+    end
+  end
   
   # All-in-one lane for Mac App Store submission
   desc "Submit to Mac App Store"
@@ -51,7 +131,7 @@ platform :mac do
     sh("mkdir -p ../build/mac-app-store")
     
     # Use electron-packager for packaging (more reliable than electron-builder for Mac App Store)
-    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='1.0.0'")
+    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='#{resolved_mac_app_version}'")
     
     # Set correct app category
     create_plist_file
@@ -392,7 +472,7 @@ EOL")
     sh("mkdir -p ../build/mac-app-store")
     
     # Use electron-packager for packaging
-    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='1.0.0'")
+    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='#{resolved_mac_app_version}'")
     
     # Set correct app category
     create_plist_file
@@ -423,7 +503,7 @@ platform :ios do
   IOS_PROJECT   = File.expand_path("../ios/App/App.xcodeproj", __dir__)
   IOS_APP_DIR   = File.expand_path("../ios/App", __dir__)
   IOS_SCHEME    = "App"
-  IOS_RELEASE_VERSION = "1.1.1"
+  IOS_RELEASE_VERSION = "1.2.0"
 
   private_lane :resolved_app_store_key_path do
     raw_path = ENV['APP_STORE_KEY_PATH'].to_s.strip
@@ -518,6 +598,7 @@ platform :ios do
 
   desc "Build a signed .ipa for the App Store (automatic signing via API key)"
   lane :build do
+    sh("cd #{IOS_ROOT_DIR} && npx cap copy ios")
     sh("cd #{IOS_APP_DIR} && env -u GEM_PATH -u GEM_HOME pod install")
 
     update_code_signing_settings(

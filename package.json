@@ -1,14 +1,14 @@
 {
   "name": "thumbnail-maker",
   "productName": "YouTube Thumbnail Creator",
-  "version": "4.0.2",
+  "version": "4.2.0",
   "description": "Create professional YouTube thumbnails with multiple images, custom layouts, and intelligent enhancement features.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "test": "jest",
     "test:ci": "jest --runInBand --coverage",
-    "check:syntax": "node --check main.js && node --check scripts/mas-publish-pipeline.js && node --check scripts/generate-ios-screenshots.js && node --check scripts/generate-ios-icons.js",
+    "check:syntax": "node --check main.js && node --check scripts/mas-publish-pipeline.js && node --check scripts/notarize.js && node --check scripts/generate-ios-screenshots.js && node --check scripts/generate-macos-screenshots.js && node --check scripts/generate-ios-icons.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "mas-publish": "node scripts/mas-publish-pipeline.js",
@@ -19,6 +19,7 @@
     "ios:open": "cap open ios",
     "ios:icons": "node scripts/generate-ios-icons.js",
     "ios:screenshots": "node scripts/generate-ios-screenshots.js",
+    "mac:screenshots": "node scripts/generate-macos-screenshots.js",
     "ios:certificates": "cd fastlane && /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane ios certificates",
     "ios:testflight": "cd fastlane && /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane ios testflight_upload",
     "ios:release": "cd fastlane && /opt/homebrew/opt/ruby@3.3/bin/bundle exec fastlane ios release"
@@ -44,7 +45,9 @@
       "!mobile/**",
       "!ios/**",
       "!capacitor.config.json",
-      "!node_modules/@capacitor/**"
+      "!node_modules/@capacitor/**",
+      "!store-assets/**",
+      "!fastlane/screenshots/**"
     ],
     "mac": {
       "category": "public.app-category.graphics-design",

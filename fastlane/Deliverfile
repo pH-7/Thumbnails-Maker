@@ -5,7 +5,7 @@
 app_identifier(ENV['APP_IDENTIFIER'])
 
 # App information
-app_version("1.0.0")
+# Release lanes pass the editable platform version explicitly.
 submission_information({
     export_compliance_uses_encryption: false,
     export_compliance_encryption_updated: false,
@@ -24,7 +24,7 @@ automatic_release(false)
 
 # Categories
 primary_category("GRAPHICS_AND_DESIGN")
-secondary_category("PRODUCTIVITY") 
+secondary_category("PRODUCTIVITY")
 
 # Rating settings
-app_rating_config_path("./fastlane/metadata/app_rating_config.json") 
+app_rating_config_path("./fastlane/metadata/app_rating_config.json")
