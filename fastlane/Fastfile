@@ -599,7 +599,6 @@ platform :ios do
   desc "Build a signed .ipa for the App Store (automatic signing via API key)"
   lane :build do
     sh("cd #{IOS_ROOT_DIR} && npx cap copy ios")
-    sh("env -u BUNDLE_GEMFILE -u BUNDLE_BIN_PATH -u BUNDLE_PATH -u RUBYOPT -u RUBYLIB -u GEM_HOME -u GEM_PATH /opt/homebrew/bin/pod install --project-directory=#{IOS_APP_DIR}")
 
     update_code_signing_settings(
       use_automatic_signing: true,
