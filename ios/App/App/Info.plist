@@ -28,6 +28,8 @@
 	<string>Thumbnail Maker saves your generated thumbnails to your Photos library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Thumbnail Maker needs access to your Photos library to save generated thumbnails.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Thumbnail Maker uses the camera when you choose Take Photo to add a new image to your thumbnail.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -133,6 +133,7 @@ function loadMobileApp({ permissionResult = { photos: 'granted' } } = {}) {
     'imagesGrid',
     'addTile',
     'fileInput',
+    'cameraInput',
     'layoutChips',
     'delimiter',
     'delimiterValue',
@@ -223,6 +224,18 @@ async function createGeneratedThumbnail(elements) {
 }
 
 describe('mobile Photos saving', () => {
+  test('Take Photo input adds a captured image without bypassing the native picker', async () => {
+    const { context, elements } = loadMobileApp();
+
+    elements.cameraInput.files = [{ type: 'image/jpeg' }];
+    elements.cameraInput.dispatch('change');
+    await flushPromises();
+
+    expect(context.URL.createObjectURL).toHaveBeenCalledWith(expect.objectContaining({ type: 'image/jpeg' }));
+    expect(elements.createBtn.disabled).toBe(false);
+    expect(elements.cameraInput.value).toBe('');
+  });
+
   test('Save button requests Photos access before saving to the native Photos bridge', async () => {
     const { elements, photoSaver } = loadMobileApp();
     await createGeneratedThumbnail(elements);
@@ -274,5 +287,14 @@ describe('mobile Photos saving', () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+});
+
+describe('iOS privacy metadata', () => {
+  test('declares camera usage for the Take Photo capture input', () => {
+    const infoPlist = fs.readFileSync(path.join(__dirname, '../ios/App/App/Info.plist'), 'utf8');
+
+    expect(infoPlist).toContain('<key>NSCameraUsageDescription</key>');
+    expect(infoPlist).toContain('Take Photo');
   });
 });

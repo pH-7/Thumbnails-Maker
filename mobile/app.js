@@ -69,6 +69,7 @@
     grid: document.getElementById('imagesGrid'),
     addTile: document.getElementById('addTile'),
     fileInput: document.getElementById('fileInput'),
+    cameraInput: document.getElementById('cameraInput'),
     chips: document.getElementById('layoutChips'),
     delimiter: document.getElementById('delimiter'),
     delimiterValue: document.getElementById('delimiterValue'),
@@ -488,6 +489,11 @@
   el.fileInput.addEventListener('change', (e) => {
     addFiles(e.target.files);
     el.fileInput.value = ''; // allow re-picking the same file
+  });
+
+  el.cameraInput.addEventListener('change', (e) => {
+    addFiles(e.target.files);
+    el.cameraInput.value = ''; // allow taking another photo immediately
   });
 
   el.delimiter.addEventListener('input', (e) => {

@@ -167,6 +167,34 @@
       margin-bottom: 2px;
     }
 
+    .photo-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .photo-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .photo-action-primary {
+      border-color: var(--yt-red);
+      color: var(--yt-red);
+      background: #fff5f5;
+    }
+
     /* Layout chips */
     .chips {
       display: flex;
@@ -372,7 +400,12 @@
         Add photos
       </label>
     </div>
+    <div class="photo-actions">
+      <label class="photo-action photo-action-primary" for="cameraInput">Take Photo</label>
+      <label class="photo-action" for="fileInput">Choose Photos</label>
+    </div>
     <input type="file" id="fileInput" accept="image/*" multiple class="visually-hidden" />
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden" />
   </section>
 
   <section class="card">
