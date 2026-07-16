@@ -1,299 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <title>App Store Screenshot</title>
+  <title>Thumbnail Maker App Store Screenshot</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 100%;
-      height: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      overflow: hidden;
-    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 
     .stage {
-      position: absolute;
-      inset: 0;
+      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: radial-gradient(120% 75% at 50% 0%, #ff5252 0%, #d50000 48%, #7a0000 100%);
+      background: #111318;
       color: #fff;
+      border-top: 18px solid #e62117;
       overflow: hidden;
     }
 
-    .copy {
-      text-align: center;
-      padding: 7% 8% 0;
-      flex-shrink: 0;
-    }
+    .copy { text-align: center; padding: 5.5vh 7vw 0; flex: 0 0 auto; }
+    .eyebrow { color: #ff6b63; font-size: 23px; font-weight: 750; margin-bottom: 13px; }
+    .headline { font-size: 78px; font-weight: 820; line-height: 1.04; letter-spacing: 0; }
+    .sub { margin-top: 18px; color: #d6d9de; font-size: 34px; font-weight: 520; line-height: 1.22; }
 
-    .headline {
-      font-size: 84px;
-      font-weight: 800;
-      line-height: 1.05;
-      letter-spacing: -1.5px;
-      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
-    }
-
-    .sub {
-      margin-top: 20px;
-      font-size: 37px;
-      font-weight: 500;
-      opacity: 0.92;
-    }
-
-    /* Phone mockup — bleeds off the bottom edge for a modern look. */
     .device-shell {
       position: relative;
-      margin-top: 52px;
-      width: 66%;
+      width: 72vw;
       aspect-ratio: 9 / 19.5;
-      background: #0d0d0d;
-      border-radius: 62px;
-      padding: 16px;
-      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.45), inset 0 0 0 3px rgba(255, 255, 255, 0.08);
-      flex-shrink: 0;
+      margin-top: 3.4vh;
+      padding: 14px;
+      flex: 0 0 auto;
+      border-radius: 60px;
+      background: #08090b;
+      border: 3px solid #343941;
+      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.48);
     }
 
     .screen {
       position: relative;
       width: 100%;
       height: 100%;
-      background: #f9f9f9;
-      border-radius: 48px;
+      padding: 0 24px 28px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      padding: 0 22px;
+      background: #f2f4f7;
+      border-radius: 46px;
+      color: #17191c;
     }
 
     .notch {
       position: absolute;
-      top: 14px;
+      top: 13px;
       left: 50%;
-      transform: translateX(-50%);
-      width: 32%;
+      width: 31%;
       height: 28px;
-      background: #0d0d0d;
+      transform: translateX(-50%);
       border-radius: 16px;
-      z-index: 5;
+      background: #08090b;
+      z-index: 2;
     }
 
-    body.tablet .copy {
-      padding: 5.5% 8% 0;
-    }
-
-    body.tablet .headline {
-      font-size: 102px;
-    }
-
-    body.tablet .sub {
-      font-size: 42px;
-      margin-top: 24px;
-    }
-
-    body.tablet .device-shell {
-      width: 78%;
-      aspect-ratio: 3 / 4;
-      border-radius: 42px;
-      padding: 14px;
-    }
-
-    body.tablet .screen {
-      border-radius: 30px;
-      padding: 0 24px;
-    }
-
-    body.tablet .notch {
-      display: none;
-    }
-
-    body.tablet .app-head {
-      padding: 28px 0 6px;
-      font-size: 36px;
-    }
-
-    body.tablet .app-sub {
-      font-size: 20px;
-      margin-bottom: 18px;
-    }
-
-    body.tablet .label {
-      font-size: 22px;
-      margin: 22px 2px 12px;
-    }
-
-    body.tablet .chip {
-      padding: 11px 18px;
-      font-size: 19px;
-    }
-
-    body.tablet .opt-row {
-      font-size: 21px;
-      padding: 14px 0;
-    }
-
-    body.tablet .cta {
-      font-size: 27px;
-      margin-bottom: 26px;
-      padding: 22px;
-    }
-
-    .app-head {
-      text-align: center;
-      padding: 50px 0 4px;
-      color: #ff0000;
-      font-weight: 800;
-      font-size: 30px;
-    }
-
-    .app-sub {
-      text-align: center;
-      color: #888;
-      font-size: 17px;
-      margin-bottom: 16px;
-    }
-
-    .label {
-      font-size: 18px;
-      font-weight: 700;
-      color: #333;
-      margin: 20px 2px 10px;
-    }
+    .app-head { padding: 51px 0 3px; text-align: center; font-size: 29px; font-weight: 800; }
+    .app-sub { margin-bottom: 14px; text-align: center; color: #697079; font-size: 17px; }
 
     .result-wrap {
-      border-radius: 18px;
       overflow: hidden;
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+      flex: 0 0 auto;
+      border: 1px solid #d9dee4;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 8px 22px rgba(18, 24, 32, 0.12);
     }
+    .result-wrap canvas { display: block; width: 100%; height: auto; }
 
-    .result-wrap canvas {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
-
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 9px;
-    }
-
+    .label { margin: 17px 2px 9px; color: #333840; font-size: 18px; font-weight: 730; }
+    .chips { display: flex; gap: 7px; flex-wrap: wrap; }
     .chip {
-      border: 1.5px solid #e2e2e2;
-      border-radius: 999px;
-      padding: 9px 16px;
-      font-size: 17px;
-      color: #444;
+      padding: 8px 13px;
+      border: 1px solid #d7dce2;
+      border-radius: 7px;
       background: #fff;
+      color: #444b53;
+      font-size: 16px;
     }
+    .chip.active { border-color: #e62117; background: #fff4f3; color: #c91d14; font-weight: 720; }
 
-    .chip.active {
-      border-color: #ff0000;
-      background: #fff0f0;
-      color: #ff0000;
-      font-weight: 700;
-    }
-
-    .sources {
-      display: flex;
-      gap: 10px;
-      margin-top: 4px;
-    }
-
-    .sources .src {
+    .sources { display: flex; gap: 9px; }
+    .source {
       flex: 1;
-      aspect-ratio: 16/9;
-      border-radius: 10px;
-      background-size: cover;
+      aspect-ratio: 16 / 9;
+      border: 1px solid #d7dce2;
+      border-radius: 6px;
       background-position: center;
+      background-size: cover;
     }
 
-    .opt-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      font-size: 18px;
-      color: #333;
-      padding: 12px 0;
-    }
-
-    .slider-mock {
-      position: relative;
+    .photo-actions { display: flex; gap: 9px; margin-top: 10px; }
+    .photo-action {
       flex: 1;
-      height: 6px;
-      border-radius: 3px;
-      background: #e2e2e2;
-    }
-
-    .slider-mock i {
-      position: absolute;
-      left: 38%;
-      top: 50%;
-      width: 26px;
-      height: 26px;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      background: #ff0000;
-    }
-
-    .slider-mock::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      width: 38%;
-      border-radius: 3px;
-      background: #ff0000;
-    }
-
-    .toggle-mock {
-      width: 50px;
-      height: 30px;
-      border-radius: 999px;
-      background: #ff0000;
-      position: relative;
-    }
-
-    .toggle-mock::after {
-      content: "";
-      position: absolute;
-      top: 3px;
-      right: 3px;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
+      padding: 10px 8px;
+      border: 1px solid #d7dce2;
+      border-radius: 7px;
       background: #fff;
-    }
-
-    .cta {
-      margin-top: auto;
-      margin-bottom: 30px;
-      background: #ff0000;
-      color: #fff;
+      color: #353b43;
       text-align: center;
-      font-weight: 700;
-      font-size: 23px;
-      padding: 20px;
-      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 680;
     }
+    .photo-action.primary { border-color: #e62117; background: #fff4f3; color: #c91d14; }
+
+    .option-row { display: flex; align-items: center; gap: 13px; padding: 9px 0; color: #363c44; font-size: 17px; }
+    .option-row span:first-child { min-width: 112px; }
+    .track { position: relative; height: 6px; flex: 1; border-radius: 3px; background: #d9dee4; }
+    .track::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: 3px; background: #e62117; }
+    .track::after { content: ""; position: absolute; left: 40%; top: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); border-radius: 50%; background: #e62117; }
+    .toggle { position: relative; width: 48px; height: 29px; margin-left: auto; border-radius: 15px; background: #e62117; }
+    .toggle::after { content: ""; position: absolute; top: 3px; right: 3px; width: 23px; height: 23px; border-radius: 50%; background: #fff; }
+
+    .cta { margin-top: auto; padding: 17px; border-radius: 8px; background: #e62117; color: #fff; text-align: center; font-size: 21px; font-weight: 760; }
+
+    body.tablet .copy { padding-top: 4.2vh; }
+    body.tablet .headline { font-size: 94px; }
+    body.tablet .sub { font-size: 38px; }
+    body.tablet .device-shell { width: 72vw; aspect-ratio: 3 / 4; border-radius: 42px; }
+    body.tablet .screen { padding: 0 30px 32px; border-radius: 29px; }
+    body.tablet .notch { display: none; }
+    body.tablet .app-head { padding-top: 27px; font-size: 33px; }
+    body.tablet .app-sub { font-size: 19px; margin-bottom: 17px; }
+    body.tablet .label { font-size: 21px; margin-top: 19px; }
+    body.tablet .chip { font-size: 18px; padding: 9px 15px; }
+    body.tablet .photo-action, body.tablet .option-row { font-size: 19px; }
+    body.tablet .cta { font-size: 24px; padding: 19px; }
   </style>
 </head>
-
 <body>
-  <div class="stage">
+  <main class="stage">
     <div class="copy">
+      <div class="eyebrow">THUMBNAIL MAKER</div>
       <div class="headline" id="headline"></div>
       <div class="sub" id="sub"></div>
     </div>
@@ -301,111 +147,121 @@
       <div class="screen">
         <div class="notch"></div>
         <div class="app-head">Thumbnail Maker</div>
-        <div class="app-sub">1280 × 720 · ready for YouTube</div>
+        <div class="app-sub">Join photos into a 1280 × 720 thumbnail</div>
         <div class="result-wrap" id="resultWrap"></div>
         <div class="label">Layout</div>
         <div class="chips" id="chips"></div>
         <div class="label">Photos</div>
         <div class="sources" id="sources"></div>
+        <div class="photo-actions">
+          <div class="photo-action primary">Take Photo</div>
+          <div class="photo-action">Choose Photos</div>
+        </div>
         <div class="label">Options</div>
-        <div class="opt-row"><span>Gap</span>
-          <div class="slider-mock"><i></i></div>
-        </div>
-        <div class="opt-row"><span>Auto enhance</span>
-          <div class="toggle-mock"></div>
-        </div>
+        <div class="option-row"><span>Gap</span><div class="track"></div></div>
+        <div class="option-row"><span>Auto enhance</span><div class="toggle"></div></div>
         <div class="cta">Save to Photos</div>
       </div>
     </div>
-  </div>
+  </main>
 
   <script src="../mobile/thumbnail-engine.js"></script>
   <script>
     (function () {
       const params = new URLSearchParams(location.search);
       const layout = params.get('layout') || 'auto';
-      const count = parseInt(params.get('count') || '4', 10);
+      const count = Number.parseInt(params.get('count') || '4', 10);
       const enhance = params.get('enhance') === '1';
       const deviceKind = params.get('deviceKind') || 'phone';
       document.body.classList.add(deviceKind === 'tablet' ? 'tablet' : 'phone');
       document.getElementById('headline').textContent = params.get('headline') || 'Join your photos';
       document.getElementById('sub').textContent = params.get('sub') || '';
 
-      // Pleasant gradient "video frames" so screenshots need no bundled assets.
-      const PALETTES = [
-        ['#ff6a00', '#ee0979'], ['#00c6ff', '#0072ff'], ['#11998e', '#38ef7d'],
-        ['#8e2de2', '#4a00e0'], ['#f7971e', '#ffd200'], ['#fc466b', '#3f5efb'],
-        ['#43cea2', '#185a9d'], ['#ff512f', '#dd2476'], ['#1d976c', '#93f9b9']
-      ];
-
-      function makeFrame(i) {
-        const c = document.createElement('canvas');
-        c.width = 640;
-        c.height = 360;
-        const ctx = c.getContext('2d');
-        const [a, b] = PALETTES[i % PALETTES.length];
-        const g = ctx.createLinearGradient(0, 0, 640, 360);
-        g.addColorStop(0, a);
-        g.addColorStop(1, b);
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, 640, 360);
-        const r = ctx.createRadialGradient(180, 110, 20, 180, 110, 320);
-        r.addColorStop(0, 'rgba(255,255,255,0.35)');
-        r.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = r;
-        ctx.fillRect(0, 0, 640, 360);
-        return c;
+      function loadSourceSheet() {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => reject(new Error('Could not load screenshot source imagery.'));
+          image.src = '../store-assets/creator-scenes.png';
+        });
       }
 
-      function frameToImg(canvas) {
-        return new Promise((res) => {
-          const img = new Image();
-          img.onload = () => res(img);
-          img.src = canvas.toDataURL();
+      function makeFrame(sheet, index) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 360;
+        const column = index % 3;
+        const row = Math.floor(index / 3) % 3;
+        const panelWidth = sheet.naturalWidth / 3;
+        const panelHeight = sheet.naturalHeight / 3;
+        const inset = 4;
+        canvas.getContext('2d').drawImage(
+          sheet,
+          column * panelWidth + inset,
+          row * panelHeight + inset,
+          panelWidth - inset * 2,
+          panelHeight - inset * 2,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+        return canvas;
+      }
+
+      function canvasToImage(canvas) {
+        return new Promise((resolve) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.src = canvas.toDataURL('image/jpeg', 0.94);
         });
       }
 
       function renderChips() {
-        const chips = [
-          { key: 'auto', label: 'Auto' },
-          { key: '1x2', label: 'Side by side' },
-          { key: '2x2', label: '2×2' },
-          { key: '3x3', label: '3×3' },
-          { key: '1x1', label: 'Single' }
+        const choices = [
+          ['auto', 'Auto'], ['1x2', 'Side by side'], ['2x2', '2×2'], ['3x3', '3×3'], ['1x1', 'Single']
         ];
-        const wrap = document.getElementById('chips');
-        chips.forEach((c) => {
-          const el = document.createElement('div');
-          el.className = 'chip' + (c.key === layout ? ' active' : '');
-          el.textContent = c.label;
-          wrap.appendChild(el);
+        const chips = document.getElementById('chips');
+        choices.forEach(([key, label]) => {
+          const chip = document.createElement('div');
+          chip.className = `chip${key === layout ? ' active' : ''}`;
+          chip.textContent = label;
+          chips.appendChild(chip);
         });
       }
 
-      (async function build() {
-        const frames = [];
-        for (let i = 0; i < count; i++) frames.push(makeFrame(i));
-        const imgs = await Promise.all(frames.map(frameToImg));
-
-        const canvas = ThumbnailEngine.compose({
-          images: imgs, layout, delimiterWidth: 18, delimiterColor: '#ffffff', enhance
+      async function build() {
+        const sheet = await loadSourceSheet();
+        const frames = Array.from({ length: count }, (_, index) => makeFrame(sheet, index));
+        const images = await Promise.all(frames.map(canvasToImage));
+        const result = ThumbnailEngine.compose({
+          images,
+          layout,
+          delimiterWidth: 18,
+          delimiterColor: '#ffffff',
+          delimiterTilt: 0,
+          enhance
         });
-        document.getElementById('resultWrap').appendChild(canvas);
-
+        document.getElementById('resultWrap').appendChild(result);
         renderChips();
 
         const sources = document.getElementById('sources');
-        for (let i = 0; i < 3; i++) {
-          const div = document.createElement('div');
-          div.className = 'src';
-          div.style.backgroundImage = `url(${frames[i % frames.length].toDataURL()})`;
-          sources.appendChild(div);
+        for (let index = 0; index < Math.min(3, frames.length); index += 1) {
+          const source = document.createElement('div');
+          source.className = 'source';
+          source.style.backgroundImage = `url(${frames[index].toDataURL('image/jpeg', 0.9)})`;
+          sources.appendChild(source);
         }
 
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         document.body.dataset.ready = '1';
-      })();
+      }
+
+      build().catch((error) => {
+        document.body.dataset.error = error.message;
+        console.error(error);
+      });
     })();
   </script>
 </body>
-
 </html>
