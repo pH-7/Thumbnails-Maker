@@ -883,6 +883,107 @@
       border: none;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     }
+
+    /* Refined desktop surface: compact, quiet and built for repeated editing. */
+    body {
+      padding: 28px;
+      background: #eef1f4;
+      color: #17191c;
+    }
+
+    .container,
+    .options-container,
+    .result-container {
+      max-width: 1180px;
+      margin-left: auto;
+      margin-right: auto;
+      border: 1px solid #dde2e7;
+      border-radius: 8px;
+      box-shadow: 0 8px 28px rgba(22, 28, 36, 0.06);
+    }
+
+    .container {
+      padding: 32px;
+    }
+
+    h1 {
+      color: #17191c;
+      font-size: 32px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      color: #626870;
+    }
+
+    .thumbnail-info {
+      background: #f5f7f8;
+      border: 1px solid #e5e8eb;
+      border-radius: 6px;
+      color: #444b53;
+    }
+
+    button,
+    .image-preview,
+    input,
+    select,
+    .enhance-preview-item {
+      border-radius: 6px;
+    }
+
+    button#createThumbnailBtn,
+    button#selectImagesBtn {
+      background: #e62117;
+      border-color: #e62117;
+      color: #fff;
+      box-shadow: none;
+    }
+
+    button#createThumbnailBtn:hover,
+    button#selectImagesBtn:hover {
+      background: #c91d14;
+      border-color: #c91d14;
+    }
+
+    .options-container {
+      background: #fff;
+      padding: 24px;
+    }
+
+    .images-container {
+      gap: 12px;
+    }
+
+    .image-preview {
+      border-color: #cfd5db;
+      background: #f5f7f8;
+    }
+
+    input[type="range"]::-webkit-slider-thumb,
+    input[type="range"]::-moz-range-thumb {
+      background: #e62117;
+    }
+
+    input[type="range"] {
+      background: #dfe3e8;
+    }
+
+    output {
+      border: 1px solid #f0b7b3;
+      border-radius: 5px;
+      background: #fff4f3;
+      color: #b71912;
+    }
+
+    .app-footer {
+      max-width: 1180px;
+      margin: 22px auto 0;
+      color: #6a7179;
+    }
+
+    .app-footer a {
+      color: #4b535c;
+    }
   </style>
 </head>
 
@@ -958,8 +1059,8 @@
     <div class="options-header">
       <h3>Thumbnail Options</h3>
       <div class="options-buttons">
-        <button id="saveFavoriteBtn" class="secondary">⭐ Save as Favorite</button>
-        <button id="loadFavoriteBtn" class="secondary">📁 Load Favorite</button>
+        <button id="saveFavoriteBtn" class="secondary">Save Favorite</button>
+        <button id="loadFavoriteBtn" class="secondary">Load Favorite</button>
         <button id="resetOptionsBtn" class="secondary">Reset Options</button>
       </div>
     </div>
@@ -1062,7 +1163,7 @@
         <!-- Auto Design Toggle -->
         <div class="form-group">
           <label for="autoDesignText">
-            <span>✨ Auto Design Text</span>
+            <span>Auto Design Text</span>
           </label>
           <div class="toggle-switch">
             <input type="checkbox" id="autoDesignText">
@@ -1081,12 +1182,12 @@
         <div class="form-group" id="textPresets">
           <label>Quick Style Presets:</label>
           <div class="preset-buttons">
-            <button type="button" class="preset-btn" data-preset="bold-impact">💥 Bold Impact</button>
-            <button type="button" class="preset-btn" data-preset="elegant-clean">✨ Elegant Clean</button>
-            <button type="button" class="preset-btn" data-preset="modern-tech">🚀 Modern Tech</button>
-            <button type="button" class="preset-btn" data-preset="creative-fun">🎨 Creative Fun</button>
-            <button type="button" class="preset-btn" data-preset="professional">💼 Professional</button>
-            <button type="button" class="preset-btn" data-preset="cinematic">🎬 Cinematic</button>
+            <button type="button" class="preset-btn" data-preset="bold-impact">Bold Impact</button>
+            <button type="button" class="preset-btn" data-preset="elegant-clean">Elegant Clean</button>
+            <button type="button" class="preset-btn" data-preset="modern-tech">Modern Tech</button>
+            <button type="button" class="preset-btn" data-preset="creative-fun">Creative Fun</button>
+            <button type="button" class="preset-btn" data-preset="professional">Professional</button>
+            <button type="button" class="preset-btn" data-preset="cinematic">Cinematic</button>
           </div>
           <div class="help-text">Choose a style or let auto-design select the best one</div>
         </div>
@@ -1121,7 +1222,7 @@
           <div class="form-group">
             <label for="textColor">Text Color:</label>
             <input type="color" id="textColor" value="#ffffff">
-            <button type="button" id="autoColorBtn" class="auto-btn">🎨 Auto Color</button>
+            <button type="button" id="autoColorBtn" class="auto-btn">Auto Color</button>
           </div>
 
           <div class="form-group">
@@ -1142,7 +1243,7 @@
               <option value="top-right">Top Right</option>
               <option value="bottom-left">Bottom Left</option>
               <option value="bottom-right">Bottom Right</option>
-              <option value="smart-auto">🧠 Smart Auto Position</option>
+              <option value="smart-auto">Smart Auto Position</option>
             </select>
           </div>
         </div>
@@ -1150,7 +1251,7 @@
         <div class="form-group">
           <label for="textEffect">Text Effect:</label>
           <select id="textEffect">
-            <option value="auto">🎯 Auto Effect</option>
+            <option value="auto">Auto Effect</option>
             <option value="none">None</option>
             <option value="shadow">Drop Shadow</option>
             <option value="outline">Outline</option>
@@ -1169,7 +1270,7 @@
             <option value="behind">Watermark</option>
             <option value="overlay">Over Images</option>
             <option value="between">Between Layers</option>
-            <option value="smart-blend">🎨 Smart Blend</option>
+            <option value="smart-blend">Smart Blend</option>
           </select>
           <div class="help-text">Choose whether text appears behind, over, or between images</div>
         </div>
@@ -1177,7 +1278,7 @@
         <!-- Advanced Options -->
         <div class="form-group">
           <label for="advancedTextOptions">
-            <span>⚙️ Advanced Options</span>
+            <span>Advanced Options</span>
           </label>
           <div class="toggle-switch">
             <input type="checkbox" id="advancedTextOptions">
@@ -1248,11 +1349,10 @@
   <!-- App Footer -->
   <footer class="app-footer">
     <div class="footer-content">
-      <p class="pro-tip">💡 <strong>Pro Tip:</strong> Press <kbd>ENTER</kbd> to create thumbnails instantly!</p>
       <p>
-        Made with lots of ❤️ by <a id="githubLink" href="https://github.com/pH-7/Thumbnails-Maker" target="_blank" rel="noopener noreferrer">Pierre-Henry</a> –
-        Founder of <a href="https://mealsnap.ph7.me" target="_blank" rel="noopener noreferrer">MealSnap - Diary Tracking
-          meal log journal 🥕</a>
+        <a id="githubLink" href="https://github.com/pH-7/Thumbnails-Maker" target="_blank" rel="noopener noreferrer">Support</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/pH-7/Thumbnails-Maker/blob/main/privacy.md" target="_blank" rel="noopener noreferrer">Privacy</a>
       </p>
     </div>
   </footer>

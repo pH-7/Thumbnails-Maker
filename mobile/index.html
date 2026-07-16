@@ -10,13 +10,13 @@
   <title>Thumbnail Maker</title>
   <style>
     :root {
-      --yt-red: #ff0000;
-      --yt-red-dark: #cc0000;
-      --bg: #f9f9f9;
+      --yt-red: #e62117;
+      --yt-red-dark: #b71912;
+      --bg: #f2f4f7;
       --card: #ffffff;
-      --text: #1a1a1a;
-      --muted: #6b6b6b;
-      --border: #e2e2e2;
+      --text: #17191c;
+      --muted: #626870;
+      --border: #dfe3e8;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
@@ -42,28 +42,30 @@
     }
 
     header {
-      text-align: center;
-      margin-bottom: 18px;
+      text-align: left;
+      margin: 4px 2px 18px;
     }
 
     header h1 {
       margin: 0;
-      font-size: 22px;
-      color: var(--yt-red);
+      font-size: 26px;
+      line-height: 1.1;
+      color: var(--text);
     }
 
     header p {
-      margin: 4px 0 0;
-      font-size: 13px;
+      margin: 6px 0 0;
+      font-size: 14px;
       color: var(--muted);
     }
 
     .card {
       background: var(--card);
-      border-radius: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
       padding: 16px;
       margin-bottom: 14px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
     }
 
     .card h2 {
@@ -82,7 +84,7 @@
     .thumb {
       position: relative;
       aspect-ratio: 16 / 9;
-      border-radius: 10px;
+      border-radius: 6px;
       overflow: hidden;
       background: #f0f0f0;
       border: 1px solid var(--border);
@@ -154,7 +156,7 @@
       justify-content: center;
       aspect-ratio: 16 / 9;
       border: 2px dashed #cfcfcf;
-      border-radius: 10px;
+      border-radius: 6px;
       background: #fafafa;
       color: var(--muted);
       font-size: 13px;
@@ -179,7 +181,7 @@
       align-items: center;
       justify-content: center;
       min-height: 44px;
-      border-radius: 12px;
+      border-radius: 8px;
       border: 1.5px solid var(--border);
       background: #fff;
       color: var(--text);
@@ -206,7 +208,7 @@
       border: 1.5px solid var(--border);
       background: #fff;
       color: var(--text);
-      border-radius: 999px;
+      border-radius: 7px;
       padding: 8px 14px;
       font-size: 13px;
       cursor: pointer;
@@ -303,7 +305,7 @@
 
     #resultImg {
       width: 100%;
-      border-radius: 10px;
+      border-radius: 6px;
       display: block;
       background: #000;
       cursor: pointer;
@@ -342,7 +344,7 @@
     .btn {
       flex: 1;
       border: none;
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 14px;
       font-size: 15px;
       font-weight: 600;
@@ -382,6 +384,19 @@
       white-space: nowrap;
       border: 0;
       opacity: 0;
+    }
+
+    .app-footer {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      padding: 4px 0 12px;
+      font-size: 13px;
+    }
+
+    .app-footer a {
+      color: var(--muted);
+      text-decoration: none;
     }
   </style>
 </head>
@@ -444,6 +459,11 @@
   </section>
 
   <p class="status" id="status"></p>
+
+  <footer class="app-footer">
+    <a href="https://github.com/pH-7/Thumbnails-Maker/blob/main/privacy.md" target="_blank" rel="noopener noreferrer">Privacy</a>
+    <a href="https://github.com/pH-7/Thumbnails-Maker/issues" target="_blank" rel="noopener noreferrer">Support</a>
+  </footer>
 
   <div class="actions">
     <button class="btn btn-secondary" id="resetBtn">Reset</button>
