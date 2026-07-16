@@ -45,10 +45,13 @@ describe('store release readiness', () => {
     expect(fs.existsSync(path.join(root, 'store-assets/creator-scenes.png'))).toBe(true);
   });
 
-  test('Mac release excludes store assets and removes unused permission prompts', () => {
+  test('Mac release validates its branded icon and removes unused permission prompts', () => {
     const pipeline = fs.readFileSync(path.join(root, 'scripts/mas-publish-pipeline.js'), 'utf8');
 
     expect(pipeline).toContain('--ignore="^/store-assets($|/)"');
+    expect(pipeline).toContain('installBrandedAppIcon(appPath)');
+    expect(pipeline).toContain("plistIcon !== 'icon.icns'");
+    expect(pipeline).toContain("sourceBytes.equals(bundledBytes)");
     expect(pipeline).toContain('removeUnusedPrivacyUsageDescriptions(appPath)');
     expect(pipeline).toContain('NSCameraUsageDescription');
     expect(pipeline).toContain('NSMicrophoneUsageDescription');

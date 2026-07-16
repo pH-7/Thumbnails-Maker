@@ -287,6 +287,37 @@ function removeUnusedPrivacyUsageDescriptions(appPath) {
   }
 }
 
+function installBrandedAppIcon(appPath) {
+  const infoPlist = path.join(appPath, 'Contents', 'Info.plist');
+  const resourcesDir = path.join(appPath, 'Contents', 'Resources');
+  const bundledIcon = path.join(resourcesDir, 'icon.icns');
+
+  if (!fs.existsSync(CONFIG.ICON)) {
+    throw new Error(`Branded app icon is missing: ${CONFIG.ICON}`);
+  }
+
+  fs.copyFileSync(CONFIG.ICON, bundledIcon);
+  try {
+    execFileSync('/usr/bin/plutil', ['-replace', 'CFBundleIconFile', '-string', 'icon.icns', infoPlist]);
+  } catch (_error) {
+    execFileSync('/usr/bin/plutil', ['-insert', 'CFBundleIconFile', '-string', 'icon.icns', infoPlist]);
+  }
+
+  const electronIcon = path.join(resourcesDir, 'electron.icns');
+  if (fs.existsSync(electronIcon)) fs.rmSync(electronIcon);
+
+  const plistIcon = execFileSync(
+    '/usr/libexec/PlistBuddy',
+    ['-c', 'Print :CFBundleIconFile', infoPlist],
+    { encoding: 'utf8' }
+  ).trim();
+  const sourceBytes = fs.readFileSync(CONFIG.ICON);
+  const bundledBytes = fs.readFileSync(bundledIcon);
+  if (plistIcon !== 'icon.icns' || !sourceBytes.equals(bundledBytes)) {
+    throw new Error('Packaged app does not contain the finalized branded icon');
+  }
+}
+
 function collectSharpBinariesForSigning(appPath) {
   const results = [];
   const root = path.join(appPath, 'Contents', 'Resources');
@@ -847,6 +878,8 @@ async function manualBuild(certs, env) {
 
   ensureSharpAddonPresent(appPath);
   log('✅', 'Verified sharp native addon is present in packaged app.');
+  installBrandedAppIcon(appPath);
+  log('✅', 'Installed and verified finalized branded app icon.');
   removeUnusedPrivacyUsageDescriptions(appPath);
   log('✅', 'Removed unused camera, microphone, and Bluetooth permission descriptions.');
   const sharpBinaries = collectSharpBinariesForSigning(appPath);
