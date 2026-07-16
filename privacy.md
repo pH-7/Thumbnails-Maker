@@ -1,10 +1,10 @@
-# Privacy Policy — YouTube Thumbnail Maker Studio
+# Privacy Policy — Thumbnail Maker
 
-*Last updated: April 2, 2026*
+*Last updated: July 16, 2026*
 
 ## Overview
 
-YouTube Thumbnail Maker Studio ("the App") is a desktop application developed by **Pierre-Henry Soria**. Your privacy is important to us. This Privacy Policy explains what information the App collects, how it is used, and your rights regarding your data.
+Thumbnail Maker ("the App") is available for iPhone, iPad, and Mac and is developed by **Pierre-Henry Soria**. Your privacy is important to us. This Privacy Policy explains what information the App accesses, how it is used, and your rights regarding your data.
 
 ## Information We Collect
 
@@ -23,20 +23,22 @@ The App operates entirely offline on your local machine. It does not:
 
 All image processing is performed **locally on your device**. The images you select and the thumbnails you create never leave your computer. Specifically:
 
-- **Images you import** are read from your local file system and processed in memory
-- **Thumbnails you create** are saved to your local Pictures directory (or a location you choose)
+- **Images you import** are selected through the system photo or file picker and processed in memory
+- **Photos you take** are provided to the App by the system camera only after you choose Take Photo and grant camera permission
+- **Thumbnails you create** are saved to Apple Photos on iPhone and iPad, or to a location you choose on Mac
 - **No image data** is uploaded, transmitted, or shared with any server or third party
 - **EXIF metadata** is stripped from output thumbnails for your privacy
 
-## File System Access
+## Camera, Photos, and File Access
 
-The App requests access to your file system solely to:
+The App requests only the access needed for actions you choose:
 
-1. **Read images** you select for thumbnail creation
-2. **Save thumbnails** to your chosen output directory
-3. **Open the output folder** in Finder when you request it
+1. **Camera access on iPhone and iPad** to take a photo when you tap Take Photo
+2. **Photo library add access on iPhone and iPad** to save a finished thumbnail to Apple Photos
+3. **File access on Mac** to read images you select and save thumbnails to your chosen output directory
+4. **Finder access on Mac** to open the output folder when you request it
 
-No other file system access occurs.
+Camera and Photos permissions are requested by iOS or iPadOS when required. You can deny or later change these permissions in Settings. The App does not require access to browse your entire photo library merely to save an image.
 
 ## Third-Party Services
 
