@@ -17,8 +17,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const readline = require('readline');
-const { signAsync } = require('@electron/osx-sign');
-const SCRIPT_REVISION = '2026-04-23-step6-diagnostics-v2';
+const SCRIPT_REVISION = '2026-07-18-clean-runtime-v3';
 
 // Load environment variables from .env
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true });
@@ -246,14 +245,46 @@ function validateBuildNumberConfiguration() {
 
 function ensureSharpAddonPresent(appPath) {
   const candidatePaths = [
+    path.join(appPath, 'Contents', 'Resources', 'app', 'node_modules', '@img', 'sharp-darwin-arm64', 'lib'),
+    path.join(appPath, 'Contents', 'Resources', 'app', 'node_modules', '@img', 'sharp-darwin-x64', 'lib'),
+    path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'node_modules', '@img', 'sharp-darwin-arm64', 'lib'),
+    path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'node_modules', '@img', 'sharp-darwin-x64', 'lib'),
     path.join(appPath, 'Contents', 'Resources', 'app', 'node_modules', 'sharp', 'build', 'Release', 'sharp-darwin-arm64v8.node'),
     path.join(appPath, 'Contents', 'Resources', 'app', 'node_modules', 'sharp', 'build', 'Release', 'sharp-darwin-x64.node'),
     path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'node_modules', 'sharp', 'build', 'Release', 'sharp-darwin-arm64v8.node'),
     path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'node_modules', 'sharp', 'build', 'Release', 'sharp-darwin-x64.node'),
   ];
 
-  if (candidatePaths.some((candidatePath) => fs.existsSync(candidatePath))) {
-    return;
+  if (candidatePaths.some((candidatePath) => {
+    if (!fs.existsSync(candidatePath)) return false;
+    if (fs.statSync(candidatePath).isFile()) return true;
+    return fs.readdirSync(candidatePath).some((entry) => entry.endsWith('.node'));
+  })) {
+    const libraryCandidates = [
+      path.join(appPath, 'Contents', 'Resources', 'app', 'node_modules', '@img', 'sharp-libvips-darwin-arm64', 'lib'),
+      path.join(appPath, 'Contents', 'Resources', 'app', 'node_modules', '@img', 'sharp-libvips-darwin-x64', 'lib'),
+      path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'node_modules', '@img', 'sharp-libvips-darwin-arm64', 'lib'),
+      path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'node_modules', '@img', 'sharp-libvips-darwin-x64', 'lib'),
+      path.join(appPath, 'Contents', 'Resources', 'app', 'node_modules', 'sharp', 'vendor'),
+      path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'node_modules', 'sharp', 'vendor')
+    ];
+    const hasLibrary = libraryCandidates.some((candidatePath) => {
+      if (!fs.existsSync(candidatePath)) return false;
+      const stack = [candidatePath];
+      while (stack.length > 0) {
+        const current = stack.pop();
+        const stat = fs.statSync(current);
+        if (stat.isDirectory()) {
+          for (const entry of fs.readdirSync(current)) stack.push(path.join(current, entry));
+        } else if (current.endsWith('.dylib')) {
+          return true;
+        }
+      }
+      return false;
+    });
+    if (hasLibrary) return;
+
+    throw new Error('Sharp\'s libvips dynamic library is missing from the unpacked app runtime.');
   }
 
   throw new Error(
@@ -285,6 +316,11 @@ function removeUnusedPrivacyUsageDescriptions(appPath) {
       }
     }
   }
+}
+
+function removeUnusedLoginHelper(appPath) {
+  const loginItemsDir = path.join(appPath, 'Contents', 'Library', 'LoginItems');
+  if (fs.existsSync(loginItemsDir)) fs.rmSync(loginItemsDir, { recursive: true, force: true });
 }
 
 function installBrandedAppIcon(appPath) {
@@ -340,8 +376,8 @@ function collectSharpBinariesForSigning(appPath) {
     }
 
     const normalized = current.replace(/\\/g, '/');
-    const isSharpNode = /\/node_modules\/sharp\/build\/Release\/sharp-.*\.node$/.test(normalized);
-    const isSharpDylib = /\/node_modules\/sharp\/vendor\/.*\/lib\/.*\.dylib$/.test(normalized);
+    const isSharpNode = /\/node_modules\/(?:sharp\/build\/Release|@img\/sharp-[^/]+\/lib)\/[^/]+\.node$/.test(normalized);
+    const isSharpDylib = /\/node_modules\/(?:sharp\/vendor|@img\/sharp-libvips-[^/]+\/lib)\/.*\.dylib$/.test(normalized);
     if (isSharpNode || isSharpDylib) {
       results.push(current);
     }
@@ -351,13 +387,12 @@ function collectSharpBinariesForSigning(appPath) {
 }
 
 function collectSharpBinariesForElectronBuilderMas() {
-  const sharpRoot = path.join(CONFIG.PROJECT_ROOT, 'node_modules', 'sharp');
-  if (!fs.existsSync(sharpRoot)) {
-    return [];
-  }
-
+  const nodeModulesRoot = path.join(CONFIG.PROJECT_ROOT, 'node_modules');
   const sourceFiles = [];
-  const stack = [sharpRoot];
+  const stack = [
+    path.join(nodeModulesRoot, 'sharp'),
+    path.join(nodeModulesRoot, '@img')
+  ];
   const seen = new Set();
 
   while (stack.length > 0) {
@@ -376,19 +411,103 @@ function collectSharpBinariesForElectronBuilderMas() {
     }
 
     const normalized = current.replace(/\\/g, '/');
-    const isSharpNode = /\/build\/Release\/sharp-.*\.node$/.test(normalized);
-    const isSharpDylib = /\/vendor\/.*\/lib\/.*\.dylib$/.test(normalized);
+    const isSharpNode = /\/node_modules\/(?:sharp\/build\/Release|@img\/sharp-[^/]+\/lib)\/[^/]+\.node$/.test(normalized);
+    const isSharpDylib = /\/node_modules\/(?:sharp\/vendor|@img\/sharp-libvips-[^/]+\/lib)\/.*\.dylib$/.test(normalized);
     if (isSharpNode || isSharpDylib) {
       sourceFiles.push(current);
     }
   }
 
   const bundleRelative = sourceFiles
-    .map((absolutePath) => path.relative(sharpRoot, absolutePath).split(path.sep).join('/'))
-    .map((relativePath) => `Contents/Resources/app.asar.unpacked/node_modules/sharp/${relativePath}`)
+    .map((absolutePath) => path.relative(nodeModulesRoot, absolutePath).split(path.sep).join('/'))
+    .map((relativePath) => `Contents/Resources/app.asar.unpacked/node_modules/${relativePath}`)
     .sort();
 
   return Array.from(new Set(bundleRelative));
+}
+
+async function assertCleanRuntimePayload(appPath) {
+  const resourcesDir = path.join(appPath, 'Contents', 'Resources');
+  const loginItemsDir = path.join(appPath, 'Contents', 'Library', 'LoginItems');
+  const forbiddenNames = new Set([
+    '.bundle', '.env', '.github', '__tests__', 'coverage', 'fastlane', 'ios',
+    'mobile', 'scripts', 'store-assets', 'vendor'
+  ]);
+  const forbiddenExtensions = new Set([
+    '.p8', '.p12', '.pem', '.provisionprofile', '.mobileprovision', '.certSigningRequest'
+  ]);
+  const violations = [];
+  const nativeFiles = [];
+  const stack = [resourcesDir];
+
+  if (fs.existsSync(loginItemsDir)) violations.push('Contents/Library/LoginItems');
+
+  const asarPath = path.join(resourcesDir, 'app.asar');
+  if (fs.existsSync(asarPath)) {
+    const { listPackage } = await import('@electron/asar');
+    for (const entry of listPackage(asarPath)) {
+      const parts = entry.split('/').filter(Boolean);
+      if (parts.some((part) => forbiddenNames.has(part))) violations.push(`app.asar:${entry}`);
+      if (forbiddenExtensions.has(path.extname(entry))) violations.push(`app.asar:${entry}`);
+    }
+  }
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || !fs.existsSync(current)) continue;
+
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) continue;
+    if (stat.isDirectory()) {
+      if (current !== resourcesDir && forbiddenNames.has(path.basename(current))) {
+        violations.push(path.relative(resourcesDir, current));
+        continue;
+      }
+      for (const entry of fs.readdirSync(current)) stack.push(path.join(current, entry));
+      continue;
+    }
+
+    if (forbiddenExtensions.has(path.extname(current))) {
+      violations.push(path.relative(resourcesDir, current));
+    }
+
+    try {
+      const fileType = execFileSync('/usr/bin/file', ['-b', current], { encoding: 'utf8' });
+      if (/Mach-O/.test(fileType)) nativeFiles.push(current);
+    } catch (_error) {
+      // Non-native resources do not need symbol inspection.
+    }
+  }
+
+  const unexpectedNativeFiles = nativeFiles.filter((nativeFile) => {
+    const normalized = nativeFile.replace(/\\/g, '/');
+    return !/\/app(?:\.asar\.unpacked)?\/node_modules\/@img\/sharp-(?:libvips-)?darwin-[^/]+\/lib\/[^/]+\.(?:node|dylib)$/.test(normalized);
+  });
+
+  if (violations.length > 0 || unexpectedNativeFiles.length > 0) {
+    throw new Error([
+      'Packaged runtime contains files that are not part of the desktop application.',
+      ...violations.map((item) => `Forbidden payload: ${item}`),
+      ...unexpectedNativeFiles.map((item) => `Unexpected native binary: ${path.relative(resourcesDir, item)}`)
+    ].join('\n'));
+  }
+
+  const restrictedApiPattern = /(?:^|\s)_+(?:CGS|SLS)[A-Za-z0-9_]+|AuthorizationExecuteWithPrivileges|LSSharedFileList/;
+  for (const nativeFile of nativeFiles) {
+    const undefinedSymbols = execFileSync('/usr/bin/nm', ['-u', nativeFile], {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024
+    });
+    const restrictedReference = undefinedSymbols
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => restrictedApiPattern.test(line));
+    if (restrictedReference) {
+      throw new Error(
+        `App-owned native binary references a restricted macOS API: ${path.relative(resourcesDir, nativeFile)} -> ${restrictedReference}`
+      );
+    }
+  }
 }
 
 function prompt(question) {
@@ -739,6 +858,19 @@ async function buildMASApp(certs) {
       productName: CONFIG.PRODUCT_NAME,
       buildVersion: CONFIG.BUILD_VERSION,
       forceCodeSigning: true,
+      files: [
+        'main.js',
+        'index.html',
+        'license.md',
+        'package.json',
+        'node_modules/**/*',
+        '!node_modules/@capacitor/**/*',
+        '!node_modules/dotenv/**/*'
+      ],
+      asarUnpack: [
+        '**/node_modules/sharp/**/*',
+        '**/node_modules/@img/**/*'
+      ],
       mac: {
         category: 'public.app-category.graphics-design',
         icon: 'build/mac/icon.icns',
@@ -831,6 +963,8 @@ async function manualBuild(certs, env) {
     `--overwrite ` +
     `--extend-info="build/Info.plist" ` +
     `--prune=true ` +
+    `--asar.unpackDir="node_modules/@img" ` +
+    `--ignore="^/(?!main\\.js$|index\\.html$|package\\.json$|license\\.md$|node_modules(?:/|$)).+" ` +
     `--ignore="^/dist($|/)" ` +
     `--ignore="^/certs($|/)" ` +
     `--ignore="^/build($|/)" ` +
@@ -839,6 +973,7 @@ async function manualBuild(certs, env) {
     `--ignore="^/fastlane($|/)" ` +
     `--ignore="^/store-assets($|/)" ` +
     `--ignore="^/node_modules/@capacitor($|/)" ` +
+    `--ignore="^/node_modules/dotenv($|/)" ` +
     `--ignore="^/capacitor\\.config\\.json$" ` +
     `--ignore="\\.p8$" ` +
     `--ignore="\\.p12$" ` +
@@ -878,6 +1013,10 @@ async function manualBuild(certs, env) {
 
   ensureSharpAddonPresent(appPath);
   log('✅', 'Verified sharp native addon is present in packaged app.');
+  removeUnusedLoginHelper(appPath);
+  log('✅', 'Removed the unused login-item helper.');
+  await assertCleanRuntimePayload(appPath);
+  log('✅', 'Verified the app contains only approved runtime files and native modules.');
   installBrandedAppIcon(appPath);
   log('✅', 'Installed and verified finalized branded app icon.');
   removeUnusedPrivacyUsageDescriptions(appPath);
@@ -906,6 +1045,7 @@ async function manualBuild(certs, env) {
 
   // Sign the app with @electron/osx-sign
   log('✍️', 'Signing app...');
+  const { sign: signAsync } = await import('@electron/osx-sign');
 
   // Strip existing signatures first to avoid codesign "internal error"
   try {
@@ -1330,6 +1470,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  assertCleanRuntimePayload,
   generateAutoBuildNumber,
   hasAltoolErrors,
   isDuplicateBundleVersionError,

@@ -47,8 +47,17 @@ describe('store release readiness', () => {
 
   test('Mac release validates its branded icon and removes unused permission prompts', () => {
     const pipeline = fs.readFileSync(path.join(root, 'scripts/mas-publish-pipeline.js'), 'utf8');
+    const packageJson = require('../package.json');
 
     expect(pipeline).toContain('--ignore="^/store-assets($|/)"');
+    expect(pipeline).toContain('assertCleanRuntimePayload(appPath)');
+    expect(pipeline).toContain('Unexpected native binary:');
+    expect(pipeline).toContain('removeUnusedLoginHelper(appPath)');
+    expect(pipeline).toContain('--asar.unpackDir="node_modules/@img"');
+    expect(pipeline).toContain('libvips dynamic library is missing');
+    expect(packageJson.build.files).not.toContain('**/*');
+    expect(packageJson.build.files).toContain('main.js');
+    expect(packageJson.devDependencies.electron).toBe('43.1.1');
     expect(pipeline).toContain('installBrandedAppIcon(appPath)');
     expect(pipeline).toContain("plistIcon !== 'icon.icns'");
     expect(pipeline).toContain("sourceBytes.equals(bundledBytes)");

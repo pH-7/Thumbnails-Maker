@@ -1,4 +1,5 @@
 const {
+  assertCleanRuntimePayload,
   generateAutoBuildNumber,
   hasAltoolErrors,
   isDuplicateBundleVersionError,
@@ -6,6 +7,9 @@ const {
   suggestNextBuildNumber,
   suggestNextMarketingVersion,
 } = require('../scripts/mas-publish-pipeline');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 describe('MAS publish pipeline guards', () => {
   test('auto build number uses numeric dot-separated format', () => {
@@ -52,5 +56,17 @@ describe('MAS publish pipeline guards', () => {
     expect(suggestNextMarketingVersion('3.2.5')).toBe('3.2.6');
     expect(suggestNextMarketingVersion('3.2')).toBe('3.2.1');
     expect(suggestNextMarketingVersion('invalid')).toBe('1.0.0');
+  });
+
+  test('rejects build and mobile tooling from the packaged runtime', async () => {
+    const appPath = fs.mkdtempSync(path.join(os.tmpdir(), 'mas-runtime-audit-'));
+    const forbiddenPath = path.join(appPath, 'Contents', 'Resources', 'vendor', 'bundle');
+    fs.mkdirSync(forbiddenPath, { recursive: true });
+
+    try {
+      await expect(assertCleanRuntimePayload(appPath)).rejects.toThrow(/Forbidden payload: vendor/);
+    } finally {
+      fs.rmSync(appPath, { recursive: true, force: true });
+    }
   });
 });

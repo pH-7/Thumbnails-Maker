@@ -1,5 +1,4 @@
 const path = require('path');
-const { notarize } = require('@electron/notarize');
 
 exports.default = async function notarizing(context) {
   const { electronPlatformName, appOutDir } = context;
@@ -30,6 +29,7 @@ exports.default = async function notarizing(context) {
 
   const appName = context.packager.appInfo.productFilename;
   const appPath = `${appOutDir}/${appName}.app`;
+  const { notarize } = await import('@electron/notarize');
 
   console.log(`Notarizing ${appPath}`);
 

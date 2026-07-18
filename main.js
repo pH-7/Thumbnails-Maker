@@ -153,17 +153,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    // setLoginItemSettings is not allowed in MAS sandbox
-    if (process.platform === 'darwin' && !process.mas) {
-        try {
-            app.setLoginItemSettings({
-                openAtLogin: false,
-                openAsHidden: false
-            });
-        } catch (e) {
-            console.warn('setLoginItemSettings unavailable:', e.message);
-        }
-    }
     createWindow();
 }).catch((error) => {
     console.error('Failed to initialize app:', error);
