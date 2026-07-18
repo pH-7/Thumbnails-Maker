@@ -135,7 +135,7 @@ async function main() {
 
   const browser = await puppeteer.launch({
     headless: 'new',
-    args: ['--no-sandbox', '--disable-gpu', '--allow-file-access-from-files', '--force-color-profile=srgb']
+    args: ['--no-sandbox', '--disable-gpu', '--allow-file-access-from-files', '--disable-web-security', '--force-color-profile=srgb']
   });
 
   try {

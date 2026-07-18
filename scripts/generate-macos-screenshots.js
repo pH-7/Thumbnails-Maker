@@ -53,7 +53,7 @@ async function main() {
     if (file.toLowerCase().endsWith('.png')) fs.unlinkSync(path.join(OUT_DIR, file));
   }
 
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--allow-file-access-from-files', '--force-color-profile=srgb'] });
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--allow-file-access-from-files', '--disable-web-security', '--force-color-profile=srgb'] });
   try {
     for (let index = 0; index < SCREENS.length; index += 1) {
       const page = await browser.newPage();
