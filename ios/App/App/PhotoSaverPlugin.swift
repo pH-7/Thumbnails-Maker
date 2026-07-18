@@ -10,7 +10,8 @@ public class PhotoSaverPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "saveImage", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "saveImage", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "shareImage", returnType: CAPPluginReturnPromise)
     ]
 
     @objc public override func checkPermissions(_ call: CAPPluginCall) {
@@ -56,6 +57,67 @@ public class PhotoSaverPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
 
                 self.saveToPhotoLibrary(imageData: imageData, call: call)
+            }
+        }
+    }
+
+    @objc func shareImage(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            guard let base64Data = call.getString("data"),
+                  let imageData = self.decodeImageData(base64Data),
+                  UIImage(data: imageData) != nil else {
+                call.reject("The generated thumbnail could not be prepared for sharing.")
+                return
+            }
+
+            guard let viewController = self.bridge?.viewController else {
+                call.reject("The share sheet is not available right now.")
+                return
+            }
+
+            do {
+                let shareDirectory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("ThumbnailMakerShares", isDirectory: true)
+                try FileManager.default.createDirectory(
+                    at: shareDirectory,
+                    withIntermediateDirectories: true
+                )
+                let requestedName = call.getString("fileName") ?? "thumbnail.png"
+                let safeName = URL(fileURLWithPath: requestedName).lastPathComponent
+                let fileURL = shareDirectory.appendingPathComponent(safeName)
+                try imageData.write(to: fileURL, options: .atomic)
+
+                let activityController = UIActivityViewController(
+                    activityItems: [fileURL],
+                    applicationActivities: nil
+                )
+                activityController.completionWithItemsHandler = { _, completed, _, error in
+                    try? FileManager.default.removeItem(at: fileURL)
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            call.reject("Could not share the image.", nil, error)
+                        } else {
+                            call.resolve(["completed": completed])
+                        }
+                    }
+                }
+
+                if let popover = activityController.popoverPresentationController {
+                    popover.sourceView = viewController.view
+                    popover.sourceRect = CGRect(
+                        x: viewController.view.bounds.midX,
+                        y: viewController.view.bounds.maxY - 1,
+                        width: 1,
+                        height: 1
+                    )
+                    popover.permittedArrowDirections = []
+                }
+
+                viewController.present(activityController, animated: true)
+            } catch {
+                call.reject("Could not prepare the image for sharing.", nil, error)
             }
         }
     }

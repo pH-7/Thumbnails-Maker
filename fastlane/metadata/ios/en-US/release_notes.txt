@@ -1,11 +1,12 @@
-Create better YouTube thumbnails faster on your iPhone and iPad.
+Create scroll-stopping YouTube thumbnails faster on your iPhone and iPad.
 
-What's new:
-• Take a photo inside the app and add it directly to your thumbnail
-• Save generated thumbnails straight to Apple Photos without interruptions
-• Tap the finished preview or the Save button for one-step saving
-• Cleaner photo frames and more accurate multi-photo layouts
-• Refined design, app icon and creator-focused App Store visuals
-• Smoother performance when choosing, arranging and exporting photos
+What's new in version 1.3:
+• Celebrate your first five creations with fun milestone rewards
+• Share finished thumbnails directly with your favourite apps
+• Add up to 12 photos for richer grids and magazine layouts
+• Smoother handling of large photos for faster, more reliable creation
+• Safer saving to Apple Photos with the minimum required access
+• Clearer Save, Share and result controls
+• Improved spacing, tilted gaps and multi-photo layout accuracy
 
-Turn up to nine photos into a sharp 1280 × 720 YouTube thumbnail for vlogs, gaming, tutorials, cooking, travel and social videos. Everything stays private and is created on your device.
+Every thumbnail is exported at 1280 × 720 for YouTube. Your photos remain private and all creation stays on your device.

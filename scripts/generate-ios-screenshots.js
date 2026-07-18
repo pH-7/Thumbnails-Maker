@@ -61,7 +61,7 @@ const DEVICES = [
 const SCREENS = [
   { layout: '2x2', count: 4, enhance: true, headline: 'Join your photos', sub: 'Multiple shots, one polished thumbnail' },
   { layout: '1x2', count: 2, enhance: false, headline: 'Side by side', sub: 'Compare moments in a single frame' },
-  { layout: '3x3', count: 9, enhance: true, headline: 'Up to 9 photos', sub: 'Smart grids for every video idea' },
+  { layout: 'magazine-grid', count: 12, enhance: true, headline: 'Up to 12 photos', sub: 'Smart grids for every video idea' },
   { layout: '1x1', count: 1, enhance: true, headline: 'Shoot. Create. Save.', sub: 'Turn a new photo into a thumbnail' },
   { layout: 'auto', count: 3, enhance: false, headline: 'Save to Photos', sub: 'Export at 1280 × 720, ready to share' }
 ];

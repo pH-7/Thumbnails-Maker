@@ -13,8 +13,8 @@ describe('store release readiness', () => {
     const fastfile = fs.readFileSync(path.join(root, 'fastlane/Fastfile'), 'utf8');
 
     expect(packageJson.version).toBe('4.2.0');
-    expect(xcodeProject).toContain('MARKETING_VERSION = 1.2.0;');
-    expect(fastfile).toContain('IOS_RELEASE_VERSION = "1.2.0"');
+    expect(xcodeProject).toContain('MARKETING_VERSION = 1.3.0;');
+    expect(fastfile).toContain('IOS_RELEASE_VERSION = "1.3.0"');
     expect(fastfile).toContain('npx cap copy ios');
   });
 
@@ -76,6 +76,30 @@ describe('store release readiness', () => {
     expect(desktopHtml).toContain('pathToFileURL(selectedImagePaths[index]).href');
     expect(desktopHtml).toContain('pathToFileURL(result.outputPath).href');
     expect(desktopHtml).not.toContain('`file://${result.outputPath}`');
+  });
+
+  test('iOS release includes bounded imports, first-five rewards and native sharing', () => {
+    const mobileApp = fs.readFileSync(path.join(root, 'mobile/app.js'), 'utf8');
+    const mobileHtml = fs.readFileSync(path.join(root, 'mobile/index.html'), 'utf8');
+
+    expect(mobileApp).toContain('const MAX_IMAGES = 12');
+    expect(mobileApp).toContain('const REWARDED_GENERATIONS = 5');
+    expect(mobileApp).toContain('rewardSuccessfulCreation()');
+    expect(mobileApp).toContain("matchMedia('(prefers-reduced-motion: reduce)')");
+    expect(mobileApp).toContain('photoSaver.shareImage');
+    expect(mobileHtml).toContain('id="confettiLayer"');
+    expect(mobileHtml).toContain('id="shareBtn"');
+  });
+
+  test('iOS App Store screenshots advertise the supported twelve-photo layout', () => {
+    const screenshotGenerator = fs.readFileSync(
+      path.join(root, 'scripts/generate-ios-screenshots.js'),
+      'utf8'
+    );
+
+    expect(screenshotGenerator).toContain("layout: 'magazine-grid', count: 12");
+    expect(screenshotGenerator).toContain("headline: 'Up to 12 photos'");
+    expect(screenshotGenerator).not.toContain('Up to 9 photos');
   });
 });
 

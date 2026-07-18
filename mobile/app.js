@@ -10,6 +10,11 @@
 
   const engine = window.ThumbnailEngine;
   const capacitor = window.Capacitor;
+  const MAX_IMAGES = 12;
+  const MAX_INPUT_DIMENSION = 2560;
+  const REWARDED_GENERATIONS = 5;
+  const GENERATION_COUNT_KEY = 'thumbnail-maker-generation-count';
+  const CONFETTI_COLORS = ['#e62117', '#f5b700', '#00a6a6', '#3366cc', '#ef476f', '#ffffff'];
 
   // Register the native save bridge defensively: a failure here must never
   // abort initialisation (which would leave every control unwired/"frozen").
@@ -62,7 +67,9 @@
     delimiterTilt: 0,
     enhance: false,
     resultBlob: null,
-    isSaving: false
+    isSaving: false,
+    isSharing: false,
+    generationCount: readGenerationCount()
   };
 
   const el = {
@@ -79,27 +86,123 @@
     enhance: document.getElementById('enhance'),
     resultCard: document.getElementById('resultCard'),
     resultImg: document.getElementById('resultImg'),
+    rewardBanner: document.getElementById('rewardBanner'),
+    confettiLayer: document.getElementById('confettiLayer'),
     status: document.getElementById('status'),
     createBtn: document.getElementById('createBtn'),
     saveBtn: document.getElementById('saveBtn'),
+    shareBtn: document.getElementById('shareBtn'),
     resetBtn: document.getElementById('resetBtn')
   };
 
   let nextId = 1;
+  let importQueue = Promise.resolve();
 
   function setStatus(message) {
     el.status.textContent = message || '';
   }
 
+  function readGenerationCount() {
+    try {
+      if (typeof localStorage === 'undefined') return 0;
+      const value = Number.parseInt(localStorage.getItem(GENERATION_COUNT_KEY), 10);
+      return Number.isFinite(value) ? Math.max(0, value) : 0;
+    } catch (error) {
+      console.error('Could not read creation milestone:', error);
+      return 0;
+    }
+  }
+
+  function persistGenerationCount(count) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(GENERATION_COUNT_KEY, String(count));
+      }
+    } catch (error) {
+      console.error('Could not save creation milestone:', error);
+    }
+  }
+
+  function prefersReducedMotion() {
+    return Boolean(
+      window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+  }
+
+  function launchConfetti() {
+    if (!el.confettiLayer || prefersReducedMotion()) return;
+
+    Array.from(el.confettiLayer.children).forEach((piece) => piece.remove());
+    for (let index = 0; index < 28; index += 1) {
+      const piece = document.createElement('span');
+      piece.className = 'confetti-piece';
+      piece.style.left = `${Math.round(Math.random() * 100)}%`;
+      piece.style.backgroundColor = CONFETTI_COLORS[index % CONFETTI_COLORS.length];
+      piece.style.animationDelay = `${(Math.random() * 0.22).toFixed(2)}s`;
+      piece.style.animationDuration = `${(1.35 + Math.random() * 0.55).toFixed(2)}s`;
+      el.confettiLayer.appendChild(piece);
+      const cleanupTimer = setTimeout(() => piece.remove(), 2100);
+      if (cleanupTimer && typeof cleanupTimer.unref === 'function') cleanupTimer.unref();
+    }
+  }
+
+  function rewardSuccessfulCreation() {
+    if (state.generationCount >= REWARDED_GENERATIONS) {
+      el.rewardBanner.classList.add('hidden');
+      return;
+    }
+
+    state.generationCount += 1;
+    persistGenerationCount(state.generationCount);
+    const messages = [
+      'Great start - first thumbnail created',
+      'Nice work - 2 of 5 thumbnails created',
+      'You are on a roll - 3 of 5 thumbnails created',
+      'Almost there - 4 of 5 thumbnails created',
+      'Milestone unlocked - 5 thumbnails created'
+    ];
+    el.rewardBanner.textContent = messages[state.generationCount - 1];
+    el.rewardBanner.classList.remove('hidden');
+    launchConfetti();
+  }
+
+  function revealResultWhenReady() {
+    const reveal = () => {
+      el.resultCard.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        block: 'nearest'
+      });
+    };
+
+    if (el.resultImg.complete && el.resultImg.naturalWidth > 0) {
+      reveal();
+      return;
+    }
+
+    el.resultImg.addEventListener('load', reveal, { once: true });
+  }
+
+  function refreshResultActionState() {
+    const busy = state.isSaving || state.isSharing;
+    const unavailable = busy || !state.resultBlob;
+    el.saveBtn.disabled = unavailable;
+    el.shareBtn.disabled = unavailable;
+    el.resultImg.classList.toggle('saving', busy);
+    el.resultImg.setAttribute('aria-disabled', unavailable ? 'true' : 'false');
+  }
+
   function setSavingState(isSaving) {
     state.isSaving = isSaving;
-    el.saveBtn.disabled = isSaving || !state.resultBlob;
-    el.resultImg.classList.toggle('saving', isSaving);
-    el.resultImg.setAttribute('aria-disabled', isSaving ? 'true' : 'false');
+    refreshResultActionState();
+  }
+
+  function setSharingState(isSharing) {
+    state.isSharing = isSharing;
+    refreshResultActionState();
   }
 
   function canSaveFromImageTap() {
-    return Boolean(state.resultBlob) && !state.isSaving;
+    return Boolean(state.resultBlob) && !state.isSaving && !state.isSharing;
   }
 
   function hasPhotosWriteAccess(permissionResult) {
@@ -140,10 +243,12 @@
     });
   }
 
-  /** Load a File into an HTMLImageElement, resolving once decoded. */
-  function loadImage(file) {
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+  }
+
+  function loadImageFromUrl(url) {
     return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => resolve({ img, src: url });
       img.onerror = () => {
@@ -154,22 +259,86 @@
     });
   }
 
+  /** Load and bound a File before retaining it in memory. */
+  async function loadImage(file) {
+    const originalUrl = URL.createObjectURL(file);
+    const loaded = await loadImageFromUrl(originalUrl);
+    const width = loaded.img.naturalWidth || loaded.img.width || 0;
+    const height = loaded.img.naturalHeight || loaded.img.height || 0;
+    const longestSide = Math.max(width, height);
+
+    if (!longestSide || longestSide <= MAX_INPUT_DIMENSION) {
+      return loaded;
+    }
+
+    try {
+      const scale = MAX_INPUT_DIMENSION / longestSide;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      const context = canvas.getContext('2d');
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(loaded.img, 0, 0, canvas.width, canvas.height);
+
+      const keepsTransparency = file.type === 'image/png' || file.type === 'image/webp';
+      const resizedBlob = await canvasToBlob(
+        canvas,
+        keepsTransparency ? file.type : 'image/jpeg',
+        keepsTransparency ? undefined : 0.92
+      );
+      if (!resizedBlob) return loaded;
+
+      URL.revokeObjectURL(originalUrl);
+      return loadImageFromUrl(URL.createObjectURL(resizedBlob));
+    } catch (error) {
+      console.error('Could not optimize imported photo:', error);
+      return loaded;
+    }
+  }
+
   async function addFiles(fileList) {
-    const files = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'));
-    if (!files.length) return;
+    const availableSlots = Math.max(0, MAX_IMAGES - state.images.length);
+    const candidates = Array.from(fileList || []).filter(
+      (file) => file && (!file.type || file.type.startsWith('image/'))
+    );
+    const files = candidates.slice(0, availableSlots);
+    if (!files.length) {
+      if (candidates.length > 0 && availableSlots === 0) {
+        setStatus(`You can add up to ${MAX_IMAGES} photos.`);
+      }
+      return;
+    }
 
     setStatus('Loading photos…');
+    let failedCount = 0;
     for (const file of files) {
       try {
         const { img, src } = await loadImage(file);
         state.images.push({ id: nextId++, img, src });
       } catch (error) {
         console.error(error);
+        failedCount += 1;
       }
     }
-    setStatus('');
     renderImages();
     invalidateResult();
+
+    if (candidates.length > files.length || availableSlots === 0) {
+      setStatus(`You can add up to ${MAX_IMAGES} photos.`);
+    } else if (failedCount > 0) {
+      setStatus(`${failedCount} photo${failedCount === 1 ? '' : 's'} could not be loaded.`);
+    } else {
+      setStatus('');
+    }
+  }
+
+  function enqueueFiles(fileList) {
+    const files = Array.from(fileList || []);
+    importQueue = importQueue.then(
+      () => addFiles(files),
+      () => addFiles(files)
+    );
   }
 
   function removeImage(id) {
@@ -371,11 +540,23 @@
     });
   }
 
+  function releaseResultPreview() {
+    if (el.resultImg.dataset.url) {
+      URL.revokeObjectURL(el.resultImg.dataset.url);
+      el.resultImg.dataset.url = '';
+    }
+    el.resultImg.src = '';
+  }
+
   function invalidateResult() {
+    releaseResultPreview();
     state.resultBlob = null;
     setSavingState(false);
+    setSharingState(false);
     el.resultCard.style.display = 'none';
+    el.rewardBanner.classList.add('hidden');
     el.saveBtn.classList.add('hidden');
+    el.shareBtn.classList.add('hidden');
     el.createBtn.classList.remove('hidden');
   }
 
@@ -395,9 +576,9 @@
       });
 
       const blob = await engine.toBlob(canvas, 'image/png');
+      releaseResultPreview();
       state.resultBlob = blob;
 
-      if (el.resultImg.dataset.url) URL.revokeObjectURL(el.resultImg.dataset.url);
       const url = URL.createObjectURL(blob);
       el.resultImg.dataset.url = url;
       el.resultImg.src = url;
@@ -405,9 +586,12 @@
       el.resultCard.style.display = 'block';
       el.createBtn.classList.add('hidden');
       el.saveBtn.classList.remove('hidden');
+      el.shareBtn.classList.remove('hidden');
       setSavingState(false);
+      setSharingState(false);
+      rewardSuccessfulCreation();
       setStatus('Ready! Tap the image or Save to add it to Photos.');
-      el.resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      revealResultWhenReady();
     } catch (error) {
       console.error(error);
       setStatus(error.message || 'Something went wrong.');
@@ -417,7 +601,7 @@
   }
 
   async function saveThumbnail() {
-    if (!state.resultBlob || state.isSaving) return;
+    if (!canSaveFromImageTap()) return;
 
     const fileName = `thumbnail-${Date.now()}.png`;
     setSavingState(true);
@@ -473,6 +657,47 @@
     }
   }
 
+  async function shareThumbnail() {
+    if (!state.resultBlob || state.isSaving || state.isSharing) return;
+
+    const fileName = `thumbnail-${Date.now()}.png`;
+    setSharingState(true);
+    setStatus('Opening Share…');
+
+    try {
+      if (photoSaver && typeof photoSaver.shareImage === 'function') {
+        const base64Data = await blobToBase64Data(state.resultBlob);
+        const result = await photoSaver.shareImage({
+          data: base64Data,
+          fileName,
+          mimeType: 'image/png'
+        });
+        setStatus(result && result.completed === false ? 'Share cancelled.' : 'Shared successfully.');
+        return;
+      }
+
+      const file = new File([state.resultBlob], fileName, { type: 'image/png' });
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        throw new Error('Sharing this image is not available on this device.');
+      }
+      if (typeof navigator.share !== 'function') {
+        throw new Error('Sharing is not available on this device.');
+      }
+
+      await navigator.share({ files: [file], title: 'YouTube Thumbnail' });
+      setStatus('Shared successfully.');
+    } catch (error) {
+      if (error && error.name === 'AbortError') {
+        setStatus('Share cancelled.');
+        return;
+      }
+      console.error(error);
+      setStatus(error && error.message ? error.message : 'Could not share the image.');
+    } finally {
+      setSharingState(false);
+    }
+  }
+
   function reset() {
     state.images.forEach((i) => URL.revokeObjectURL(i.src));
     state.images = [];
@@ -487,12 +712,12 @@
   // native picker directly — this is the only reliable way on iOS WKWebView.
   // (A synthetic fileInput.click() on a display:none input is ignored there.)
   el.fileInput.addEventListener('change', (e) => {
-    addFiles(e.target.files);
+    enqueueFiles(e.target.files);
     el.fileInput.value = ''; // allow re-picking the same file
   });
 
   el.cameraInput.addEventListener('change', (e) => {
-    addFiles(e.target.files);
+    enqueueFiles(e.target.files);
     el.cameraInput.value = ''; // allow taking another photo immediately
   });
 
@@ -520,6 +745,7 @@
 
   el.createBtn.addEventListener('click', createThumbnail);
   el.saveBtn.addEventListener('click', saveThumbnail);
+  el.shareBtn.addEventListener('click', shareThumbnail);
   el.resultImg.addEventListener('click', saveThumbnail);
   el.resultImg.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') {

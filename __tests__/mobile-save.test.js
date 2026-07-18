@@ -128,7 +128,12 @@ async function flushPromises() {
   await new Promise((resolve) => setImmediate(resolve));
 }
 
-function loadMobileApp({ permissionResult = { photos: 'granted' } } = {}) {
+function loadMobileApp({
+  permissionResult = { photos: 'granted' },
+  generationCount = null,
+  reduceMotion = false,
+  shareResult = { completed: true }
+} = {}) {
   const ids = [
     'imagesGrid',
     'addTile',
@@ -143,9 +148,12 @@ function loadMobileApp({ permissionResult = { photos: 'granted' } } = {}) {
     'enhance',
     'resultCard',
     'resultImg',
+    'rewardBanner',
+    'confettiLayer',
     'status',
     'createBtn',
     'saveBtn',
+    'shareBtn',
     'resetBtn'
   ];
   const elements = Object.fromEntries(ids.map((id) => [id, createElement()]));
@@ -154,10 +162,22 @@ function loadMobileApp({ permissionResult = { photos: 'granted' } } = {}) {
   elements.delimiterTilt.value = '0';
   elements.delimiterColor.value = '#ffffff';
   elements.enhance.checked = false;
+  elements.resultImg.complete = true;
+  elements.resultImg.naturalWidth = 1280;
 
   const photoSaver = {
     requestPermissions: jest.fn().mockResolvedValue(permissionResult),
-    saveImage: jest.fn().mockResolvedValue({ saved: true })
+    saveImage: jest.fn().mockResolvedValue({ saved: true }),
+    shareImage: jest.fn().mockResolvedValue(shareResult)
+  };
+  const storage = new Map();
+  if (generationCount !== null) {
+    storage.set('thumbnail-maker-generation-count', String(generationCount));
+  }
+  const localStorage = {
+    getItem: jest.fn((key) => (storage.has(key) ? storage.get(key) : null)),
+    setItem: jest.fn((key, value) => storage.set(key, String(value))),
+    removeItem: jest.fn((key) => storage.delete(key))
   };
   const context = {
     console,
@@ -177,9 +197,11 @@ function loadMobileApp({ permissionResult = { photos: 'granted' } } = {}) {
         getPlatform: jest.fn(() => 'ios'),
         registerPlugin: jest.fn(() => photoSaver)
       },
+      matchMedia: jest.fn(() => ({ matches: reduceMotion })),
       addEventListener: jest.fn(),
       removeEventListener: jest.fn()
     },
+    localStorage,
     URL: {
       createObjectURL: jest.fn(() => 'blob:thumbnail'),
       revokeObjectURL: jest.fn()
@@ -211,7 +233,7 @@ function loadMobileApp({ permissionResult = { photos: 'granted' } } = {}) {
   const source = fs.readFileSync(path.join(__dirname, '../mobile/app.js'), 'utf8');
   vm.runInNewContext(source, context);
 
-  return { context, elements, photoSaver };
+  return { context, elements, photoSaver, localStorage, storage };
 }
 
 async function createGeneratedThumbnail(elements) {
@@ -288,13 +310,133 @@ describe('mobile Photos saving', () => {
       consoleError.mockRestore();
     }
   });
+
+  test('Share opens the native iOS share sheet without requesting Photos access', async () => {
+    const { elements, photoSaver } = loadMobileApp();
+    await createGeneratedThumbnail(elements);
+
+    elements.shareBtn.dispatch('click');
+    await flushPromises();
+
+    expect(photoSaver.requestPermissions).not.toHaveBeenCalled();
+    expect(photoSaver.shareImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: 'ZmFrZS1pbWFnZQ==',
+        mimeType: 'image/png'
+      })
+    );
+    expect(elements.status.textContent).toBe('Shared successfully.');
+    expect(elements.shareBtn.disabled).toBe(false);
+  });
+
+  test('ignores save taps while the native share sheet is opening', async () => {
+    const { elements, photoSaver } = loadMobileApp();
+    photoSaver.shareImage.mockReturnValue(new Promise(() => {}));
+    await createGeneratedThumbnail(elements);
+
+    elements.shareBtn.dispatch('click');
+    await flushPromises();
+    elements.resultImg.dispatch('click');
+    await flushPromises();
+
+    expect(photoSaver.shareImage).toHaveBeenCalledTimes(1);
+    expect(photoSaver.requestPermissions).not.toHaveBeenCalled();
+    expect(photoSaver.saveImage).not.toHaveBeenCalled();
+    expect(elements.saveBtn.disabled).toBe(true);
+    expect(elements.shareBtn.disabled).toBe(true);
+  });
+
+  test('releases the generated preview when an option invalidates the result', async () => {
+    const { context, elements } = loadMobileApp();
+    await createGeneratedThumbnail(elements);
+
+    elements.delimiter.value = '24';
+    elements.delimiter.dispatch('input');
+
+    expect(context.URL.revokeObjectURL).toHaveBeenCalledWith('blob:thumbnail');
+    expect(elements.resultCard.style.display).toBe('none');
+    expect(elements.saveBtn.classList.contains('hidden')).toBe(true);
+    expect(elements.shareBtn.classList.contains('hidden')).toBe(true);
+  });
+});
+
+describe('mobile creation rewards', () => {
+  test('rewards exactly the first five successful thumbnail generations', async () => {
+    const { elements, storage } = loadMobileApp();
+    await createGeneratedThumbnail(elements);
+
+    for (let count = 2; count <= 5; count += 1) {
+      elements.createBtn.dispatch('click');
+      await flushPromises();
+    }
+
+    expect(storage.get('thumbnail-maker-generation-count')).toBe('5');
+    expect(elements.rewardBanner.textContent).toBe('Milestone unlocked - 5 thumbnails created');
+    expect(elements.rewardBanner.classList.contains('hidden')).toBe(false);
+    expect(elements.confettiLayer.children).toHaveLength(28);
+
+    elements.createBtn.dispatch('click');
+    await flushPromises();
+
+    expect(storage.get('thumbnail-maker-generation-count')).toBe('5');
+    expect(elements.rewardBanner.classList.contains('hidden')).toBe(true);
+  });
+
+  test('keeps milestone feedback but suppresses confetti for Reduce Motion', async () => {
+    const { elements } = loadMobileApp({ reduceMotion: true });
+    await createGeneratedThumbnail(elements);
+
+    expect(elements.rewardBanner.classList.contains('hidden')).toBe(false);
+    expect(elements.confettiLayer.children).toHaveLength(0);
+    expect(elements.resultCard.scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: 'auto' })
+    );
+  });
+
+  test('caps imported photos at the supported twelve-photo maximum', async () => {
+    const { elements } = loadMobileApp();
+    elements.fileInput.files = Array.from({ length: 13 }, () => ({ type: 'image/jpeg' }));
+
+    elements.fileInput.dispatch('change');
+    await flushPromises();
+
+    expect(elements.imagesGrid.querySelectorAll('.thumb')).toHaveLength(12);
+    expect(elements.status.textContent).toBe('You can add up to 12 photos.');
+  });
+
+  test('serializes simultaneous picker results so the photo cap cannot race', async () => {
+    const { elements } = loadMobileApp();
+    elements.fileInput.files = Array.from({ length: 8 }, () => ({ type: 'image/jpeg' }));
+    elements.cameraInput.files = Array.from({ length: 8 }, () => ({ type: 'image/jpeg' }));
+
+    elements.fileInput.dispatch('change');
+    elements.cameraInput.dispatch('change');
+    await flushPromises();
+    await flushPromises();
+
+    expect(elements.imagesGrid.querySelectorAll('.thumb')).toHaveLength(12);
+    expect(elements.status.textContent).toBe('You can add up to 12 photos.');
+  });
 });
 
 describe('iOS privacy metadata', () => {
-  test('declares camera usage for the Take Photo capture input', () => {
+  test('declares camera and add-only Photos usage without full-library access', () => {
     const infoPlist = fs.readFileSync(path.join(__dirname, '../ios/App/App/Info.plist'), 'utf8');
 
     expect(infoPlist).toContain('<key>NSCameraUsageDescription</key>');
     expect(infoPlist).toContain('Take Photo');
+    expect(infoPlist).toContain('<key>NSPhotoLibraryAddUsageDescription</key>');
+    expect(infoPlist).not.toContain('<key>NSPhotoLibraryUsageDescription</key>');
+  });
+
+  test('native bridge exposes both save and share methods', () => {
+    const plugin = fs.readFileSync(
+      path.join(__dirname, '../ios/App/App/PhotoSaverPlugin.swift'),
+      'utf8'
+    );
+
+    expect(plugin).toContain('CAPPluginMethod(name: "saveImage"');
+    expect(plugin).toContain('CAPPluginMethod(name: "shareImage"');
+    expect(plugin).toContain('UIActivityViewController');
   });
 });

@@ -507,7 +507,7 @@ platform :ios do
   IOS_PROJECT   = File.expand_path("../ios/App/App.xcodeproj", __dir__)
   IOS_APP_DIR   = File.expand_path("../ios/App", __dir__)
   IOS_SCHEME    = "App"
-  IOS_RELEASE_VERSION = "1.2.0"
+  IOS_RELEASE_VERSION = "1.3.0"
 
   private_lane :resolved_app_store_key_path do
     raw_path = ENV['APP_STORE_KEY_PATH'].to_s.strip
@@ -654,7 +654,7 @@ platform :ios do
       last_name: ENV['APP_REVIEW_LAST_NAME'],
       phone_number: ENV['APP_REVIEW_PHONE_NUMBER'],
       email_address: ENV['APP_REVIEW_EMAIL_ADDRESS'],
-      notes: ENV['APP_REVIEW_NOTES'] || 'No account required. App works fully offline. Select photos, choose a layout, and tap Create to generate a 1280x720 thumbnail.'
+      notes: ENV['APP_REVIEW_NOTES'] || 'No account required. The app works fully offline. Take Photo uses the standard iOS camera permission. After creating a 1280x720 thumbnail, tap the preview or Save to request add-only Photos access and save it. Share opens the standard iOS share sheet without requesting Photos access.'
     }
 
     has_review_contact = [:first_name, :last_name, :phone_number, :email_address].all? do |key|

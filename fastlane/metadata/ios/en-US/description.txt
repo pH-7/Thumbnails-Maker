@@ -3,7 +3,7 @@ Create scroll-stopping YouTube thumbnails right from your iPhone. Thumbnail Make
 Pick photos from your library, choose a grid layout, and tap Create. Adjust the spacing and gap colour, turn on Auto Enhance for a brighter, more vibrant look, then save straight to Photos or share anywhere.
 
 WHY YOU'LL LOVE IT
-• Join 1 to 9 photos into one thumbnail
+• Join 1 to 12 photos into one thumbnail
 • Smart grid layouts: side by side, stacked, 2x2, 2x3, 3x3 and more
 • Auto layout picks the best grid for your photo count
 • Adjustable gap width and colour between photos

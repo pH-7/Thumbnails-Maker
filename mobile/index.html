@@ -301,6 +301,7 @@
     /* Result */
     #resultCard {
       display: none;
+      scroll-margin-bottom: calc(86px + var(--safe-bottom));
     }
 
     #resultImg {
@@ -315,6 +316,76 @@
     #resultImg.saving {
       opacity: 0.72;
       cursor: progress;
+    }
+
+    .reward-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      margin-top: 12px;
+      padding: 9px 12px;
+      border: 1px solid #f0c24b;
+      border-radius: 7px;
+      background: #fff8dc;
+      color: #5d4300;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .reward-banner::before {
+      content: "\2605";
+      margin-right: 7px;
+      color: #b77900;
+      font-size: 17px;
+    }
+
+    .confetti-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -24px;
+      width: 8px;
+      height: 14px;
+      border-radius: 2px;
+      animation: confetti-fall 1.65s cubic-bezier(0.2, 0.7, 0.35, 1) forwards;
+    }
+
+    .confetti-piece:nth-child(2n) {
+      animation-name: confetti-fall-left;
+    }
+
+    .confetti-piece:nth-child(3n) {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    @keyframes confetti-fall {
+      from {
+        transform: translate3d(0, -5vh, 0) rotate(0deg);
+      }
+
+      to {
+        transform: translate3d(44px, 110vh, 0) rotate(720deg);
+      }
+    }
+
+    @keyframes confetti-fall-left {
+      from {
+        transform: translate3d(0, -5vh, 0) rotate(0deg);
+      }
+
+      to {
+        transform: translate3d(-38px, 110vh, 0) rotate(-640deg);
+      }
     }
 
     .status {
@@ -398,6 +469,21 @@
       color: var(--muted);
       text-decoration: none;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+
+      .confetti-layer {
+        display: none;
+      }
+    }
   </style>
 </head>
 
@@ -456,6 +542,7 @@
   <section class="card" id="resultCard">
     <h2>Result</h2>
     <img id="resultImg" alt="Generated thumbnail" role="button" tabindex="0" aria-disabled="true" />
+    <div class="reward-banner hidden" id="rewardBanner" role="status" aria-live="polite"></div>
   </section>
 
   <p class="status" id="status"></p>
@@ -469,7 +556,10 @@
     <button class="btn btn-secondary" id="resetBtn">Reset</button>
     <button class="btn btn-primary" id="createBtn" disabled>Create</button>
     <button class="btn btn-primary hidden" id="saveBtn">Save</button>
+    <button class="btn btn-secondary hidden" id="shareBtn">Share</button>
   </div>
+
+  <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
 
   <script src="thumbnail-engine.js"></script>
   <script src="app.js"></script>

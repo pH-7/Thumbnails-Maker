@@ -86,4 +86,51 @@ describe('mobile thumbnail engine layout parity', () => {
     const rotateCall = calls.find((call) => call[0] === 'rotate');
     expect(rotateCall[1]).toBeCloseTo((-12 * Math.PI) / 180);
   });
+
+  test('renders every declared layout at the fixed YouTube output size', () => {
+    const previousDocument = global.document;
+
+    try {
+      Object.entries(engine.GRID_LAYOUTS).forEach(([layoutKey, layout]) => {
+        const context = {
+          imageSmoothingEnabled: false,
+          imageSmoothingQuality: 'low',
+          fillStyle: null,
+          filter: 'none',
+          save: jest.fn(),
+          restore: jest.fn(),
+          beginPath: jest.fn(),
+          rect: jest.fn(),
+          clip: jest.fn(),
+          fillRect: jest.fn(),
+          drawImage: jest.fn(),
+          translate: jest.fn(),
+          rotate: jest.fn()
+        };
+        const canvas = {
+          width: 0,
+          height: 0,
+          getContext: jest.fn(() => context)
+        };
+        global.document = { createElement: jest.fn(() => canvas) };
+        const images = Array.from({ length: layout.maxImages }, () => ({
+          width: 1920,
+          height: 1080
+        }));
+
+        const result = engine.compose({
+          images,
+          layout: layoutKey,
+          delimiterWidth: 18,
+          delimiterColor: '#ffffff'
+        });
+
+        expect(result.width).toBe(engine.THUMBNAIL_WIDTH);
+        expect(result.height).toBe(engine.THUMBNAIL_HEIGHT);
+        expect(context.drawImage).toHaveBeenCalledTimes(layout.maxImages);
+      });
+    } finally {
+      global.document = previousDocument;
+    }
+  });
 });
