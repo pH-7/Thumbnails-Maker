@@ -15,6 +15,30 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## Mac
 
+### mac screenshots
+
+```sh
+[bundle exec] fastlane mac screenshots
+```
+
+Generate current Mac App Store screenshots
+
+### mac publish_store_listing
+
+```sh
+[bundle exec] fastlane mac publish_store_listing
+```
+
+Upload Mac metadata and screenshots, then submit the uploaded build
+
+### mac cancel_active_review
+
+```sh
+[bundle exec] fastlane mac cancel_active_review
+```
+
+Cancel the active Mac review so its build and listing can be replaced
+
 ### mac release
 
 ```sh
