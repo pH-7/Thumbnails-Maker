@@ -945,6 +945,13 @@
       border-color: #c91d14;
     }
 
+    button#createThumbnailBtn:disabled {
+      background: #f5f5f5;
+      border-color: #ddd;
+      color: #aaa;
+      cursor: not-allowed;
+    }
+
     .options-container {
       background: #fff;
       padding: 24px;
@@ -1371,6 +1378,7 @@
 
         document.addEventListener('DOMContentLoaded', randomizeGitHubFooterLink);
     const { ipcRenderer, shell } = require('electron');
+    const { pathToFileURL } = require('url');
 
     // Cache DOM elements
     const elements = {
@@ -2291,7 +2299,7 @@
           preview.innerHTML = '';
 
           const img = document.createElement('img');
-          img.src = `file://${selectedImagePaths[index]}`;
+          img.src = pathToFileURL(selectedImagePaths[index]).href;
           img.draggable = false;
           img.onload = () => {
             // Re-trigger auto color once image pixels are available for analysis
@@ -2452,7 +2460,7 @@
 
         if (result.success) {
           outputDir = result.outputDir;
-          elements.resultThumbnail.src = `file://${result.outputPath}`;
+          elements.resultThumbnail.src = pathToFileURL(result.outputPath).href;
           elements.resultContainer.classList.add('active');
 
           // Show optimization results with performance info

@@ -302,8 +302,10 @@ function removeUnusedPrivacyUsageDescriptions(appPath) {
   const unusedKeys = [
     'NSBluetoothAlwaysUsageDescription',
     'NSBluetoothPeripheralUsageDescription',
+    'NSAudioCaptureUsageDescription',
     'NSCameraUsageDescription',
-    'NSMicrophoneUsageDescription'
+    'NSMicrophoneUsageDescription',
+    'NSAppTransportSecurity'
   ];
 
   for (const key of unusedKeys) {
@@ -1020,7 +1022,7 @@ async function manualBuild(certs, env) {
   installBrandedAppIcon(appPath);
   log('✅', 'Installed and verified finalized branded app icon.');
   removeUnusedPrivacyUsageDescriptions(appPath);
-  log('✅', 'Removed unused camera, microphone, and Bluetooth permission descriptions.');
+  log('✅', 'Removed unused capture, Bluetooth, and unrestricted-network metadata.');
   const sharpBinaries = collectSharpBinariesForSigning(appPath);
   log('✅', `Discovered ${sharpBinaries.length} sharp native binary file(s) for signing.`);
 

@@ -54,7 +54,7 @@ platform :mac do
   desc "Upload Mac metadata and screenshots, then submit the uploaded build"
   lane :publish_store_listing do
     screenshots
-    remediation_note = 'This replacement build updates the desktop runtime to Electron 43.1.1 and Sharp 0.35.3. The packaged app now contains only the production application and its Darwin image-processing library; development tools, Ruby/Fastlane files, tests, coverage output, and iOS native binaries have been removed.'
+    remediation_note = 'This replacement build updates the desktop runtime to Electron 43.1.1 and Sharp 0.35.3. The packaged app now contains only the production application and its Darwin image-processing library; development tools, Ruby/Fastlane files, tests, coverage output, and iOS native binaries have been removed. Unused audio-capture and unrestricted-network metadata were also removed, and all 20 thumbnail layouts, enhancement, preview, and output-saving workflows were reverified.'
     review_info = {
       first_name: ENV['APP_REVIEW_FIRST_NAME'],
       last_name: ENV['APP_REVIEW_LAST_NAME'],

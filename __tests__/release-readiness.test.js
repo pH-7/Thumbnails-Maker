@@ -64,6 +64,18 @@ describe('store release readiness', () => {
     expect(pipeline).toContain('removeUnusedPrivacyUsageDescriptions(appPath)');
     expect(pipeline).toContain('NSCameraUsageDescription');
     expect(pipeline).toContain('NSMicrophoneUsageDescription');
+    expect(pipeline).toContain('NSAudioCaptureUsageDescription');
+    expect(pipeline).toContain('NSAppTransportSecurity');
+    expect(pipeline).toContain('unrestricted-network metadata');
+  });
+
+  test('desktop previews encode local file paths safely', () => {
+    const desktopHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+
+    expect(desktopHtml).toContain("const { pathToFileURL } = require('url')");
+    expect(desktopHtml).toContain('pathToFileURL(selectedImagePaths[index]).href');
+    expect(desktopHtml).toContain('pathToFileURL(result.outputPath).href');
+    expect(desktopHtml).not.toContain('`file://${result.outputPath}`');
   });
 });
 

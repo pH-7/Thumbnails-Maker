@@ -28,6 +28,37 @@ function debugLog(...args) {
     }
 }
 
+async function mapWithConcurrency(items, limit, worker) {
+    const results = new Array(items.length);
+    let nextIndex = 0;
+    const workerCount = Math.min(Math.max(1, limit), items.length);
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (nextIndex < items.length) {
+            const index = nextIndex++;
+            results[index] = await worker(items[index], index);
+        }
+    }));
+
+    return results;
+}
+
+function sanitizeOutputName(value, fallbackName) {
+    const normalized = typeof value === 'string' ? value.normalize('NFKC').trim() : '';
+    let sanitized = normalized
+        .replace(/[\\/:*?"<>|\u0000-\u001F]/g, '-')
+        .replace(/\s+/g, ' ')
+        .replace(/-+/g, '-')
+        .replace(/^[.\s-]+|[.\s-]+$/g, '');
+
+    sanitized = Array.from(sanitized).slice(0, 120).join('').trim();
+    if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(sanitized)) {
+        sanitized = `thumbnail-${sanitized}`;
+    }
+
+    return sanitized || fallbackName;
+}
+
 function appendThumbnailTelemetry(entry) {
     try {
         const telemetryDir = path.join(app.getPath('userData'), 'telemetry');
@@ -142,7 +173,6 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
-            enableRemoteModule: false,
             webSecurity: true
         },
         title: 'YouTube Thumbnail Creator'
@@ -513,8 +543,8 @@ function calculateEnhancementParams(analysis, baseOptions) {
     return {
         // Enhance normalization to improve dynamic range
         normalise: {
-            lower: isUnderexposed ? 0.01 : 0.03,
-            upper: isOverexposed ? 0.98 : 0.97
+            lower: isUnderexposed ? 1 : 3,
+            upper: isOverexposed ? 98 : 97
         },
 
         // Boost brightness for underexposed images
@@ -690,6 +720,39 @@ const GRID_LAYOUTS = {
     }
 };
 
+function resolveLayoutSelection(gridLayout, imagePaths) {
+    let layout = GRID_LAYOUTS[gridLayout];
+    if (!layout) {
+        throw new Error(`Invalid grid layout: ${gridLayout}`);
+    }
+
+    let selectedImages = imagePaths.slice(0, layout.maxImages);
+    if (selectedImages.length < 1) {
+        throw new Error('At least 1 image is required to create a thumbnail');
+    }
+
+    if (selectedImages.length < layout.maxImages) {
+        if (selectedImages.length === 1) {
+            gridLayout = '1x1';
+        } else if (selectedImages.length === 2) {
+            gridLayout = '1x2';
+        } else if (selectedImages.length === 3) {
+            const customFallbacks = ['hero-side', 'pyramid', 'filmstrip', 'corner-grid', 'l-shape'];
+            gridLayout = customFallbacks.includes(gridLayout) ? 'triptych' : '1x3';
+        } else {
+            const originalLength = selectedImages.length;
+            while (selectedImages.length < layout.maxImages) {
+                selectedImages.push(selectedImages[selectedImages.length % originalLength]);
+            }
+        }
+
+        layout = GRID_LAYOUTS[gridLayout];
+        selectedImages = selectedImages.slice(0, layout.maxImages);
+    }
+
+    return { gridLayout, layout, selectedImages };
+}
+
 // Standard YouTube thumbnail dimensions
 const THUMBNAIL_WIDTH = 1280;
 const THUMBNAIL_HEIGHT = 720;
@@ -712,6 +775,8 @@ async function analyzeImageForLayout(imagePath) {
 
         // Calculate image complexity using entropy
         const grayscaleBuffer = await image
+            .clone()
+            .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
             .grayscale()
             .raw()
             .toBuffer();
@@ -856,9 +921,7 @@ async function determineOptimalLayout(imagePaths) {
         }
 
         // Analyze all images
-        const analyses = await Promise.all(
-            imagePaths.map(path => analyzeImageForLayout(path))
-        );
+        const analyses = await mapWithConcurrency(imagePaths, 2, analyzeImageForLayout);
 
         const validAnalyses = analyses.filter(analysis => analysis !== null);
 
@@ -1535,7 +1598,6 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
 
         // Determine layout based on mode
         let gridLayout = '1x3'; // Default layout
-        let selectedImages = imagePaths;
 
         if (layoutMode === 'auto') {
             const layoutStart = Date.now();
@@ -1552,53 +1614,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             gridLayout = layoutMode;
         }
 
-        // Get layout configuration
-        const layout = GRID_LAYOUTS[gridLayout];
-        if (!layout) {
-            throw new Error(`Invalid grid layout: ${gridLayout}`);
-        }
-
-        // Use only the required number of images for the layout
-        selectedImages = imagePaths.slice(0, layout.maxImages);
-
-        // Allow thumbnail creation with any number of images (minimum 1)
-        if (selectedImages.length < 1) {
-            throw new Error(`At least 1 image is required to create a thumbnail`);
-        }
-
-        // If we have fewer images than the layout requires, fill empty slots by repeating images
-        // or adjust to a smaller layout that fits the available images
-        if (selectedImages.length < layout.maxImages) {
-            debugLog(`Layout ${gridLayout} requires ${layout.maxImages} images but only ${selectedImages.length} provided. Adjusting...`);
-
-            if (selectedImages.length === 1) {
-                // Use single image layout for 1 image
-                gridLayout = '1x1';
-            } else if (selectedImages.length === 2) {
-                // Use 2-image layout for 2 images
-                gridLayout = '1x2';
-            } else if (selectedImages.length === 3) {
-                // Use 3-image layout for 3 images (prefer triptych for custom layouts)
-                const is3Custom = ['hero-side', 'pyramid', 'filmstrip', 'corner-grid', 'l-shape'].includes(gridLayout);
-                gridLayout = is3Custom ? 'triptych' : '1x3';
-            }
-            // For 4+ images, keep the original layout and fill missing slots by repeating images
-            else {
-                // Fill missing slots by cycling through available images
-                const originalLength = selectedImages.length;
-                while (selectedImages.length < layout.maxImages) {
-                    const nextImageIndex = selectedImages.length % originalLength;
-                    selectedImages.push(selectedImages[nextImageIndex]);
-                }
-                debugLog(`Filled ${layout.maxImages - originalLength} empty slots by repeating images`);
-            }
-
-            // Update layout configuration after potential layout change
-            const updatedLayout = GRID_LAYOUTS[gridLayout];
-            if (updatedLayout) {
-                selectedImages = selectedImages.slice(0, updatedLayout.maxImages);
-            }
-        }
+        const resolvedLayout = resolveLayoutSelection(gridLayout, imagePaths);
+        gridLayout = resolvedLayout.gridLayout;
+        const layout = resolvedLayout.layout;
+        const selectedImages = resolvedLayout.selectedImages;
 
         // YouTube thumbnail dimensions
         const THUMBNAIL_WIDTH = 1280;
@@ -1620,36 +1639,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const cellHeight = layout.rows ? Math.floor(THUMBNAIL_HEIGHT / layout.rows) : THUMBNAIL_HEIGHT;
         const padding = Math.max(0, Math.floor((delimiterWidth || 0) / 2)); // Padding between cells
 
-        // Process images for grid layout
         const tileProcessingStart = Date.now();
-        const processedImages = await Promise.all(
-            selectedImages.map(async (imagePath, index) => {
-                try {
-                    // Calculate actual cell dimensions with padding and validate
-                    const actualCellWidth = Math.max(100, Math.floor(Number(cellWidth - padding * 2) || 100));
-                    const actualCellHeight = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
-                    const imageBuffer = await fs.promises.readFile(imagePath);
-
-                    const width = Math.max(100, Math.floor(Number(actualCellWidth) || 100));
-                    const height = Math.max(100, Math.floor(Number(actualCellHeight) || 100));
-                    const buffer = await processThumbnailTile(
-                        imageBuffer,
-                        width,
-                        height,
-                        applyEnhance,
-                        enhanceOptions
-                    );
-
-                    return { buffer, width, height };
-                } catch (error) {
-                    console.error(`Error processing image ${index}:`, error);
-                    throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
-                }
-            })
-        );
-        telemetry.tileProcessingMs = Date.now() - tileProcessingStart;
-
-        // Calculate positions for grid layout or innovative layouts
         let composites;
 
         if (layout.type === 'custom') {
@@ -1668,8 +1658,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             debugLog(`Generated ${positions.length} positions:`, positions);
 
             // Process images with custom sizing for innovative layouts
-            const customProcessedImages = await Promise.all(
-                selectedImages.map(async (imagePath, index) => {
+            const customProcessedImages = await mapWithConcurrency(
+                selectedImages,
+                3,
+                async (imagePath, index) => {
                     try {
                         const pos = positions[index];
                         if (pos) {
@@ -1698,7 +1690,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                         console.error(`Error processing custom layout image ${index}:`, error);
                         throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
                     }
-                })
+                }
             );
 
             composites = customProcessedImages.map((imageData, index) => {
@@ -1716,6 +1708,29 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             }).filter(comp => comp !== null);
 
         } else {
+            const processedImages = await mapWithConcurrency(
+                selectedImages,
+                3,
+                async (imagePath, index) => {
+                    try {
+                        const width = Math.max(100, Math.floor(Number(cellWidth - padding * 2) || 100));
+                        const height = Math.max(100, Math.floor(Number(cellHeight - padding * 2) || 100));
+                        const imageBuffer = await fs.promises.readFile(imagePath);
+                        const buffer = await processThumbnailTile(
+                            imageBuffer,
+                            width,
+                            height,
+                            applyEnhance,
+                            enhanceOptions
+                        );
+                        return { buffer, width, height };
+                    } catch (error) {
+                        console.error(`Error processing image ${index}:`, error);
+                        throw new Error(`Failed to process image ${index + 1}: ${error.message}`);
+                    }
+                }
+            );
+
             // Standard grid layout positioning
             composites = processedImages.map((imageData, index) => {
                 const row = Math.floor(index / layout.cols);
@@ -1733,6 +1748,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
                 };
             });
         }
+        telemetry.tileProcessingMs = Date.now() - tileProcessingStart;
 
         // Add grid delimiters if needed (only for standard grid layouts)
         if (layout.type !== 'custom' && (layout.cols > 1 || layout.rows > 1)) {
@@ -2246,8 +2262,8 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             throw new Error(`Cannot create output directory: ${dirError.message}`);
         }
 
-        const finalOutputName = data.outputName ||
-            `youtube-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
+        const fallbackOutputName = `youtube-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
+        const finalOutputName = sanitizeOutputName(data.outputName, fallbackOutputName);
 
         const outputPath = path.join(outputDir, `${finalOutputName}.png`);
 
@@ -2557,3 +2573,11 @@ async function addTextOverlay(composites, canvasWidth, canvasHeight, textOverlay
         // Don't throw - allow thumbnail creation to continue without text
     }
 }
+
+module.exports = {
+    calculateEnhancementParams,
+    enhanceImage,
+    mapWithConcurrency,
+    resolveLayoutSelection,
+    sanitizeOutputName
+};

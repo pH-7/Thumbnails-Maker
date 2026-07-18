@@ -1,5 +1,7 @@
 function loadMainModule({ mas = false } = {}) {
   jest.resetModules();
+  const existingUncaughtListeners = new Set(process.listeners('uncaughtException'));
+  const existingRejectionListeners = new Set(process.listeners('unhandledRejection'));
 
   const windowInstance = {
     loadFile: jest.fn(),
@@ -18,7 +20,6 @@ function loadMainModule({ mas = false } = {}) {
       on: jest.fn((eventName, callback) => {
         appEvents.set(eventName, callback);
       }),
-      setLoginItemSettings: jest.fn(),
       quit: jest.fn(),
     },
     BrowserWindow: jest.fn(() => windowInstance),
@@ -45,14 +46,21 @@ function loadMainModule({ mas = false } = {}) {
     value: mas,
   });
 
-  require('../main');
+  const mainModule = require('../main');
 
   return {
+    mainModule,
     electronMock,
     windowInstance,
     handlers,
     appEvents,
     restore() {
+      process.listeners('uncaughtException')
+        .filter((listener) => !existingUncaughtListeners.has(listener))
+        .forEach((listener) => process.removeListener('uncaughtException', listener));
+      process.listeners('unhandledRejection')
+        .filter((listener) => !existingRejectionListeners.has(listener))
+        .forEach((listener) => process.removeListener('unhandledRejection', listener));
       Object.defineProperty(process, 'mas', {
         configurable: true,
         value: previousMas,
@@ -146,6 +154,58 @@ describe('Main process bootstrap', () => {
     });
 
     await expect(handler()).resolves.toBeNull();
+    ctx.restore();
+  });
+
+  test('uses the resolved three-photo layout geometry', () => {
+    const ctx = loadMainModule({ mas: false });
+    const resolved = ctx.mainModule.resolveLayoutSelection('hero-side', ['a', 'b', 'c']);
+
+    expect(resolved.gridLayout).toBe('triptych');
+    expect(resolved.layout.layout).toBe('triptych');
+    expect(resolved.selectedImages).toEqual(['a', 'b', 'c']);
+    ctx.restore();
+  });
+
+  test('sanitizes output names before joining them to the output directory', () => {
+    const ctx = loadMainModule({ mas: false });
+
+    expect(ctx.mainModule.sanitizeOutputName('../unsafe/name', 'fallback')).toBe('unsafe-name');
+    expect(ctx.mainModule.sanitizeOutputName('nested\\name:*?', 'fallback')).toBe('nested-name');
+    expect(ctx.mainModule.sanitizeOutputName('...', 'fallback')).toBe('fallback');
+    ctx.restore();
+  });
+
+  test('limits concurrent image work while preserving result order', async () => {
+    const ctx = loadMainModule({ mas: false });
+    let active = 0;
+    let maxActive = 0;
+
+    const results = await ctx.mainModule.mapWithConcurrency([1, 2, 3, 4, 5], 2, async (value) => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return value * 2;
+    });
+
+    expect(results).toEqual([2, 4, 6, 8, 10]);
+    expect(maxActive).toBe(2);
+    ctx.restore();
+  });
+
+  test('auto enhance uses Sharp percentile ranges without falling back', async () => {
+    const ctx = loadMainModule({ mas: false });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const source = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#3273dc"/></svg>'
+    );
+
+    const enhanced = await ctx.mainModule.enhanceImage(source, { enhanceLevel: 'medium' });
+    const output = await enhanced.png().toBuffer();
+
+    expect(output.length).toBeGreaterThan(0);
+    expect(errorSpy).not.toHaveBeenCalledWith('Error in enhanceImage:', expect.anything());
     ctx.restore();
   });
 });
