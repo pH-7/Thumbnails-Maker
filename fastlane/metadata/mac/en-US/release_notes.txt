@@ -1,8 +1,6 @@
-This update makes thumbnail creation clearer, faster and more polished on Mac.
+This update makes Video Thumbnail Maker more consistent and easier to use on macOS.
 
-• Refined workspace design for easier photo arrangement
-• Improved smart grids and creative layout previews
-• Clearer spacing, colour and enhancement controls
-• More consistent 1280 × 720 exports
-• Updated app icon and App Store visuals
-• Reliability improvements throughout the creation workflow
+• The app now uses the Video Thumbnail Maker name everywhere
+• Added a Window menu so you can reopen the main workspace after closing it
+• Refreshed the interface, App Store screenshots, and product description
+• Reverified all layouts, Auto Enhance, preview, and local saving

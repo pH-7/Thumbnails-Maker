@@ -1,6 +1,9 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+const APP_NAME = 'Video Thumbnail Maker';
+app.setName(APP_NAME);
 
 // App Store/TestFlight builds can run without JIT entitlements after Apple re-signing.
 // Force JITless mode there to avoid V8 code range startup traps.
@@ -156,7 +159,7 @@ function getSharpModule() {
     return null;
 }
 
-let mainWindow;
+let mainWindow = null;
 
 process.on('uncaughtException', (error) => {
     console.error('Uncaught exception in main process:', error);
@@ -167,7 +170,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 function createWindow() {
-    mainWindow = new BrowserWindow({
+    const window = new BrowserWindow({
         width: 1000,
         height: 800,
         webPreferences: {
@@ -175,14 +178,96 @@ function createWindow() {
             contextIsolation: false,
             webSecurity: true
         },
-        title: 'YouTube Thumbnail Creator'
+        title: APP_NAME
     });
 
-    mainWindow.loadFile('index.html');
-    mainWindow.on('closed', () => mainWindow = null);
+    mainWindow = window;
+    window.loadFile('index.html');
+    window.on('closed', () => {
+        if (mainWindow === window) mainWindow = null;
+    });
+    return window;
+}
+
+function showMainWindow() {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        createWindow();
+        return;
+    }
+
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+}
+
+function installApplicationMenu() {
+    const template = [
+        {
+            label: APP_NAME,
+            submenu: [
+                { role: 'about' },
+                { type: 'separator' },
+                { role: 'services' },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideOthers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        },
+        {
+            label: 'File',
+            submenu: [{ role: 'close' }]
+        },
+        {
+            label: 'Edit',
+            submenu: [
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                { role: 'pasteAndMatchStyle' },
+                { role: 'delete' },
+                { role: 'selectAll' }
+            ]
+        },
+        {
+            label: 'View',
+            submenu: [{ role: 'togglefullscreen' }]
+        },
+        {
+            label: 'Window',
+            submenu: [
+                { role: 'minimize' },
+                { role: 'zoom' },
+                { type: 'separator' },
+                {
+                    label: 'Main Window',
+                    accelerator: 'CmdOrCtrl+0',
+                    click: showMainWindow
+                },
+                { type: 'separator' },
+                { role: 'front' }
+            ]
+        },
+        {
+            role: 'help',
+            submenu: [{
+                label: 'Support',
+                click: () => shell.openExternal('https://github.com/pH-7/Thumbnails-Maker/issues')
+            }]
+        }
+    ];
+
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 app.whenReady().then(() => {
+    app.setAboutPanelOptions({ applicationName: APP_NAME });
+    installApplicationMenu();
     createWindow();
 }).catch((error) => {
     console.error('Failed to initialize app:', error);
@@ -194,7 +279,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-    if (mainWindow === null) createWindow();
+    showMainWindow();
 });
 
 app.on('render-process-gone', (event, webContents, details) => {
@@ -644,7 +729,7 @@ function calculateAdaptiveSharpening(analysis, intensity) {
     }
 }
 
-// Enhanced grid layout configurations with innovative YouTube layouts
+// Enhanced grid layout configurations with creative video layouts
 const GRID_LAYOUTS = {
     // Standard grid layouts
     '1x1': { rows: 1, cols: 1, maxImages: 1 },
@@ -657,7 +742,7 @@ const GRID_LAYOUTS = {
     '3x2': { rows: 3, cols: 2, maxImages: 6 },
     '3x3': { rows: 3, cols: 3, maxImages: 9 },
 
-    // Creative YouTube-optimized layouts
+    // Creative video-optimized layouts
     'hero-side': {
         type: 'custom',
         maxImages: 4,
@@ -753,7 +838,7 @@ function resolveLayoutSelection(gridLayout, imagePaths) {
     return { gridLayout, layout, selectedImages };
 }
 
-// Standard YouTube thumbnail dimensions
+// Standard widescreen thumbnail dimensions
 const THUMBNAIL_WIDTH = 1280;
 const THUMBNAIL_HEIGHT = 720;
 
@@ -1099,7 +1184,7 @@ function calculateVariance(array) {
     return array.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / array.length;
 }
 
-// Calculate positions for innovative YouTube layouts
+// Calculate positions for creative video layouts
 function calculateInnovativeLayoutPositions(layoutType, imageCount, width, height, padding) {
     const positions = [];
 
@@ -1549,7 +1634,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         enhanceOptions = { brightness: 1.0, contrast: 1.0, saturation: 1.0, sharpness: 1.0 },
         applyEnhance = false,
         layoutMode = 'auto', // Can be 'auto', '2-split', or '3-split'
-        youtubeOptimize = true, // Set to true by default
+        optimizeOutput = true,
         textOverlay = null // Text overlay settings
     } = data;
     telemetry.layoutMode = layoutMode;
@@ -1619,7 +1704,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         const layout = resolvedLayout.layout;
         const selectedImages = resolvedLayout.selectedImages;
 
-        // YouTube thumbnail dimensions
+        // Standard widescreen thumbnail dimensions
         const THUMBNAIL_WIDTH = 1280;
         const THUMBNAIL_HEIGHT = 720;
 
@@ -2248,13 +2333,13 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
         )).filter(Boolean).map(({ width, height, ...comp }) => comp);
         telemetry.compositeFitMs = Date.now() - compositeFitStart;
 
-        // Create final image with optimizations for YouTube
+        // Create the final image with lossless output settings
         const finalImage = canvas
             .composite(composites)
             .png(LOSSLESS_PNG_OPTIONS);
 
         // Save the final image with enhanced error handling
-        const outputDir = path.join(app.getPath('userData'), 'YouTube-Thumbnails');
+        const outputDir = path.join(app.getPath('userData'), 'Video-Thumbnails');
 
         try {
             await fs.promises.mkdir(outputDir, { recursive: true });
@@ -2262,7 +2347,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             throw new Error(`Cannot create output directory: ${dirError.message}`);
         }
 
-        const fallbackOutputName = `youtube-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
+        const fallbackOutputName = `video-thumbnail-${gridLayout}-${new Date().toISOString().replace(/:/g, '-').split('.')[0]}`;
         const finalOutputName = sanitizeOutputName(data.outputName, fallbackOutputName);
 
         const outputPath = path.join(outputDir, `${finalOutputName}.png`);
@@ -2272,10 +2357,10 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             throw new Error('Output filename is too long. Please use a shorter name.');
         }
 
-        // Apply YouTube-specific optimizations
-        if (youtubeOptimize) {
+        // Apply lossless output optimization
+        if (optimizeOutput) {
             const optimizeStart = Date.now();
-            debugLog('Applying YouTube optimizations...');
+            debugLog('Applying output optimizations...');
 
             await finalImage.toFile(outputPath);
 
@@ -2288,7 +2373,7 @@ ipcMain.handle('create-thumbnail', async (event, data) => {
             telemetry.layout = gridLayout;
             telemetry.imagesUsed = selectedImages.length;
 
-            debugLog(`YouTube optimization completed in ${optimizeTime}ms. Total processing time: ${totalTime}ms`);
+            debugLog(`Output optimization completed in ${optimizeTime}ms. Total processing time: ${totalTime}ms`);
             debugLog(`File size: ${formatBytes(newSize)}`);
 
             return finalizeAndReturn({

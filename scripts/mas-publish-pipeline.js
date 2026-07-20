@@ -17,7 +17,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const readline = require('readline');
-const SCRIPT_REVISION = '2026-07-18-clean-runtime-v3';
+const SCRIPT_REVISION = '2026-07-20-product-identity-v4';
 
 // Load environment variables from .env
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), quiet: true });
@@ -44,7 +44,7 @@ const CONFIG = {
   TEAM_ID: process.env.APPLE_TEAM_ID || '',
   APP_BUNDLE_ID: process.env.APP_IDENTIFIER || '',
   /* APP_IDENTIFIER must be set in .env (e.g. com.example.yourapp) */
-  PRODUCT_NAME: 'YouTube Thumbnail Creator',
+  PRODUCT_NAME: 'Video Thumbnail Maker',
   VERSION: PACKAGE_VERSION,
   BUILD_VERSION: process.env.APP_BUILD_NUMBER || generateAutoBuildNumber(),
 
@@ -353,6 +353,74 @@ function installBrandedAppIcon(appPath) {
   const bundledBytes = fs.readFileSync(bundledIcon);
   if (plistIcon !== 'icon.icns' || !sourceBytes.equals(bundledBytes)) {
     throw new Error('Packaged app does not contain the finalized branded icon');
+  }
+}
+
+function setPlistString(infoPlist, key, value) {
+  try {
+    execFileSync('/usr/bin/plutil', ['-replace', key, '-string', value, infoPlist], { stdio: 'pipe' });
+  } catch (_error) {
+    execFileSync('/usr/bin/plutil', ['-insert', key, '-string', value, infoPlist], { stdio: 'pipe' });
+  }
+}
+
+function readPlistString(infoPlist, key) {
+  return execFileSync(
+    '/usr/libexec/PlistBuddy',
+    ['-c', `Print :${key}`, infoPlist],
+    { encoding: 'utf8' }
+  ).trim();
+}
+
+async function assertPackagedProductIdentity(appPath) {
+  const expectedBundleName = `${CONFIG.PRODUCT_NAME}.app`;
+  if (path.basename(appPath) !== expectedBundleName) {
+    throw new Error(`Installed app name mismatch: expected ${expectedBundleName}, found ${path.basename(appPath)}`);
+  }
+
+  const infoPlist = path.join(appPath, 'Contents', 'Info.plist');
+  setPlistString(infoPlist, 'CFBundleName', CONFIG.PRODUCT_NAME);
+  setPlistString(infoPlist, 'CFBundleDisplayName', CONFIG.PRODUCT_NAME);
+
+  const identity = {
+    bundleName: readPlistString(infoPlist, 'CFBundleName'),
+    displayName: readPlistString(infoPlist, 'CFBundleDisplayName'),
+    executable: readPlistString(infoPlist, 'CFBundleExecutable'),
+    identifier: readPlistString(infoPlist, 'CFBundleIdentifier')
+  };
+  const executablePath = path.join(appPath, 'Contents', 'MacOS', identity.executable);
+
+  if (
+    identity.bundleName !== CONFIG.PRODUCT_NAME ||
+    identity.displayName !== CONFIG.PRODUCT_NAME ||
+    identity.executable !== CONFIG.PRODUCT_NAME ||
+    identity.identifier !== CONFIG.APP_BUNDLE_ID ||
+    !fs.existsSync(executablePath)
+  ) {
+    throw new Error(`Packaged product identity is inconsistent: ${JSON.stringify(identity)}`);
+  }
+
+  const asarPath = path.join(appPath, 'Contents', 'Resources', 'app.asar');
+  if (!fs.existsSync(asarPath)) {
+    throw new Error('Packaged application archive is missing while validating product identity.');
+  }
+
+  const { extractFile } = await import('@electron/asar');
+  for (const bundledFile of ['main.js', 'index.html', 'license.md']) {
+    const contents = extractFile(asarPath, bundledFile).toString('utf8');
+    if (/youtube/i.test(contents)) {
+      throw new Error(`Customer-facing third-party branding remains in packaged ${bundledFile}`);
+    }
+  }
+
+  const bundledPackage = JSON.parse(extractFile(asarPath, 'package.json').toString('utf8'));
+  if (
+    bundledPackage.productName !== CONFIG.PRODUCT_NAME ||
+    bundledPackage.build?.productName !== CONFIG.PRODUCT_NAME ||
+    bundledPackage.build?.appId !== CONFIG.APP_BUNDLE_ID ||
+    /youtube/i.test(bundledPackage.description || '')
+  ) {
+    throw new Error('Packaged package.json does not match the approved product identity.');
   }
 }
 
@@ -1017,6 +1085,8 @@ async function manualBuild(certs, env) {
   log('✅', 'Verified sharp native addon is present in packaged app.');
   removeUnusedLoginHelper(appPath);
   log('✅', 'Removed the unused login-item helper.');
+  await assertPackagedProductIdentity(appPath);
+  log('✅', 'Verified the installed name, bundle identity, and customer-facing branding.');
   await assertCleanRuntimePayload(appPath);
   log('✅', 'Verified the app contains only approved runtime files and native modules.');
   installBrandedAppIcon(appPath);
@@ -1473,6 +1543,7 @@ if (require.main === module) {
 
 module.exports = {
   assertCleanRuntimePayload,
+  assertPackagedProductIdentity,
   generateAutoBuildNumber,
   hasAltoolErrors,
   isDuplicateBundleVersionError,

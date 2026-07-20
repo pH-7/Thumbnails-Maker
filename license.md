@@ -1,4 +1,4 @@
-# MIT License - YouTube Thumbnail Maker Studio
+# MIT License - Video Thumbnail Maker
 
 *Copyright (c) 2025-2026 [Pierre-Henry Soria](https://pierrehenry.dev)*
 

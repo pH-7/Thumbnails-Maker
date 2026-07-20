@@ -67,4 +67,4 @@ If you have any questions or concerns about this Privacy Policy, please contact:
 
 ## Open Source
 
-YouTube Thumbnail Maker Studio is open-source software licensed under the [MIT License](license.md). You can review the complete source code at [https://github.com/pH-7/Thumbnails-Maker](https://github.com/pH-7/Thumbnails-Maker).
+Video Thumbnail Maker is open-source software licensed under the [MIT License](license.md). You can review the complete source code at [https://github.com/pH-7/Thumbnails-Maker](https://github.com/pH-7/Thumbnails-Maker).

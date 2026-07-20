@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>YouTube Thumbnail Maker Studio</title>
+  <title>Video Thumbnail Maker</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -996,11 +996,11 @@
 
 <body>
   <div class="container">
-    <h1>YouTube Thumbnail Maker Studio</h1>
-    <p class="subtitle">Create YouTube thumbnails using flexible grid layouts with multiple images</p>
+    <h1>Video Thumbnail Maker</h1>
+    <p class="subtitle">Create polished video thumbnails using flexible layouts and multiple photos</p>
 
     <div class="thumbnail-info">
-      Output size: 1280×720 pixels (standard YouTube thumbnail size)
+      Output size: 1280×720 pixels (standard widescreen thumbnail size)
     </div>
 
     <div class="button-container">
@@ -1148,12 +1148,12 @@
       </div>
 
       <div class="form-group">
-        <label for="youtubeOptimize">YouTube Optimization</label>
+        <label for="optimizeOutput">Output Optimization</label>
         <div class="toggle-switch">
-          <input type="checkbox" id="youtubeOptimize" checked>
-          <label for="youtubeOptimize"></label>
+          <input type="checkbox" id="optimizeOutput" checked>
+          <label for="optimizeOutput"></label>
         </div>
-        <div class="help-text">Optimize for YouTube by removing metadata and applying lossless compression</div>
+        <div class="help-text">Remove metadata and apply lossless compression to the exported image</div>
       </div>
 
       <!-- Text Overlay Feature -->
@@ -1324,7 +1324,7 @@
 
     <div class="form-group">
       <label for="outputName">Output File Name (optional):</label>
-      <input type="text" id="outputName" placeholder="e.g., my-youtube-thumbnail">
+      <input type="text" id="outputName" placeholder="e.g., my-video-thumbnail">
       <div class="help-text">Leave blank to use auto-generated name</div>
     </div>
   </div>
@@ -1402,7 +1402,7 @@
       outputNameInput: document.getElementById('outputName'),
       resultContainer: document.getElementById('resultContainer'),
       resultThumbnail: document.getElementById('resultThumbnail'),
-      youtubeOptimize: document.getElementById('youtubeOptimize'),
+      optimizeOutput: document.getElementById('optimizeOutput'),
       openFolderBtn: document.getElementById('openFolderBtn'),
       startOverBtn: document.getElementById('startOverBtn'),
       statusEl: document.getElementById('status'),
@@ -1448,7 +1448,7 @@
     let outputDir = null;
     let maxImages = 6; // Maximum number of images supported
 
-    // Grid layout configurations with innovative YouTube layouts
+    // Grid layout configurations with creative video layouts
     const GRID_LAYOUTS = {
       // Standard grid layouts
       '1x1': { rows: 1, cols: 1, maxImages: 1 },
@@ -1461,7 +1461,7 @@
       '3x2': { rows: 3, cols: 2, maxImages: 6 },
       'auto': { maxImages: 6 },
 
-      // Creative YouTube-optimized layouts
+      // Creative video-optimized layouts
       'hero-side': { maxImages: 4 },
       'corner-grid': { maxImages: 5 },
       'banner-split': { maxImages: 3 },
@@ -1502,7 +1502,7 @@
     };
 
     // Favorites management system
-    const FAVORITES_KEY = 'youtube-thumbnail-creator-favorites';
+    const FAVORITES_KEY = 'video-thumbnail-maker-favorites';
 
     // Function to get current preferences from the form
     function getCurrentPreferences() {
@@ -1512,7 +1512,7 @@
         delimiterTilt: parseNumberOrDefault(elements.delimiterTiltInput.value, DEFAULT_VALUES.DELIMITER_TILT),
         enhanceLevel: elements.enhanceLevel.value || DEFAULT_VALUES.ENHANCE_LEVEL,
         layoutMode: elements.layoutMode.value || 'auto',
-        youtubeOptimize: elements.youtubeOptimize.checked,
+        optimizeOutput: elements.optimizeOutput.checked,
         // Text overlay preferences
         textOverlay: {
           enabled: elements.enableTextOverlay.checked,
@@ -1639,8 +1639,8 @@
         // Apply layout mode
         elements.layoutMode.value = preferences.layoutMode || 'auto';
 
-        // Apply YouTube optimization
-        elements.youtubeOptimize.checked = preferences.youtubeOptimize !== undefined ? preferences.youtubeOptimize : true;
+        // Apply output optimization
+        elements.optimizeOutput.checked = preferences.optimizeOutput !== undefined ? preferences.optimizeOutput : true;
 
         // Apply text overlay preferences if available
         if (preferences.textOverlay) {
@@ -1846,7 +1846,7 @@
       const luminance = (0.299 * avgR + 0.587 * avgG + 0.114 * avgB) / 255;
 
       // Curated palette: [color, minLum, maxLum, label]
-      // Colors chosen for YouTube thumbnail readability
+      // Colors chosen for thumbnail readability
       const palette = [
         { color: '#FFFFFF', minLum: 0, maxLum: 0.45, label: 'white' },
         { color: '#F5F5F5', minLum: 0.35, maxLum: 0.50, label: 'off-white' },
@@ -1887,7 +1887,7 @@
         const cLum = relativeLuminance(cr, cg, cb);
         const ratio = contrastRatio(bgLum, cLum);
 
-        // Score: prioritize contrast ratio, with bonus for white/black (classic YouTube style)
+        // Score: prioritize contrast ratio, with a bonus for high-contrast white or black
         let score = ratio;
         const inPreferredRange = luminance >= entry.minLum && luminance <= entry.maxLum;
         if (inPreferredRange) {
@@ -2162,7 +2162,7 @@
       elements.enhanceLevel.value = DEFAULT_VALUES.ENHANCE_LEVEL;
       elements.tiltValueOutput.textContent = `${DEFAULT_VALUES.DELIMITER_TILT}°`;
       elements.outputNameInput.value = '';
-      elements.youtubeOptimize.checked = true;
+      elements.optimizeOutput.checked = true;
       elements.layoutMode.value = 'auto';
 
       // Reset text overlay to defaults
@@ -2440,7 +2440,7 @@
           validImagePaths.splice(requiredImages);
         }
 
-        const youtubeOptimize = elements.youtubeOptimize.checked;
+        const optimizeOutput = elements.optimizeOutput.checked;
         const textOverlaySettings = getTextOverlaySettings();
 
         const result = await ipcRenderer.invoke('create-thumbnail', {
@@ -2452,7 +2452,7 @@
           enhanceOptions,
           applyEnhance: enhanceLevel !== 'none',
           layoutMode: currentLayoutMode,
-          youtubeOptimize,
+          optimizeOutput,
           textOverlay: textOverlaySettings
         });
 

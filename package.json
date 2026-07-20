@@ -1,8 +1,8 @@
 {
   "name": "thumbnail-maker",
-  "productName": "YouTube Thumbnail Creator",
+  "productName": "Video Thumbnail Maker",
   "version": "4.2.0",
-  "description": "Create professional YouTube thumbnails with multiple images, custom layouts, and intelligent enhancement features.",
+  "description": "Create professional video thumbnails with multiple images, custom layouts, and intelligent enhancement features.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -29,7 +29,7 @@
   "license": "MIT",
   "build": {
     "appId": "ph7.me.youtube-thumbnail-combiner",
-    "productName": "YouTube Thumbnail Creator",
+    "productName": "Video Thumbnail Maker",
     "asarUnpack": [
       "**/node_modules/sharp/**/*",
       "**/node_modules/@img/**/*"

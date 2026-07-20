@@ -69,6 +69,39 @@ describe('store release readiness', () => {
     expect(pipeline).toContain('unrestricted-network metadata');
   });
 
+  test('Mac product identity matches the App Store and supports reopening its window', () => {
+    const packageJson = require('../package.json');
+    const mainProcess = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+    const pipeline = fs.readFileSync(path.join(root, 'scripts/mas-publish-pipeline.js'), 'utf8');
+    const customerFacingFiles = [
+      'main.js',
+      'index.html',
+      'license.md',
+      'fastlane/metadata/mac/en-US/name.txt',
+      'fastlane/metadata/mac/en-US/description.txt',
+      'fastlane/metadata/mac/en-US/promotional_text.txt',
+      'fastlane/metadata/mac/en-US/keywords.txt',
+      'fastlane/metadata/mac/en-US/release_notes.txt',
+      'scripts/generate-macos-screenshots.js',
+      'scripts/macos-screenshot-template.html',
+    ];
+
+    expect(packageJson.productName).toBe('Video Thumbnail Maker');
+    expect(packageJson.build.productName).toBe('Video Thumbnail Maker');
+    expect(packageJson.build.appId).toBe('ph7.me.youtube-thumbnail-combiner');
+    expect(packageJson.description).not.toMatch(/youtube/i);
+    expect(mainProcess).toContain("app.setName(APP_NAME)");
+    expect(mainProcess).toContain("label: 'Main Window'");
+    expect(mainProcess).toContain('click: showMainWindow');
+    expect(pipeline).toContain('assertPackagedProductIdentity(appPath)');
+    expect(pipeline).toContain("identity.displayName !== CONFIG.PRODUCT_NAME");
+
+    for (const relativePath of customerFacingFiles) {
+      const contents = fs.readFileSync(path.join(root, relativePath), 'utf8');
+      expect(contents).not.toMatch(/youtube/i);
+    }
+  });
+
   test('desktop previews encode local file paths safely', () => {
     const desktopHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 

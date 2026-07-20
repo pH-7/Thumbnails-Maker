@@ -14,10 +14,10 @@ const HEIGHT = 1800;
 
 const SCREENS = [
   { layout: '2x2', count: 4, mode: 'standard', headline: 'Build polished thumbnails faster', sub: 'Combine photos, tune the layout and export without leaving your Mac.' },
-  { layout: '3x3', count: 9, mode: 'standard', headline: 'Smart grids for every story', sub: 'Choose from classic grids and creative layouts for up to nine photos.' },
+  { layout: '2x3', count: 6, mode: 'standard', headline: 'Smart grids for every story', sub: 'Choose from classic grids and creative layouts for up to six photos.' },
   { layout: '1x2', count: 2, mode: 'standard', headline: 'Fine-tune every detail', sub: 'Control spacing, colour, tilt and enhancement with precise desktop tools.' },
   { layout: '1x1', count: 1, mode: 'text', headline: 'Add bold text that stands out', sub: 'Style your message with presets, positioning and effects made for thumbnails.' },
-  { layout: 'auto', count: 3, mode: 'export', headline: 'Always ready for YouTube', sub: 'Create a crisp 1280 × 720 image locally, privately and in seconds.' }
+  { layout: 'auto', count: 3, mode: 'export', headline: 'Ready for every video', sub: 'Create a crisp 1280 × 720 image locally, privately and in seconds.' }
 ];
 
 function screenshotUrl(screen) {

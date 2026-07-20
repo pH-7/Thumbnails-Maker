@@ -1,1 +1,1 @@
-thumbnail,youtube,photo grid,collage,video,creator,combine,montage,layout,image
+thumbnail maker,video thumbnail,photo grid,collage,creator,combine,montage,layout,image

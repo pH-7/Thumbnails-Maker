@@ -54,7 +54,7 @@ platform :mac do
   desc "Upload Mac metadata and screenshots, then submit the uploaded build"
   lane :publish_store_listing do
     screenshots
-    remediation_note = 'This replacement build updates the desktop runtime to Electron 43.1.1 and Sharp 0.35.3. The packaged app now contains only the production application and its Darwin image-processing library; development tools, Ruby/Fastlane files, tests, coverage output, and iOS native binaries have been removed. Unused audio-capture and unrestricted-network metadata were also removed, and all 20 thumbnail layouts, enhancement, preview, and output-saving workflows were reverified.'
+    remediation_note = 'This replacement build resolves Guidelines 4.1(a), 2.3.8, and 4. The installed app, Finder name, menu bar, About and Quit items, main window, screenshots, and App Store metadata now consistently use Video Thumbnail Maker. Customer-facing third-party platform references were removed from the macOS app and listing. The bundle identifier remains unchanged so existing users can update. Window > Main Window now restores or recreates the workspace after its window is closed. The previously approved runtime hardening remains in place, and all thumbnail layouts, enhancement, preview, and local-saving workflows were reverified.'
     review_info = {
       first_name: ENV['APP_REVIEW_FIRST_NAME'],
       last_name: ENV['APP_REVIEW_LAST_NAME'],
@@ -135,7 +135,7 @@ platform :mac do
     sh("mkdir -p ../build/mac-app-store")
     
     # Use electron-packager for packaging (more reliable than electron-builder for Mac App Store)
-    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='#{resolved_mac_app_version}'")
+    sh("cd .. && npx electron-packager . 'Video Thumbnail Maker' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='#{resolved_mac_app_version}'")
     
     # Set correct app category
     create_plist_file
@@ -162,7 +162,7 @@ platform :mac do
 EOL")
     
     # Merge with main Info.plist
-    sh("/usr/libexec/PlistBuddy -c 'Merge ../build/Info.plist.extra' '../build/mac-app-store/YouTube Thumbnail Creator-darwin-x64/YouTube Thumbnail Creator.app/Contents/Info.plist'")
+    sh("/usr/libexec/PlistBuddy -c 'Merge ../build/Info.plist.extra' '../build/mac-app-store/Video Thumbnail Maker-darwin-x64/Video Thumbnail Maker.app/Contents/Info.plist'")
   end
   
   # Find the right signing identity
@@ -224,7 +224,7 @@ EOL")
   # Sign the app components and main app
   desc "Sign the app with proper entitlements"
   lane :sign_mac_app do
-    app_path = "../build/mac-app-store/YouTube Thumbnail Creator-darwin-x64/YouTube Thumbnail Creator.app"
+    app_path = "../build/mac-app-store/Video Thumbnail Maker-darwin-x64/Video Thumbnail Maker.app"
     frameworks_path = "#{app_path}/Contents/Frameworks"
     
     # Copy entitlements files to the build directory
@@ -310,8 +310,8 @@ EOL")
   # Package the app for App Store
   desc "Create .pkg file for App Store"
   lane :package_mac_app do
-    app_path = "../build/mac-app-store/YouTube Thumbnail Creator-darwin-x64/YouTube Thumbnail Creator.app"
-    pkg_path = "../build/mac-app-store/YouTube Thumbnail Creator.pkg"
+    app_path = "../build/mac-app-store/Video Thumbnail Maker-darwin-x64/Video Thumbnail Maker.app"
+    pkg_path = "../build/mac-app-store/Video Thumbnail Maker.pkg"
     
     # DIRECT CERTIFICATE APPROACH - bypass all other mechanisms
     UI.important("🔐 Using direct certificate lookup (bypassing other mechanisms)")
@@ -461,7 +461,7 @@ EOL")
     build_mac_app
     
     # Then upload using altool
-    sh("xcrun altool --upload-app -f '../build/mac-app-store/YouTube Thumbnail Creator.pkg' -t macos -p '@keychain:AC_PASSWORD' --team-id '#{TEAM_ID}'")
+    sh("xcrun altool --upload-app -f '../build/mac-app-store/Video Thumbnail Maker.pkg' -t macos -p '@keychain:AC_PASSWORD' --team-id '#{TEAM_ID}'")
   end
   
   # Build without certificate handling (emergency fallback)
@@ -476,7 +476,7 @@ EOL")
     sh("mkdir -p ../build/mac-app-store")
     
     # Use electron-packager for packaging
-    sh("cd .. && npx electron-packager . 'YouTube Thumbnail Creator' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='#{resolved_mac_app_version}'")
+    sh("cd .. && npx electron-packager . 'Video Thumbnail Maker' --platform=darwin --arch=x64 --out=build/mac-app-store --overwrite --app-bundle-id='#{APP_BUNDLE_ID}' --app-version='#{resolved_mac_app_version}'")
     
     # Set correct app category
     create_plist_file

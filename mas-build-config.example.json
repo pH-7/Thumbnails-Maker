@@ -1,6 +1,6 @@
 {
   "appId": "ph7.me.youtube-thumbnail-combiner",
-  "productName": "YouTube Thumbnail Creator",
+  "productName": "Video Thumbnail Maker",
   "buildVersion": "2026.1.00000000",
   "forceCodeSigning": true,
   "mac": {

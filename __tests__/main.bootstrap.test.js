@@ -6,10 +6,16 @@ function loadMainModule({ mas = false } = {}) {
   const windowInstance = {
     loadFile: jest.fn(),
     on: jest.fn(),
+    isDestroyed: jest.fn().mockReturnValue(false),
+    isMinimized: jest.fn().mockReturnValue(false),
+    restore: jest.fn(),
+    show: jest.fn(),
+    focus: jest.fn(),
   };
 
   const handlers = new Map();
   const appEvents = new Map();
+  let menuTemplate = null;
 
   const electronMock = {
     app: {
@@ -17,6 +23,8 @@ function loadMainModule({ mas = false } = {}) {
         appendSwitch: jest.fn(),
       },
       whenReady: jest.fn().mockResolvedValue(undefined),
+      setName: jest.fn(),
+      setAboutPanelOptions: jest.fn(),
       on: jest.fn((eventName, callback) => {
         appEvents.set(eventName, callback);
       }),
@@ -36,6 +44,13 @@ function loadMainModule({ mas = false } = {}) {
     shell: {
       openExternal: jest.fn(),
     },
+    Menu: {
+      buildFromTemplate: jest.fn((template) => {
+        menuTemplate = template;
+        return { template };
+      }),
+      setApplicationMenu: jest.fn(),
+    },
   };
 
   jest.doMock('electron', () => electronMock);
@@ -54,6 +69,9 @@ function loadMainModule({ mas = false } = {}) {
     windowInstance,
     handlers,
     appEvents,
+    get menuTemplate() {
+      return menuTemplate;
+    },
     restore() {
       process.listeners('uncaughtException')
         .filter((listener) => !existingUncaughtListeners.has(listener))
@@ -92,7 +110,44 @@ describe('Main process bootstrap', () => {
     await Promise.resolve();
 
     expect(ctx.electronMock.BrowserWindow).toHaveBeenCalledTimes(1);
+    expect(ctx.electronMock.BrowserWindow).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Video Thumbnail Maker' })
+    );
     expect(ctx.windowInstance.loadFile).toHaveBeenCalledWith('index.html');
+    expect(ctx.electronMock.app.setName).toHaveBeenCalledWith('Video Thumbnail Maker');
+    expect(ctx.electronMock.app.setAboutPanelOptions).toHaveBeenCalledWith({
+      applicationName: 'Video Thumbnail Maker',
+    });
+    ctx.restore();
+  });
+
+  test('installs a Window menu that recreates the closed main window', async () => {
+    const ctx = loadMainModule({ mas: false });
+
+    await Promise.resolve();
+
+    const windowMenu = ctx.menuTemplate.find((item) => item.label === 'Window');
+    const mainWindowItem = windowMenu.submenu.find((item) => item.label === 'Main Window');
+    const closedListener = ctx.windowInstance.on.mock.calls.find(([event]) => event === 'closed')[1];
+
+    expect(mainWindowItem.accelerator).toBe('CmdOrCtrl+0');
+    closedListener();
+    mainWindowItem.click();
+
+    expect(ctx.electronMock.BrowserWindow).toHaveBeenCalledTimes(2);
+    ctx.restore();
+  });
+
+  test('Dock activation restores and focuses the existing main window', async () => {
+    const ctx = loadMainModule({ mas: false });
+
+    await Promise.resolve();
+    ctx.windowInstance.isMinimized.mockReturnValue(true);
+    ctx.appEvents.get('activate')();
+
+    expect(ctx.windowInstance.restore).toHaveBeenCalledTimes(1);
+    expect(ctx.windowInstance.show).toHaveBeenCalledTimes(1);
+    expect(ctx.windowInstance.focus).toHaveBeenCalledTimes(1);
     ctx.restore();
   });
 
