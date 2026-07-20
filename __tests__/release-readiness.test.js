@@ -42,6 +42,11 @@ describe('store release readiness', () => {
     expect(macGenerator).toContain('const WIDTH = 2880');
     expect(macGenerator).toContain('const HEIGHT = 1800');
     expect(macGenerator).toContain('flatten({ background:');
+    expect(macGenerator).toContain("scenario: 'TRAVEL VLOGS'");
+    expect(macGenerator).toContain("scenario: 'COOKING TUTORIALS'");
+    expect(macGenerator).toContain("scenario: 'GAMING CHANNELS'");
+    expect(macGenerator).toContain("scenario: 'PODCASTS & REVIEWS'");
+    expect(macGenerator).toContain("frames: '0,3,6,7,8,4'");
     expect(fs.existsSync(path.join(root, 'store-assets/creator-scenes.png'))).toBe(true);
   });
 

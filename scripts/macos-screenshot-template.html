@@ -60,7 +60,7 @@
   <main class="stage">
     <div class="copy">
       <div>
-        <div class="eyebrow">VIDEO THUMBNAIL MAKER FOR MAC</div>
+        <div class="eyebrow" id="eyebrow">VIDEO THUMBNAIL MAKER FOR MAC</div>
         <div class="headline" id="headline"></div>
       </div>
       <div class="sub" id="sub"></div>
@@ -77,7 +77,7 @@
             <div class="dimension">1280 × 720</div>
           </div>
           <div class="canvas-wrap" id="canvasWrap">
-            <div class="text-overlay">NEW VIDEO</div>
+            <div class="text-overlay" id="textOverlay">NEW VIDEO</div>
           </div>
           <div class="preview-footer">
             <div class="status">Ready to export</div>
@@ -115,12 +115,17 @@
     (function () {
       const params = new URLSearchParams(location.search);
       const layout = params.get('layout') || '2x2';
-      const count = Number.parseInt(params.get('count') || '4', 10);
+      const frameIndexes = (params.get('frames') || '0,1,2,3')
+        .split(',')
+        .map((value) => Number.parseInt(value, 10))
+        .filter(Number.isFinite);
       const mode = params.get('mode') || 'standard';
       document.body.classList.toggle('text-mode', mode === 'text');
       document.body.classList.toggle('export-mode', mode === 'export');
+      document.getElementById('eyebrow').textContent = `VIDEO THUMBNAIL MAKER · ${params.get('scenario') || 'FOR MAC'}`;
       document.getElementById('headline').textContent = params.get('headline') || 'Build polished thumbnails faster';
       document.getElementById('sub').textContent = params.get('sub') || 'Combine photos, tune the layout and export on your Mac.';
+      document.getElementById('textOverlay').textContent = params.get('overlay') || 'NEW VIDEO';
 
       function loadSheet() {
         return new Promise((resolve, reject) => {
@@ -137,9 +142,32 @@
         canvas.height = 360;
         const col = index % 3;
         const row = Math.floor(index / 3) % 3;
-        const width = sheet.naturalWidth / 3;
-        const height = sheet.naturalHeight / 3;
-        canvas.getContext('2d').drawImage(sheet, col * width + 4, row * height + 4, width - 8, height - 8, 0, 0, 640, 360);
+        const cellWidth = sheet.naturalWidth / 3;
+        const cellHeight = sheet.naturalHeight / 3;
+        const gutter = Math.max(4, Math.round(Math.min(cellWidth, cellHeight) * 0.012));
+        const availableWidth = cellWidth - gutter * 2;
+        const availableHeight = cellHeight - gutter * 2;
+        const targetRatio = canvas.width / canvas.height;
+        const verticalFocalPoints = [0.5, 0.45, 0.46, 0.22, 0.5, 0.42, 0.48, 0.48, 0.48];
+        let sourceWidth = availableWidth;
+        let sourceHeight = sourceWidth / targetRatio;
+        if (sourceHeight > availableHeight) {
+          sourceHeight = availableHeight;
+          sourceWidth = sourceHeight * targetRatio;
+        }
+        const sourceX = col * cellWidth + gutter + (availableWidth - sourceWidth) / 2;
+        const sourceY = row * cellHeight + gutter + (availableHeight - sourceHeight) * verticalFocalPoints[index];
+        canvas.getContext('2d').drawImage(
+          sheet,
+          sourceX,
+          sourceY,
+          sourceWidth,
+          sourceHeight,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
         return canvas;
       }
 
@@ -153,7 +181,7 @@
 
       async function build() {
         const sheet = await loadSheet();
-        const frames = Array.from({ length: count }, (_, index) => makeFrame(sheet, index));
+        const frames = frameIndexes.map((index) => makeFrame(sheet, index));
         const images = await Promise.all(frames.map(toImage));
         const canvas = ThumbnailEngine.compose({ images, layout, delimiterWidth: 18, delimiterColor: '#ffffff', delimiterTilt: 0, enhance: true });
         document.getElementById('canvasWrap').prepend(canvas);
@@ -166,7 +194,7 @@
           sourceWrap.appendChild(source);
         });
 
-        const choices = [['auto', 'Smart'], ['1x2', 'Side by side'], ['2x2', '2 × 2'], ['2x3', '2 × 3'], ['hero-side', 'Hero + Side'], ['magazine-grid', 'Magazine']];
+        const choices = [['auto', 'Smart'], ['1x1', 'Single'], ['1x2', 'Side by side'], ['1x3', 'Three across'], ['2x3', '2 × 3'], ['hero-side', 'Hero + Side']];
         const layoutWrap = document.getElementById('layouts');
         choices.forEach(([key, label]) => {
           const item = document.createElement('div');

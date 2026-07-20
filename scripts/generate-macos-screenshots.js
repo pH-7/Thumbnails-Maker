@@ -13,11 +13,49 @@ const WIDTH = 2880;
 const HEIGHT = 1800;
 
 const SCREENS = [
-  { layout: '2x2', count: 4, mode: 'standard', headline: 'Build polished thumbnails faster', sub: 'Combine photos, tune the layout and export without leaving your Mac.' },
-  { layout: '2x3', count: 6, mode: 'standard', headline: 'Smart grids for every story', sub: 'Choose from classic grids and creative layouts for up to six photos.' },
-  { layout: '1x2', count: 2, mode: 'standard', headline: 'Fine-tune every detail', sub: 'Control spacing, colour, tilt and enhancement with precise desktop tools.' },
-  { layout: '1x1', count: 1, mode: 'text', headline: 'Add bold text that stands out', sub: 'Style your message with presets, positioning and effects made for thumbnails.' },
-  { layout: 'auto', count: 3, mode: 'export', headline: 'Ready for every video', sub: 'Create a crisp 1280 × 720 image locally, privately and in seconds.' }
+  {
+    scenario: 'TRAVEL VLOGS',
+    layout: 'hero-side',
+    frames: '0,1,2,8',
+    mode: 'text',
+    overlay: 'COASTAL ESCAPE',
+    headline: 'Make every journey impossible to miss',
+    sub: 'Bring destination, detail and personality into one polished travel thumbnail.'
+  },
+  {
+    scenario: 'COOKING TUTORIALS',
+    layout: '1x3',
+    frames: '3,4,5',
+    mode: 'text',
+    overlay: 'DINNER IN 20',
+    headline: 'Turn recipes into must-watch moments',
+    sub: 'Show the creator, the process and the finished dish in one appetizing cover.'
+  },
+  {
+    scenario: 'EVERY CREATOR',
+    layout: '2x3',
+    frames: '0,3,6,7,8,4',
+    mode: 'standard',
+    headline: 'One tool for every kind of video',
+    sub: 'Travel, food, gaming, podcasts and reviews — combine up to six photos with ease.'
+  },
+  {
+    scenario: 'GAMING CHANNELS',
+    layout: '1x1',
+    frames: '6',
+    mode: 'text',
+    overlay: 'BIG WIN',
+    headline: 'Put your message center stage',
+    sub: 'Add bold text and vibrant enhancement for a thumbnail that stands out instantly.'
+  },
+  {
+    scenario: 'PODCASTS & REVIEWS',
+    layout: '1x2',
+    frames: '7,8',
+    mode: 'export',
+    headline: 'Export sharp 1280 × 720 artwork',
+    sub: 'Create locally, keep every photo private and save a polished PNG in seconds.'
+  }
 ];
 
 function screenshotUrl(screen) {
