@@ -244,7 +244,7 @@ This **Video Thumbnail Maker** is licensed under the [MIT License](license.md).
 
 
 <!-- GitHub's Markdown reference links -->
-[x-icon]: https://img.shields.io/badge/x-000000?style=for-the-badge&logo=x
-[bsky-icon]: https://img.shields.io/badge/BlueSky-00A8E8?style=for-the-badge&logo=bluesky&logoColor=white
-[youtube-icon]: https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white
-[github-icon]: https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white
+[x-icon]: https://img.shields.io/badge/X-24292F?style=for-the-badge&logo=x&logoColor=white
+[bsky-icon]: https://img.shields.io/badge/BlueSky-24292F?style=for-the-badge&logo=bluesky&logoColor=white
+[youtube-icon]: https://img.shields.io/badge/YouTube-24292F?style=for-the-badge&logo=youtube&logoColor=white
+[github-icon]: https://img.shields.io/badge/GitHub-24292F?style=for-the-badge&logo=github&logoColor=white
