@@ -1,4 +1,4 @@
-# Video Thumbnail Maker 📸🎨
+# Video Thumbnail Maker: Multi-Layout Creator 📸🎨
 
 <p align="center">
   <img src="media/video-thumbnail-maker-macos.png" alt="Video Thumbnail Maker for macOS creating a travel vlog thumbnail" width="100%">
@@ -10,9 +10,9 @@
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT">
 </p>
 
-Create professional **video thumbnails** with flexible grid layouts supporting 1 to 6 images. 🎨
+Create professional **multi-layout thumbnails for YouTube videos and other platforms** with flexible grid layouts supporting 1 to 6 images. 🎨
 
-Perfect for vlogs, tutorials, cooking videos, travel content, gaming, courses, and more. The intelligent Smart Layout system helps you generate professional thumbnails that can boost engagement with your videos.
+Perfect for YouTube vlogs, tutorials, cooking videos, travel content, gaming, courses, reactions, "Day in the Life" (DITL) videos, and more. The intelligent Smart Layout system with 8 grid configurations helps you generate professional thumbnails that can boost engagement with your videos.
 
 **🆕 What's New in v4**:
 - 🚀 **Improved stability**: More reliable thumbnail generation and image processing
@@ -31,6 +31,7 @@ Perfect for vlogs, tutorials, cooking videos, travel content, gaming, courses, a
 - [🧪 Testing](#-testing)
 - [🛠️ Development](#%EF%B8%8F-development)
 - [👨‍🍳 Who made this?](#-who-made-this)
+- [🎥 Watch me build apps like this](#-watch-me-build-apps-like-this)
 - [⚖️ License](#%EF%B8%8F-license)
 
 ## ⚙️ Requirements
@@ -83,7 +84,7 @@ Listing metadata lives in [`fastlane/metadata/ios/`](fastlane/metadata/ios/) and
 - **1 to 6 images support**: Create thumbnails with any number of images
 - **Smart adaptation**: System automatically adjusts layouts when you have fewer images than the selected grid requires
 - **No workflow interruptions**: "Create Thumbnail" button always available when you have at least 1 image
-- **Standard widescreen dimensions**: All thumbnails output at 1280×720 pixels
+- **Standard YouTube-ready dimensions**: All thumbnails output at 1280×720 pixels
 
 ### 🎨 **Custom Grid Layouts**
 - **Linear layouts**: 1×2, 1×3, 2×1, 3×1 for side-by-side and stacked arrangements
@@ -107,7 +108,7 @@ Listing metadata lives in [`fastlane/metadata/ios/`](fastlane/metadata/ios/) and
 ### 🎛️ **Customization Options**
 - **Delimiter controls**: Adjust width, color, and tilt angle for separators between images
 - **Image enhancement**: Choose from None, Light, Medium, or High enhancement levels
-- **Output optimization**: Automatic metadata stripping and lossless compression
+- **YouTube-ready optimization**: Automatic metadata stripping and lossless compression
 - **Custom naming**: Optional output filename customization
 
 ### 📁 **Export & Management**
@@ -156,7 +157,7 @@ The Auto mode uses advanced analysis to recommend optimal layouts:
 - **Memory management**: Efficient buffer handling prevents memory issues with multiple images
 - **Batch processing**: Parallel image analysis with comprehensive error resilience
 
-### Output Optimizations
+### YouTube-Ready Output Optimizations
 - **Metadata stripping**: Removes EXIF data for faster uploads and privacy
 - **Progressive encoding**: PNG optimization for better compression ratios
 - **Adaptive filtering**: Smart compression algorithms preserve visual quality
@@ -183,7 +184,7 @@ npm test
 - **Grid Layout System**: Validates all 8 layout configurations
 - **Image Analysis**: Tests aspect ratio and orientation detection
 - **Smart Algorithm**: Verifies layout selection logic
-- **Thumbnail Dimensions**: Ensures consistent 1280×720 output
+- **Thumbnail Dimensions**: Ensures consistent YouTube-ready 1280×720 output
 - **Cell Calculations**: Validates grid positioning math
 
 ### Test Results
@@ -227,9 +228,14 @@ For MAS publishing, copy `.env.example` to `.env`, then fill in your Apple signi
 
 **Pierre-Henry Soria**. A super passionate and enthusiastic software engineer! 🚀 True cheese 🧀 , coffee, and chocolate lover! 😋 Reach me at [pH7.me](https://ph7.me) 💫
 
-[![@phenrysay][x-icon]](https://x.com/phenrysay "Follow Me on X") [![pH-7][github-icon]](https://github.com/pH-7 "Follow Me on GitHub") [![BlueSky][bsky-icon]](https://bsky.app/profile/pierrehenry.dev "Follow Me on BlueSky")
+[![YouTube Tech Videos][youtube-icon]](https://www.youtube.com/@pH7Programming "My YouTube Tech Channel") [![@phenrysay][x-icon]](https://x.com/phenrysay "Follow Me on X") [![pH-7][github-icon]](https://github.com/pH-7 "Follow Me on GitHub") [![BlueSky][bsky-icon]](https://bsky.app/profile/pierrehenry.dev "Follow Me on BlueSky")
 
 ☕️ **Enjoying this project?** [Buy me a coffee](https://ko-fi.com/phenry) (my favorite is almond flat white ☕️)
+
+
+## 🎥 Watch me build apps like this
+
+Subscribe to my YouTube channel to watch me explain how I build apps from scratch, just like this one: [@pH7Programming](https://www.youtube.com/@pH7Programming/videos) 🎬
 
 
 ## ⚖️ License
@@ -240,4 +246,5 @@ This **Video Thumbnail Maker** is licensed under the [MIT License](license.md).
 <!-- GitHub's Markdown reference links -->
 [x-icon]: https://img.shields.io/badge/x-000000?style=for-the-badge&logo=x
 [bsky-icon]: https://img.shields.io/badge/BlueSky-00A8E8?style=for-the-badge&logo=bluesky&logoColor=white
+[youtube-icon]: https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white
 [github-icon]: https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white
