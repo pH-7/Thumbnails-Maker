@@ -1,6 +1,14 @@
 # Video Thumbnail Maker 📸🎨
 
-![Version](https://img.shields.io/badge/version-4.0.0-blue.svg) ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
+<p align="center">
+  <img src="media/video-thumbnail-maker-macos.png" alt="Video Thumbnail Maker for macOS creating a travel vlog thumbnail" width="100%">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-4.2.0-blue.svg" alt="Version 4.2.0">
+  <img src="https://img.shields.io/badge/platform-macOS-lightgrey.svg" alt="Platform: macOS">
+  <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT">
+</p>
 
 Create professional **video thumbnails** with flexible grid layouts supporting 1 to 6 images. 🎨
 
